@@ -1,6 +1,7 @@
 // Each source's answer becomes the same shape as a row in the `jobs` table.
-import { dedupeKey, sanitizeHtml, sha1, toISO, num, decodeEntities } from "./util.mjs";
+import { dedupeKey, normCompany, sanitizeHtml, sha1, toISO, num, decodeEntities } from "./util.mjs";
 import { placeParts, extractState, STATE_NAMES } from "./au.mjs";
+import { blocks, tagText } from "./xml.mjs";
 
 const clip = (s, n) => String(s ?? "").slice(0, n);
 const typeWords = t => { const x = String(t ?? "").toLowerCase().replace(/[_-]+/g, " "); return /full/.test(x) ? "Full time" : /part/.test(x) ? "Part time" : /casual/.test(x) ? "Casual" : /contract|temp|fixed/.test(x) ? "Contract" : /intern|graduate|apprentice|trainee/.test(x) ? "Graduate or intern" : /permanent/.test(x) ? "" : clip(String(t ?? "").trim(), 40); };
@@ -15,6 +16,8 @@ function finish(j) {
     job_type: j.job_type ? clip(j.job_type, 60) : null, category: j.category ? clip(j.category, 120) : null, url: j.url, posted_at: j.posted_at ?? null
   };
   row.dedupe_key = dedupeKey({ title: row.title, company: row.company, city: row.city || row.state || "" });
+  row.company_key = normCompany(row.company) || null;   // matches employers.name_key, so aggregator listings for companies we read directly can be hidden
+  row.employer_id = j.employer_id ?? null;
   return row;
 }
 
@@ -76,6 +79,27 @@ export const ATS = {
     map: r => ({ id: r.id, title: r.title, location: r.location || [r.city, r.state_code].filter(Boolean).join(", "), url: r.careers_url, posted: r.published_at || r.created_at, html: r.description, type: r.employment_type_code, category: r.department, remote: !!r.remote, country: r.country_code || r.country || "" })
   }
 };
+// Personio publishes an official XML feed of open positions (developer.personio.de). It has an office but no country, so the office decides.
+ATS.personio = {
+  format: "xml",
+  url: t => `https://${t}.jobs.personio.de/xml?language=en`,
+  list: text => blocks(text, "position"),
+  map: (b, e) => ({ id: tagText(b, "id"), title: tagText(b, "name"), location: tagText(b, "office"), url: `https://${e.token}.jobs.personio.de/job/${tagText(b, "id")}`, posted: tagText(b, "createdAt"),
+    html: blocks(b, "jobDescription").map(d => `<h3>${tagText(d, "name")}</h3>${tagText(d, "value")}`).join(""), type: tagText(b, "schedule") || tagText(b, "employmentType"), category: tagText(b, "department"), remote: false, country: "" })
+};
+// Teamtailor offers an official RSS feed: the jobs page address with .rss on the end (support.teamtailor.com, "RSS feed: how-to guide").
+ATS.teamtailor = {
+  format: "xml",
+  url: (t, offset = 0) => `https://${t}.teamtailor.com/jobs.rss?per_page=100&offset=${offset}`,
+  list: text => blocks(text, "item"),
+  more: (d, offset, list) => list.length >= 100,
+  map: b => {
+    const locs = blocks(b, "tt:location").map(l => [tagText(l, "tt:city") || tagText(l, "tt:name"), tagText(l, "tt:country")].filter(Boolean).join(", ")).filter(Boolean);
+    const link = tagText(b, "link");
+    return { id: tagText(b, "guid") || link, title: tagText(b, "title"), location: locs.join("; "), url: link, posted: tagText(b, "pubDate"), html: tagText(b, "description"), type: "", category: tagText(b, "tt:department"),
+      remote: /^(fully|full|remote)/i.test(tagText(b, "remoteStatus")), country: "" };
+  }
+};
 ATS.lever_eu = { ...ATS.lever, url: t => `https://api.eu.lever.co/v0/postings/${t}?mode=json` };
 export const ATS_NAMES = Object.keys(ATS);
 
@@ -86,7 +110,7 @@ export function mapEmployerJob(ats, raw, employer) {
   const row = finish({
     source: `employer:${ats === "lever_eu" ? "lever" : ats}`, source_id: `${employer.token}:${x.id}`, title: x.title, company: employer.name, location: x.location,
     description: x.html ? sanitizeHtml(x.html) : x.text ? sanitizeHtml(plain) : "",
-    salary_text: x.salaryText, job_type: typeWords(x.type), category: x.category, is_remote: x.remote, url: x.url, posted_at: toISO(x.posted)
+    salary_text: x.salaryText, job_type: typeWords(x.type), category: x.category, is_remote: x.remote, url: x.url, posted_at: toISO(x.posted), employer_id: employer.id
   });
   return { row, country: x.country || "" };
 }

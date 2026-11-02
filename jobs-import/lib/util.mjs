@@ -33,16 +33,16 @@ export function limiter(ms) {
 }
 
 // JSON over HTTP: waits and tries again (up to 3 times) on 429 and 5xx. Every attempt counts against the budget.
-export async function fetchJSON(url, { method = "GET", headers = {}, body, budget, wait, tries = 3, fetchImpl = fetch } = {}) {
+export async function fetchJSON(url, { method = "GET", headers = {}, body, budget, wait, tries = 3, fetchImpl = fetch, as = "json", timeout = 20000 } = {}) {
   let last;
   for (let t = 1; t <= tries; t++) {
     if (budget && !budget.take()) throw new BudgetSpent();
     if (wait) await wait();
     try {
-      const res = await fetchImpl(url, { method, headers: { "User-Agent": UA, Accept: "application/json", ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+      const res = await fetchImpl(url, { method, headers: { "User-Agent": UA, Accept: "application/json", ...(body !== undefined ? { "Content-Type": "application/json" } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeout) });
       if (res.status === 429 || res.status >= 500) { last = Object.assign(new Error(`HTTP ${res.status} from ${new URL(url).host}`), { status: res.status }); if (t < tries) await sleep(1000 * 2 ** t); continue; }
       if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status} from ${new URL(url).host}`), { status: res.status, fatal: true });
-      return await res.json();
+      return as === "text" ? await res.text() : await res.json();
     } catch (e) {
       if (e.fatal || e.budgetSpent) throw e;
       last = e;

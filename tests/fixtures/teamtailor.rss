@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/locations">
+  <channel>
+    <title>Example jobs</title>
+    <item>
+      <guid>https://example.teamtailor.com/jobs/111-civil-engineer</guid>
+      <pubDate>Tue, 20 Oct 2026 01:02:03 +0000</pubDate>
+      <title>Civil Engineer</title>
+      <description><![CDATA[<p>Design roads and drainage.</p><iframe src="https://bad.example"></iframe>]]></description>
+      <link>https://example.teamtailor.com/jobs/111-civil-engineer</link>
+      <remoteStatus>none</remoteStatus>
+      <tt:department>Engineering</tt:department>
+      <tt:locations>
+        <tt:location><tt:name>Melbourne office</tt:name><tt:city>Melbourne</tt:city><tt:country>Australia</tt:country></tt:location>
+      </tt:locations>
+    </item>
+    <item>
+      <guid>https://example.teamtailor.com/jobs/222-designer</guid>
+      <pubDate>Mon, 19 Oct 2026 01:02:03 +0000</pubDate>
+      <title>Product Designer</title>
+      <description><![CDATA[<p>Remote role.</p>]]></description>
+      <link>https://example.teamtailor.com/jobs/222-designer</link>
+      <remoteStatus>fully</remoteStatus>
+      <tt:department>Design</tt:department>
+      <tt:locations>
+        <tt:location><tt:name>Stockholm</tt:name><tt:city>Stockholm</tt:city><tt:country>Sweden</tt:country></tt:location>
+      </tt:locations>
+    </item>
+  </channel>
+</rss>

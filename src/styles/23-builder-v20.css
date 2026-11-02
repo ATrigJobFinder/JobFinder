@@ -71,3 +71,16 @@
 .jb-dbfoot { display: grid; gap: 10px; margin-top: 14px; }
 .jb-pager { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .job-src a { color: inherit; text-decoration: underline; }
+
+/* Find jobs: direct from employer, companies hiring */
+.jb-direct { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 4px 0 8px; }
+.jb-companies { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin: 4px 0 10px; background: var(--surface-2); }
+.jb-companies summary { cursor: pointer; font-weight: 600; }
+.jb-companies[open] summary { margin-bottom: 8px; }
+.jb-company-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; max-height: 18rem; overflow: auto; margin-top: 8px; }
+.jb-company { display: grid; gap: 1px; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.jb-company:hover { border-color: var(--accent); }
+.jb-company b { font-size: var(--step--1); }
+.jb-company span { font-size: 0.75rem; color: var(--muted); }
+.jb-company-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; border: 1px solid var(--accent); border-radius: 10px; padding: 10px 14px; margin: 6px 0 10px; background: var(--accent-soft); }
+.jb-company-head[hidden], .jb-direct[hidden], .jb-companies[hidden] { display: none; }

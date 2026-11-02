@@ -167,7 +167,7 @@ test("a failed employer feed throws, so nothing of its is deleted", async () => 
 });
 test("employer jobs outside Australia, and non-engineering jobs, are dropped", async () => {
   const gh = fx("greenhouse.json");
-  const r = await fetchEmployer({ name: "IMC", ats: "greenhouse", token: "imc" }, { cfg: { engineering_only: true }, wait: async () => {}, fetchImpl: async () => jsonRes(gh) });
+  const r = await fetchEmployer({ name: "IMC", ats: "greenhouse", token: "imc" }, { engineeringOnly: true, wait: async () => {}, fetchImpl: async () => jsonRes(gh) });
   assert.equal(r.total, gh.jobs.length);
   assert.ok(r.rows.every(j => isAustralian({ location: j.location }) && /engineer|intern|research|developer|quant|trad/i.test(j.title + j.category) || true));
   assert.ok(r.rows.every(j => j.state));

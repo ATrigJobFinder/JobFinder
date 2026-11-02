@@ -1,5 +1,6 @@
 {
   "engineering_only": true,
+  "employers_engineering_only": false,
   "adzuna": {
     "validate_categories": false,
     "categories": ["engineering-jobs"],

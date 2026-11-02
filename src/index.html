@@ -806,6 +806,16 @@
         <label class="field" for="jbSource">From<select id="jbSource" data-jbf="source"><option value="">Everywhere</option><option value="site">Posted on Job Finder</option><option value="other">Company sites and job boards</option><option value="user">Saved by you</option></select></label>
         <label class="field" for="jbSort">Sort<select id="jbSort" data-jbf="sort"><option value="match">Best match</option><option value="new">Newest</option></select></label>
       </div>
+      <div class="jb-direct" id="jbDirectBar" hidden>
+        <label class="q-check"><input type="checkbox" id="jbDirect"> Direct from employer only</label>
+        <span class="small muted">Jobs read straight from the company's own job board, with the full description.</span>
+      </div>
+      <details class="jb-companies" id="jbCompanies" hidden>
+        <summary>Companies hiring <span class="small muted" id="jbCompaniesCount"></span></summary>
+        <label class="field" for="jbCompanyQ">Find a company<input type="search" id="jbCompanyQ" placeholder="Company name" autocomplete="off"></label>
+        <div class="jb-company-list" id="jbCompanyList"></div>
+      </details>
+      <div class="jb-company-head" id="jbCompanyHead" hidden></div>
       <p class="small" id="jbSummary" aria-live="polite"></p>
       <div class="jb-list" id="jbList"></div>
     </div>

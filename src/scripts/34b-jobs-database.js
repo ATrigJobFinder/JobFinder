@@ -4,7 +4,7 @@
 // The address and public key are JOBS_CFG in 07a. Leave them empty and Find jobs shows its examples.
 const jobsDbOn = () => !!(JOBS_CFG.url && JOBS_CFG.anonKey);
 const DB_PAGE = 20;
-const dbJobs = { rows: [], total: 0, page: 0, ready: false, loading: false, error: "", updated: "", sig: "", seq: 0, timer: null };
+const dbJobs = { rows: [], total: 0, page: 0, ready: false, loading: false, error: "", updated: "", sig: "", seq: 0, timer: null, direct: false, employer: null, companies: null };
 const DB_SOURCES = { adzuna: { name: "Adzuna", url: "https://www.adzuna.com.au", type: "aggregator" }, jooble: { name: "Jooble", url: "https://au.jooble.org", type: "aggregator" } };
 const dbHeaders = () => ({ apikey: JOBS_CFG.anonKey, Authorization: "Bearer " + JOBS_CFG.anonKey, "Content-Type": "application/json" });
 const dbBase = () => JOBS_CFG.url.replace(/\/+$/, "") + "/rest/v1";
@@ -32,7 +32,7 @@ const dbFeed = () => dbJobs.rows.map(dbRowToJob);
 const STATE_CODES = /^(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)$/i;
 function dbQuery() {
   const w = jobsUI.where.trim(), state = STATE_CODES.test(w) ? w.toUpperCase() : "";
-  return { q: jobsUI.q.trim(), p_state: state, p_where: state ? "" : w, p_type: jobsUI.type || "", p_category: "" };
+  return { q: jobsUI.q.trim(), p_state: state, p_where: state ? "" : w, p_type: jobsUI.type || "", p_category: "", p_direct: !!dbJobs.direct, p_employer: dbJobs.employer ? dbJobs.employer.id : null };
 }
 async function loadDbJobs(force) {
   if (!jobsDbOn()) return;
@@ -42,7 +42,10 @@ async function loadDbJobs(force) {
   dbJobs.loading = true; dbJobs.error = "";
   if (currentView === "jobs") renderJobs();
   try {
-    const res = await fetch(dbBase() + "/rpc/search_jobs", { method: "POST", headers: dbHeaders(), body: JSON.stringify({ ...args, lim: DB_PAGE, off: dbJobs.page * DB_PAGE }), signal: AbortSignal.timeout(20000) });
+    const ask = a => fetch(dbBase() + "/rpc/search_jobs", { method: "POST", headers: dbHeaders(), body: JSON.stringify({ ...a, lim: DB_PAGE, off: dbJobs.page * DB_PAGE }), signal: AbortSignal.timeout(20000) });
+    let res = await ask(args);
+    // before 002_employers.sql has been run the search function doesn't know the employer options: ask the older way
+    if (!res.ok && (res.status === 404 || res.status === 400) && !args.p_direct && !args.p_employer) { const { p_direct, p_employer, ...old } = args; res = await ask(old); }
     if (!res.ok) throw new Error(res.status === 404 ? "The jobs tables aren't set up in the database yet." : `The jobs database answered with an error (${res.status}).`);
     const rows = await res.json();
     if (seq !== dbJobs.seq) return;
@@ -84,5 +87,55 @@ onInit(() => {
     dbJobs.page = Math.max(0, dbJobs.page + +b.dataset.jbPage);
     loadDbJobs();
     smoothTo($("jbList"), 90);
+  });
+});
+
+/* --- Companies hiring, and "Direct from employer" --- */
+// The companies whose own job boards are read (names, sites and job counts only), for the directory and each company's page
+async function loadCompanies() {
+  if (!jobsDbOn() || dbJobs.companies) return;
+  try {
+    const res = await fetch(dbBase() + "/employers_public?select=id,name,website,careers_url,industry,hq_state,au_jobs&order=au_jobs.desc&limit=2000", { headers: dbHeaders(), signal: AbortSignal.timeout(20000) });
+    dbJobs.companies = res.ok ? await res.json() : [];
+  } catch { dbJobs.companies = []; }
+  renderCompanies();
+}
+const siteLink = u => { const x = String(u || "").trim(); if (!x) return ""; const full = /^https?:\/\//i.test(x) ? x : "https://" + x; return safeUrl(full); };
+function renderCompanies() {
+  const box = $("jbCompanies");
+  if (!box) return;
+  const list = dbJobs.companies || [];
+  box.hidden = !jobsDbOn() || !list.length;
+  $("jbDirectBar").hidden = !jobsDbOn();
+  if (box.hidden) return;
+  const q = ($("jbCompanyQ").value || "").trim().toLowerCase();
+  const shown = list.filter(c => !q || c.name.toLowerCase().includes(q));
+  $("jbCompaniesCount").textContent = `(${list.length})`;
+  $("jbCompanyList").innerHTML = shown.slice(0, 200).map(c => `<button type="button" class="jb-company" data-company="${c.id}"><b>${esc(c.name)}</b><span>${c.au_jobs} job${c.au_jobs === 1 ? "" : "s"}${c.industry ? " · " + esc(c.industry) : ""}${c.hq_state ? " · " + esc(c.hq_state) : ""}</span></button>`).join("") + (shown.length > 200 ? `<p class="small muted">${shown.length - 200} more. Type a name to narrow it down.</p>` : "") || `<p class="small muted">No company matches.</p>`;
+}
+// a company's own page: its name, website and current Australian jobs
+function renderCompanyHead() {
+  const el = $("jbCompanyHead"), c = dbJobs.employer;
+  if (!el) return;
+  el.hidden = !c;
+  if (!c) { el.innerHTML = ""; return; }
+  const site = siteLink(c.website), careers = safeUrl(c.careers_url || "");
+  el.innerHTML = `<div><b>${esc(c.name)}</b> <span class="small muted">${c.au_jobs} Australian job${c.au_jobs === 1 ? "" : "s"}, read directly from the company</span><div class="small">${site ? `<a href="${esc(site)}" target="_blank" rel="noopener">Company website ↗</a>` : ""}${site && careers ? " · " : ""}${careers ? `<a href="${esc(careers)}" target="_blank" rel="noopener">Careers page ↗</a>` : ""}</div></div><button class="btn" type="button" data-company="">All companies</button>`;
+}
+onInit(() => {
+  if (!jobsDbOn()) return;
+  const prev = viewHooks.jobs;
+  viewHooks.jobs = () => { if (prev) prev(); loadCompanies(); renderCompanies(); renderCompanyHead(); };
+  $("jbDirect").addEventListener("change", () => { dbJobs.direct = $("jbDirect").checked; dbJobs.page = 0; loadDbJobs(true); });
+  $("jbCompanyQ").addEventListener("input", renderCompanies);
+  $("view-jobs").addEventListener("click", e => {
+    const b = e.target.closest("[data-company]");
+    if (!b) return;
+    const id = b.dataset.company;
+    dbJobs.employer = id ? (dbJobs.companies || []).find(c => String(c.id) === id) || null : null;
+    dbJobs.page = 0;
+    if (dbJobs.employer) $("jbCompanies").open = false;
+    renderCompanyHead(); loadDbJobs(true);
+    smoothTo($("jbCompanyHead").hidden ? $("jbList") : $("jbCompanyHead"), 90);
   });
 });

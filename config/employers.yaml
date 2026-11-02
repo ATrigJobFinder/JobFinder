@@ -1,3 +1,6 @@
+# FIRST-TIME SEED ONLY. Employers now live in the employers table in the database; this file only fills that table the first time it is empty.
+# To add or pause an employer use the "Add employer" form on GitHub (Actions tab), not this file.
+#
 # Employers whose public job feeds are imported every week.
 #
 # ats: greenhouse | lever | lever_eu | ashby | workable | smartrecruiters | recruitee

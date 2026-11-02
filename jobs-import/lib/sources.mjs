@@ -1,5 +1,5 @@
 // The three sources. Each returns { rows, calls, notes } and never throws for one bad search: it records the problem and carries on.
-import { Budget, BudgetSpent, fetchJSON, limiter } from "./util.mjs";
+import { Budget, fetchJSON, limiter } from "./util.mjs";
 import { mapAdzuna, mapJooble, mapEmployerJob, ATS } from "./mappers.mjs";
 import { isAustralian } from "./au.mjs";
 import { isEngineering } from "./engineering.mjs";
@@ -69,44 +69,31 @@ export async function runJooble({ cfg, key, max, fetchImpl, log = () => {} }) {
 }
 
 /* ---------- Employer feeds ---------- */
-// One employer: fetch its whole public feed, keep the Australian jobs. A failed fetch throws, so nothing is deleted for it.
-export async function fetchEmployer(emp, { cfg, fetchImpl, wait = limiter(1000) } = {}) {
+// One employer: fetch its whole public feed and keep the Australian jobs. A failed fetch throws, so nothing is deleted for it.
+// gate (see http.mjs) keeps requests to each hiring system's host polite; engineeringOnly keeps only engineering titles.
+export async function fetchEmployer(emp, { engineeringOnly = false, fetchImpl, gate, wait, tries = 3, timeout = 20000 } = {}) {
   const ats = String(emp.ats || "").toLowerCase(), a = ATS[ats];
-  if (!a) throw new Error(`Unknown ats “${emp.ats}” for ${emp.name}`);
-  const budget = new Budget(60);
-  let all = [], offset = 0;
+  if (!a) throw new Error(`Unsupported hiring system “${emp.ats}” for ${emp.name}`);
+  const budget = new Budget(60), xml = a.format === "xml";
+  const get = url => { const call = () => fetchJSON(url, { budget, fetchImpl, wait, tries, timeout, as: xml ? "text" : "json" }); return gate ? gate.run(ats, call) : call(); };
+  const all = [];
+  let offset = 0;
   for (let i = 0; i < 20; i++) {
-    const d = await fetchJSON(ats === "smartrecruiters" ? a.url(emp.token, offset) : a.url(emp.token), { budget, wait, fetchImpl });
-    const list = a.list(d);
+    const data = await get(a.url(emp.token, offset));
+    const list = a.list(data);
     all.push(...list);
-    if (a.more && list.length && a.more(d, offset)) { offset += 100; continue; }
+    if (a.more && list.length && a.more(data, offset, list)) { offset += 100; continue; }
     break;
   }
   const rows = [];
-  let total = all.length, notAu = 0, notEng = 0;
+  let notAu = 0, notEng = 0, sample = "";
   for (const raw of all) {
     const { row, country } = mapEmployerJob(ats, raw, emp);
+    if (sample.length < 12000) sample += ` ${row.title} ${row.url} ${String(row.description || "").slice(0, 800)}`;   // what the board says about itself, to check a guessed board is really this company
     if (!row.url || !row.title) continue;
     if (!isAustralian({ location: row.location, country, isRemote: row.is_remote, extra: row.title })) { notAu++; continue; }
-    if (!(emp.all || !cfg || keep(cfg, row))) { notEng++; continue; }
+    if (engineeringOnly && !isEngineering(row)) { notEng++; continue; }
     rows.push(row);
   }
-  return { rows, total, notAu, notEng, ids: all.length };
-}
-export async function runEmployers({ cfg, employers, fetchImpl, log = () => {} }) {
-  const wait = limiter(1000), results = [], notes = [];
-  let calls = 0;
-  for (const emp of employers.filter(e => e.active !== false)) {
-    try {
-      const r = await fetchEmployer(emp, { cfg, fetchImpl, wait });
-      calls++;
-      results.push({ employer: emp, ok: true, ...r });
-      log(`${emp.name} (${emp.ats}): ${r.total} jobs, ${r.rows.length} kept (${r.notAu} outside Australia, ${r.notEng} not engineering)`);
-    } catch (e) {
-      calls++;
-      results.push({ employer: emp, ok: false, error: e.message });
-      notes.push(`${emp.name} (${emp.ats}/${emp.token}): ${e.message}. Its existing jobs were left alone.`);
-    }
-  }
-  return { results, rows: results.flatMap(r => (r.ok ? r.rows : [])), calls, notes };
+  return { rows, total: all.length, notAu, notEng, sample };
 }

@@ -12,3 +12,8 @@ dist/
 .env.*
 !.env.example
 jobs-import/out/
+
+# discovery output
+data/discovery-report.md
+data/discovery-dry.json
+data/*.log
