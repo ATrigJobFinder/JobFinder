@@ -1,0 +1,76 @@
+/* ===================== Interview prep ===================== */
+.iv-intro { max-width: 70ch; margin-bottom: 12px; }
+.iv-formats { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; }
+.iv-fmt { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); display: grid; }
+.iv-fmt > summary { list-style: none; cursor: pointer; padding: 14px 16px; display: grid; gap: 6px; border-radius: var(--radius); }
+.iv-fmt > summary::-webkit-details-marker { display: none; }
+.iv-fmt > summary:hover { background: var(--surface-2); }
+.iv-fmt[open] > summary { border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0; }
+.iv-fmt-name { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; font-family: var(--font-display); font-stretch: 110%; font-weight: 700; font-size: var(--step-0); }
+.iv-fmt-name::after { content: "▾"; color: var(--muted); font-family: var(--font-body); }
+.iv-fmt[open] .iv-fmt-name::after { transform: rotate(180deg); }
+.iv-fmt-where { font-size: 0.78rem; color: var(--muted); }
+.iv-sounds { font-size: var(--step--1); font-style: italic; color: var(--ink); }
+.iv-fmt-body { padding: 14px 16px; display: grid; gap: 12px; font-size: var(--step--1); }
+.iv-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: s; }
+.iv-steps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; counter-increment: s; }
+.iv-steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-family: var(--font-mono); font-size: 0.72rem; }
+.iv-steps b { display: block; }
+.iv-watch { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; color: var(--muted); }
+.iv-k { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.iv-setup { gap: 16px; }
+.iv-set h2 { font-size: var(--step-0); margin-bottom: 8px; }
+.iv-job { font-size: var(--step--1); color: var(--muted); }
+.iv-job .q-check { color: var(--ink); }
+.iv-q { gap: 14px; margin-top: 16px; }
+.iv-q-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.iv-badge { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.iv-badge.job { background: var(--good-bg); color: var(--good); }
+.iv-badge.plain { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.iv-timer { margin-left: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--step-0); font-weight: 600; padding: 4px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.iv-timer.prep { color: var(--accent); }
+.iv-timer.low { color: var(--bad); border-color: var(--bad); }
+.iv-qtext { font-size: var(--step-2); font-weight: 800; font-stretch: 112%; line-height: 1.2; max-width: 40ch; }
+.iv-hint { font-size: var(--step--1); border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.iv-hint > summary { cursor: pointer; padding: 8px 12px; color: var(--accent); font-weight: 600; }
+.iv-hint > div { padding: 0 12px 12px; display: grid; gap: 8px; }
+.iv-hint ul { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; }
+#ivAnswer { min-height: 180px; font-size: var(--step-0); color: var(--ink); }
+.iv-meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; font-size: var(--step--1); color: var(--muted); }
+.iv-mic[aria-pressed="true"] { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+.iv-fb { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 16px; }
+.iv-score { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.iv-ring { --v: 50; width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: radial-gradient(closest-side, var(--surface) 78%, transparent 79%), conic-gradient(var(--ring, var(--accent)) calc(var(--v) * 1%), var(--surface-2) 0); }
+.iv-ring div { text-align: center; line-height: 1; }
+.iv-ring b { font-family: var(--font-display); font-stretch: 115%; font-weight: 800; font-size: 2rem; display: block; }
+.iv-ring span { font-size: 0.72rem; color: var(--muted); }
+.iv-verdict { font-family: var(--font-display); font-stretch: 112%; font-weight: 700; font-size: var(--step-1); }
+.iv-delta { font-size: var(--step--1); font-weight: 600; }
+.iv-delta.up { color: var(--good); }
+.iv-delta.down { color: var(--bad); }
+.iv-crit { display: grid; gap: 8px; }
+.iv-crit-row { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) 2.5rem; gap: 6px 12px; align-items: center; font-size: var(--step--1); }
+.iv-crit-row .note { grid-column: 1 / -1; color: var(--muted); font-size: 0.78rem; margin-top: -4px; }
+.iv-crit-row .val { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.iv-lists { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.iv-lists ul { margin: 6px 0 0; padding-left: 1.1em; display: grid; gap: 5px; font-size: var(--step--1); }
+.iv-better { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: var(--step--1); line-height: 1.7; white-space: pre-line; }
+.iv-better mark { background: var(--warn-bg); color: var(--warn); padding: 0 3px; border-radius: 3px; }
+.iv-follow { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; font-size: var(--step--1); }
+.iv-summary { display: grid; gap: 14px; }
+.iv-sum-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.iv-sum-list li { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: var(--step--1); padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.iv-sum-list .sc { font-family: var(--font-display); font-stretch: 112%; font-weight: 800; font-size: var(--step-1); }
+.iv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.iv-stat { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.iv-stat b { font-family: var(--font-display); font-stretch: 112%; font-size: var(--step-2); font-weight: 800; }
+.iv-stat span { font-size: 0.75rem; color: var(--muted); }
+.iv-trend { display: flex; align-items: flex-end; gap: 3px; height: 64px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.iv-trend i { flex: 1 1 0; max-width: 22px; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 3px; opacity: 0.85; }
+@container main (max-width: 640px) {
+  .iv-lists { grid-template-columns: minmax(0, 1fr); }
+  .iv-crit-row { grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 2.2rem; }
+  .iv-qtext { font-size: var(--step-1); }
+}
+

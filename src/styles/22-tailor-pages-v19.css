@@ -1,0 +1,74 @@
+/* ===== Version 19: Tailor to a job as three pages ===== */
+
+/* Page 1 (scan): the tailored resume and the cover letter pages are hidden. Page 2 (resume) and 3 (letter) hide the scan. */
+#view-scanner[data-stage="scan"] #sec-download,
+#view-scanner[data-stage="scan"] #sec-fit,
+#view-scanner[data-stage="scan"] #sec-cover { display: none !important; }
+#view-scanner[data-stage="resume"] #inputs,
+#view-scanner[data-stage="resume"] #inputsBar,
+#view-scanner[data-stage="resume"] #scanRow,
+#view-scanner[data-stage="resume"] #stale,
+#view-scanner[data-stage="resume"] #exampleNote,
+#view-scanner[data-stage="resume"] #results,
+#view-scanner[data-stage="resume"] #ai,
+#view-scanner[data-stage="resume"] #sec-fit,
+#view-scanner[data-stage="resume"] #sec-cover,
+#view-scanner[data-stage="letter"] #inputs,
+#view-scanner[data-stage="letter"] #inputsBar,
+#view-scanner[data-stage="letter"] #scanRow,
+#view-scanner[data-stage="letter"] #stale,
+#view-scanner[data-stage="letter"] #exampleNote,
+#view-scanner[data-stage="letter"] #results,
+#view-scanner[data-stage="letter"] #ai,
+#view-scanner[data-stage="letter"] #sec-download { display: none !important; }
+/* Cover letter only: no skills area (it's the resume's) */
+#view-scanner[data-tailor="letter"] #sec-skillarea { display: none !important; }
+
+.tw-back { margin: 0 0 10px; }
+.tw-next { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.tw-next.tw-end { justify-content: flex-end; background: none; border: 0; padding: 0; }
+.skill-area { display: grid; gap: 14px; }
+.cats-more { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 0; }
+
+/* Step 2 holds the resume and the optional cover letter */
+.prev-letters { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.prev-letters[hidden] { display: none; }
+.cover-grid.one { grid-template-columns: minmax(0, 1fr); }
+
+/* Page 2: the tailored resume */
+.rs-summary { margin: 4px 0 12px; }
+.rs-paper { white-space: pre-wrap; overflow-wrap: anywhere; background: #fff; color: #1E2533; border: 1px solid var(--line); border-radius: 10px; padding: 22px 26px; font: 13.5px/1.55 var(--font-body); max-height: 34rem; overflow: auto; margin: 10px 0; }
+.rs-edit { margin: 8px 0 12px; }
+.rs-edit summary { cursor: pointer; color: var(--accent); font-size: var(--step--1); }
+.rs-edit textarea { min-height: 18rem; width: 100%; }
+
+/* Where the key skills are highlighted (resume page and cover letter page) */
+.sk-review { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); margin-bottom: 10px; }
+.sk-review h3 { margin: 0; font-size: var(--step-0); }
+.sk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sk-chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: var(--step--1); cursor: pointer; }
+.sk-chip i { font-style: normal; font-size: 0.68rem; font-weight: 700; margin-left: 4px; color: var(--good); }
+.sk-chip.hard { border-color: #3C8F5E; background: #E4F4EA; color: #12391F; }
+.sk-chip.soft { border-color: #7B5BC4; background: #EEE8FA; color: #2B1A57; }
+.sk-chip.out { border-style: dashed; background: var(--surface); color: var(--muted); cursor: default; }
+.sk-chip:disabled { opacity: 0.7; }
+mark.sk-hit { border-radius: 3px; padding: 0 2px; color: inherit; }
+mark.sk-hit.hard { background: #BFE8CD; color: #12391F; }
+mark.sk-hit.soft { background: #DCCFF6; color: #2B1A57; }
+mark.sk-hit.pulse { animation: sk-pulse 1.4s ease-out 1; }
+@keyframes sk-pulse { 0% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
+@media (prefers-reduced-motion: reduce) { mark.sk-hit.pulse { animation: none; outline: 2px solid var(--accent); } }
+.sk-letter { display: grid; gap: 8px; font-size: var(--step--1); line-height: 1.55; background: #fff; color: #1E2533; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.sk-letter p { margin: 0; }
+.sk-sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.sk-sw.hard { background: #BFE8CD; }
+.sk-sw.soft { background: #DCCFF6; }
+.sk-sw.out { border: 1px dashed var(--muted); }
+
+/* Page 3: design, spacing and margins for the tailored letter */
+.cl-design { margin: 8px 0 12px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface-2); }
+.cl-design summary { cursor: pointer; color: var(--accent); font-size: var(--step--1); }
+.cl-design .lt-tpls { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-top: 10px; }
+.cl-design .page-setup { margin-top: 10px; }
+.cl-design .b-actions { margin: 10px 0; }
+#clPaste { min-height: 6rem; }

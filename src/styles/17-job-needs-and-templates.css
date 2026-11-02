@@ -1,0 +1,55 @@
+/* ===================== What this job needs (scanner) ===================== */
+.needs { gap: 18px; }
+.needs-block { display: grid; gap: 8px; }
+.needs-block h3 { font-size: var(--step-0); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.needs-must { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.needs-must li { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 4px 12px; align-items: start; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); font-size: var(--step--1); }
+.needs-must q { color: var(--muted); font-style: italic; }
+.needs-must q::before, .needs-must q::after, .needs-ai-list q::before, .needs-ai-list q::after { content: "“"; }
+.needs-must q::after, .needs-ai-list q::after { content: "”"; }
+.needs-must p { margin: 4px 0 0; }
+.needs-you { font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 2px 9px; justify-self: start; white-space: nowrap; }
+.you-yes .needs-you { background: var(--good-bg); color: var(--good); }
+.you-no .needs-you { background: var(--bad-bg); color: var(--bad); }
+.you-check .needs-you { background: var(--warn-bg); color: var(--ink); }
+.needs-crit { margin: 0; padding-left: 1.4em; display: grid; gap: 10px; }
+.needs-crit > li { padding: 2px 0 10px 4px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.needs-crit > li:last-child { border-bottom: 0; }
+.needs-crit > li::marker { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+.needs-crit > li.st-shown::marker { color: var(--good); }
+.needs-line { font-weight: 600; font-size: var(--step--1); }
+.needs-skills { display: flex; flex-wrap: wrap; gap: 6px; }
+.nchip { display: inline-flex; align-items: baseline; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; border: 1px solid var(--line); background: var(--surface); }
+.nchip i { font-style: normal; font-size: 0.68rem; color: var(--muted); }
+.nchip.shown { background: var(--hl-found); border-color: transparent; }
+.nchip.implied { background: var(--good-bg); border-color: transparent; }
+.nchip.listed { background: var(--warn-bg); border-color: transparent; }
+.nchip.missing { background: var(--hl-missing); border-color: transparent; }
+.needs-q { font-size: var(--step--1); color: var(--ink); }
+.needs-draft:empty { display: none; }
+.needs-ai-list { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: var(--step--1); }
+.needs-ai-list .prio { margin-right: 6px; }
+.needs-ai-list q { color: var(--muted); font-style: italic; }
+.x-ignore { margin-left: 6px; border: 0; background: none; color: var(--muted); font-size: 0.7rem; text-decoration: underline; cursor: pointer; padding: 0; }
+.x-ignore:hover { color: var(--ink); }
+@container main (max-width: 560px) { .needs-must li { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===================== Template pickers: filters ===================== */
+.tpl-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tpl-filter .small { margin-right: 4px; }
+.tpl-count { font-size: 0.75rem; color: var(--muted); }
+.cv-gallery-wrap { display: grid; gap: 10px; }
+
+/* ===================== Tailor to a job: resume, cover letter or both ===================== */
+.tailor-mode { margin-top: 12px; }
+#view-scanner[data-tailor="resume"] #sec-cover,
+#view-scanner[data-tailor="resume"] #sec-fit,
+#view-scanner[data-tailor="resume"] #toCover { display: none !important; }
+#view-scanner[data-tailor="letter"] #summary,
+#view-scanner[data-tailor="letter"] #results > .two,
+#view-scanner[data-tailor="letter"] #sec-place,
+#view-scanner[data-tailor="letter"] #sec-jd,
+#view-scanner[data-tailor="letter"] #ai,
+#view-scanner[data-tailor="letter"] #sec-download,
+#view-scanner[data-tailor="letter"] .results-head p { display: none !important; }
+#stepper li[hidden] { display: none; }

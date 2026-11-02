@@ -1,0 +1,255 @@
+/* ===================== AI layer: prompts tuned for Chrome's on-device model ===================== */
+// Gemini Nano (Chrome's built-in model) is small. It does best with:
+//  - a short system prompt: a role, five or six numbered rules, "Reply with JSON only"
+//  - one or two worked examples (user/assistant pairs) that show the exact output
+//  - one focused job per prompt, with only the facts that job needs
+//  - a JSON schema (responseConstraint), and one retry that names what was wrong
+// Claude gets the same task with the fuller instructions.
+
+const fewShot = examples => examples.flatMap(([u, a]) => [{ role: "user", content: u }, { role: "assistant", content: typeof a === "string" ? a : JSON.stringify(a) }]);
+const examplesAsText = examples => examples.length ? "\n\nExample.\nInput:\n" + examples.map(([u, a]) => `${u}\nOutput:\n${typeof a === "string" ? a : JSON.stringify(a)}`).join("\n\nAnother example.\nInput:\n") : "";
+// Parse, and if the model wandered off format, ask once more on the same session
+async function nanoJSON(session, text, schema) {
+  const raw = await session.prompt(text, { responseConstraint: schema });
+  try { return parseOrThrow(raw); }
+  catch { return parseOrThrow(await session.prompt("That wasn't valid JSON. Reply again with only the JSON.", { responseConstraint: schema })); }
+}
+// One task, three engines: the small model (in this browser, or Chrome's), then a bigger AI, then nothing (the caller has a fallback).
+// check(data) returns { ok: true, value } or { ok: false, why } so a bad answer gets one corrected retry.
+// The result says what happened, so the page can tell people honestly: tried (which AIs were asked), rejected (an answer broke a rule), error (one couldn't be reached).
+async function aiJSON(task) {
+  const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working" } = task;
+  let rejected = false, error = null;
+  const tried = [];
+  aiLastProblem = null;
+  const chrome = await withChromeAI(progress, async make => {
+    tried.push("chrome");
+    progress(`${label} with ${SMALL()}…`);
+    const s = await make(nano, examples);
+    let r = check(await nanoJSON(s, prompt, schema));
+    if (!r.ok) { rejected = true; r = check(await nanoJSON(s, `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.`, schema)); }
+    return r.ok ? r.value : null;
+  });
+  if (chrome != null) return { data: chrome, via: "chrome", rejected, tried };
+  if (smallEngine() && aiLastProblem && !error) error = aiLastProblem;
+  const big = afterSmall();
+  if (big) {
+    tried.push("claude");
+    progress(`${label} with ${BIG_NAME()}…`);
+    const first = `${full || nano}${examplesAsText(examples)}\n\nNow the real input:\n${prompt}`;
+    try {
+      const d1 = await big.json(first, { cache: false });
+      let r = check(d1);
+      if (!r.ok) {
+        rejected = true;
+        const d2 = await big.json([{ role: "user", content: first }, { role: "assistant", content: JSON.stringify(d1) }, { role: "user", content: `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.` }], { cache: false });
+        r = check(d2);
+      }
+      if (r.ok) return { data: r.value, via: "claude", rejected, tried };
+    } catch (e) { error = e; }
+  }
+  return { data: null, via: null, rejected, tried, error };
+}
+const viaWords = via => via === "chrome" ? SMALL() : via === "claude" ? BIG_NAME() : "built-in rules (no AI)";
+// Why there's no AI answer, in plain words
+function aiMissWords(r) {
+  if (!r || r.data) return "";
+  const who = r.tried && r.tried.includes("claude") ? BIG_NAME() : r.tried && r.tried.length ? SMALL() : "";
+  if (!who) return USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Your chosen AI isn't set up yet (see Connect your AI)." : "No AI is connected here, so this was done without it. Choose one in Connect your AI.";
+  if (r.error && r.error.code !== "invalid_json") return `Couldn't get an answer from ${who}: ${aiErrWords(r.error)}`;
+  if (r.rejected) return `${who} answered, but its wording added or dropped facts, so it wasn't used.`;
+  return `${who} didn't give a usable answer this time.`;
+}
+// Facts in, facts out: nothing the candidate didn't give us
+function factCheck(text, sources, o = {}) {
+  const t = String(text || "").trim();
+  if (!t) return "it was empty";
+  if (/\[[^\]]{2,40}\]|\{[^}]{2,40}\}/.test(t)) return "it has a placeholder in square brackets";
+  const okNums = new Set(numsOf(sources));
+  const badNum = numsOf(t).find(n => !okNums.has(n) && !(o.years && /^(19|20)\d{2}$/.test(n)));
+  if (badNum) return `the number ${badNum} isn't in the facts`;
+  const have = skillSet(sources);
+  const badSkill = [...skillSet(t)].find(s => !have.has(s) && (SKILLS.find(k => k.name === s) || {}).kind === "hard");
+  if (badSkill) return `${badSkill} isn't in the facts`;
+  const cl = [...CLICHES, ...COVER_CLICHES].find(c => c !== "responsible for" && new RegExp("\\b" + c.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&") + "\\b", "i").test(t));
+  if (cl) return `it uses the cliché "${cl}"`;
+  if (FILLER.test(t)) return "it uses filler words like 'leveraging' or 'demonstrating'";
+  if (o.noFirstPerson && /\b(I|my|me)\b/.test(t)) return "it uses I or my";
+  const w = wordCount(t);
+  if (o.min && w < o.min) return `it's too short (${w} words)`;
+  if (o.max && w > o.max) return `it's too long (${w} words, the limit is ${o.max})`;
+  return "";
+}
+
+/* --- Resume weaving, for the small model --- */
+const WEAVE_NANO = `You edit one job's bullet points on a resume so they show skills the candidate confirmed.
+Rules:
+1. Use only facts from the bullets and notes. Never invent tools, numbers, results or tasks.
+2. Put each skill inside an action, using its exact wording. Never tack it on with "demonstrating", "showcasing", "leveraging" or "utilising".
+3. When you rewrite a bullet, keep every fact in it and change as few words as possible.
+4. A soft skill with no note: add at most five words to a bullet whose action already involves it.
+5. If a skill doesn't fit any bullet naturally, put it in not_woven.
+6. Start with a past-tense verb, under 30 words, no full stop, never I, me or my.
+Reply with JSON only.`;
+const WEAVE_EXAMPLES = [[
+  `Job: Retail Assistant · Bright Shoes
+Existing bullets (numbered):
+1. Served up to 80 customers a shift and processed sales on the POS system
+2. Restocked shelves and counted stock each week
+Skills to show:
+- "Stock control" (technical skill). Note: "reordered low stock in the store's inventory app".
+- "Attention to detail" (soft skill). No note.
+- "SAP" (technical skill). No note.`,
+  { edits: [{ bullet: 2, text: "Restocked shelves and handled stock control, counting stock weekly and reordering low lines in the store's inventory app", skills: ["Stock control"] }, { bullet: 1, text: "Served up to 80 customers a shift and processed sales on the POS system with close attention to detail", skills: ["Attention to detail"] }], new_bullets: [], not_woven: ["SAP"] }
+]];
+const PROFILE_NANO = `You lightly edit the profile paragraph at the top of a resume so it names strengths the candidate confirmed.
+Rules:
+1. Keep every fact, number, qualification and employer. Change as few words as possible.
+2. Use each strength's exact wording inside an existing sentence, or add one short sentence.
+3. No filler ("leveraging", "showcasing", "passionate"), no I, me or my, under 90 words.
+Reply with JSON only.`;
+
+/* --- Cover letter, one paragraph at a time --- */
+const COVER_NANO = `You write one part of a formal Australian cover letter.
+Rules:
+1. Use only the facts given. Never invent tasks, tools, numbers, employers or dates.
+2. First person ("I"), formal, specific, Australian spelling.
+3. Never write placeholders or square brackets. If a fact is missing, leave it out.
+4. No clichés: "team player", "passionate", "hard-working", "I am writing to express my interest".
+5. Start exactly as told, and keep to the sentence count asked for.
+6. ${CL_CRAFT_SHORT}
+Reply with JSON only: {"text": "..."}`;
+const COVER_EXAMPLES = [[
+  `Write 1 sentence about this ONE job, linked to what the ad asks for.
+Job: Engineering Intern at Brightwater Solar
+Facts from the resume:
+- Modelled mounting brackets in SolidWorks and ran FEA in ANSYS, cutting component mass by 18%
+- Prepared technical reports for design reviews
+The ad asks for: SolidWorks, FEA, technical reports
+Start with: "At Brightwater Solar, I"`,
+  { text: "At Brightwater Solar, I modelled mounting brackets in SolidWorks and ran FEA in ANSYS, cutting component mass by 18%, and prepared technical reports for design reviews." }
+]];
+const TEXT_SCHEMA = { type: "object", properties: { text: { type: "string" } }, required: ["text"] };
+async function nanoCover(ctx, make, progress) {
+  const s0 = await make(COVER_NANO, COVER_EXAMPLES);
+  const t = templateLetter(ctx);
+  const tPart = k => (t.paragraphs.find(p => p.part === k) || {}).text || "";
+  const hard = ctx.have.filter(x => x.kind === "hard").sort((a, b) => b.rel - a.rel).map(x => x.name);
+  const soft = ctx.have.filter(x => x.kind === "soft").map(x => x.name);
+  const resumeText = ctx.resume + "\n" + ctx.letters.join("\n");
+  // ask for one part; check it; retry once; otherwise use the plain version of that part
+  // strict: check against this part's facts only (each job sees only its own bullets)
+  const part = async (key, ask, facts, start, sentences, strict) => {
+    const s = await s0.clone();
+    try {
+      const prompt = `Write ${sentences} about ${ask}.\n${facts}\nStart with: "${start}"`;
+      let d = await nanoJSON(s, prompt, TEXT_SCHEMA);
+      const src = strict ? facts : resumeText + "\n" + facts;
+      let why = factCheck(d.text, src, { years: true });
+      if (!why && strict) { const other = ctx.roles.find(r => r.orgShort && !facts.includes(r.orgShort) && String(d.text).toLowerCase().includes(r.orgShort.toLowerCase())); if (other) why = `it mentions ${other.orgShort}, a different job`; }
+      if (!why && !String(d.text).trim().toLowerCase().startsWith(start.toLowerCase().slice(0, 12))) why = `it must start with "${start}"`;
+      if (why) { d = await nanoJSON(s, `Your answer broke a rule: ${why}. Write it again and reply with only the JSON.`, TEXT_SCHEMA); why = factCheck(d.text, src, { years: true }); }
+      return why ? null : stripMarkup(String(d.text)).replace(/\s+/g, " ").trim();
+    } finally { try { s.destroy(); } catch { /* gone */ } }
+  };
+  const paras = [];
+  const e = ctx.edu[0];
+  progress(`Writing your opening with ${SMALL()}…`);
+  const open = await part("opening", "why the candidate is applying (the opening paragraph)",
+    `Role: ${ctx.title}\nCompany: ${ctx.company || "(not given)"}\nWhere the ad was seen: ${ctx.source || "(not given)"}\nStudy: ${e ? `${e.degree}${e.inst ? ` at ${e.inst.split(",")[0]}` : ""}${e.current && e.ends ? `, graduating ${e.ends}` : ""}` : "(not given)"}\nStrongest matching skills: ${hard.slice(0, 3).join(", ") || "(none)"}`,
+    `I am applying for the ${ctx.title} position${ctx.company ? ` at ${ctx.company}` : ""}`, "2 sentences");
+  paras.push({ part: "opening", text: open || tPart("opening"), evidence: e ? [e.degree] : [], repaired: !open });
+  // experience: each job on its own, so nothing moves between employers
+  const roles = ctx.roles.slice().sort((a, b) => b.score - a.score).filter(r => r.bullets.length).slice(0, 2);
+  const lines = [];
+  for (const [i, r] of roles.entries()) {
+    progress(`Writing about ${r.orgShort || r.title} with ${SMALL()}…`);
+    const top = r.bullets.slice().sort((a, b) => b.score - a.score).slice(0, 3);
+    const start = i === 0 ? `As ${aOrAn(r.title)} ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}, I` : r.orgShort ? `At ${r.orgShort}, I` : `In my role as ${r.title}, I`;
+    const line = await part("experience", "this ONE job, linked to what the ad asks for",
+      `Job: ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}\nFacts from the resume:\n${top.map(b => "- " + b.text).join("\n")}\nThe ad asks for: ${[...new Set(top.flatMap(b => b.skills))].join(", ") || hard.slice(0, 4).join(", ") || "(see the facts)"}`, start, "1 or 2 sentences", true);
+    if (line) lines.push(line);
+  }
+  paras.push(lines.length ? { part: "experience", text: lines.join(" "), evidence: roles.map(r => r.label) } : { part: "experience", text: tPart("experience"), evidence: roles.map(r => r.label), repaired: true });
+  progress(`Writing about your study and skills with ${SMALL()}…`);
+  const tools = ctx.resumeHard.filter(n => hard.includes(n)).slice(0, 5);
+  const edu = e ? await part("education", "the candidate's study and technical skills",
+    `Qualification: ${e.degree}${e.inst ? `, ${e.inst.split(",")[0]}` : ""}\nRelevant subjects: ${e.coursework || "(not given)"}\nSkills and tools from the resume that the ad asks for: ${tools.join(", ") || "(none)"}`, `My ${e.degree}`, "2 sentences") : null;
+  if (tPart("education")) paras.push({ part: "education", text: edu || tPart("education"), evidence: e ? [e.coursework || e.degree] : [], repaired: !edu });
+  progress(`Writing why you want this job with ${SMALL()}…`);
+  const softRole = ctx.roles.slice().sort((a, b) => b.bullets.filter(x => soft.some(sn => skillSet(x.text).has(sn))).length - a.bullets.filter(x => soft.some(sn => skillSet(x.text).has(sn))).length)[0];
+  const mot = await part("motivation", "why the candidate wants this job, and the people skills it needs",
+    `Company: ${ctx.company || "(not given)"}\nThe candidate's reason, in their words: ${ctx.why || "(not given)"}\nWhat interests them about the role: ${(ctx.interest || []).join("; ") || "(not given)"}\nWhat the role involves: ${ctx.dutyLine || "(not given)"}\nSoft skills the ad asks for: ${soft.slice(0, 3).join(", ") || "(none)"}${(ctx.values || []).length ? `\nWhat the company says it values: ${ctx.values.slice(0, 4).join(", ")}` : ""}${ctx.guide && ctx.guide.purpose ? `\nThe company's stated purpose: ${ctx.guide.purpose}` : ""}${softRole ? `\nOne job that shows them: ${softRole.title}${softRole.orgShort ? ` at ${softRole.orgShort}` : ""}: ${softRole.bullets.slice(0, 2).map(b => b.text).join("; ")}` : ""}`,
+    ctx.company ? `I am drawn to ${ctx.company}` : "I am drawn to this role", "2 sentences");
+  paras.push({ part: "motivation", text: mot || tPart("motivation"), evidence: softRole ? [softRole.label] : [], repaired: !mot });
+  // the close is the same every time: thanks, availability and contact details from the form, never placeholders
+  paras.push({ part: "closing", text: tPart("closing"), evidence: [] });
+  return { salutation: ctx.recipient ? `Dear ${ctx.recipient},` : "Dear Hiring Manager,", paragraphs: paras.filter(p => p.text), signoff: "Yours sincerely,", via: `Written by ${SMALL()}, one paragraph at a time` };
+}
+
+/* --- Resume creator: summary and bullet points --- */
+const SUMMARY_NANO = `You write the 2 or 3 sentence profile at the top of an Australian resume.
+Rules:
+1. Use only the candidate's facts. Never invent skills, tools, numbers or achievements.
+2. 40 to 75 words. No "I", no "my".
+3. Who they are, then their strongest skills with one piece of evidence, then what they want next.
+4. Still studying? Say their year of study, like "Penultimate-year engineering student". Never call a current student a graduate.
+5. No clichés ("hard-working", "team player", "passionate", "results-driven") and no buzzwords ("leverage", "utilise").
+Reply with JSON only: {"summary": "..."}`;
+const SUMMARY_EXAMPLES = [[
+  `<their_answers>
+How they describe themselves: retail assistant studying business part time
+Strongest skills: customer service, cash handling, rostering
+A result they're proud of: trained 4 new staff
+What they want next: an office administration role
+</their_answers>
+<experience>
+- Retail Assistant at Kmart (2022 – Present): Served 100+ customers a day; Trained 4 new staff on the registers
+</experience>`,
+  { summary: "Retail assistant and part-time business student with three years of customer-facing work. Skilled in customer service, cash handling and rostering, and trusted to train 4 new staff on the registers. Looking for an office administration role where organisation and people skills count." }
+], [
+  `<study>Still studying Bachelor of Engineering (Honours) at Curtin University, expected to finish Nov 2027. Today is October 2026, so they are a penultimate-year student. Never call them a graduate or recent graduate.</study>
+<their_answers>
+Strongest skills: SolidWorks, technical reports
+What they want next: a summer vacation placement in mining engineering
+</their_answers>`,
+  { summary: "Penultimate-year Bachelor of Engineering (Honours) student at Curtin University, skilled in SolidWorks design and technical report writing. Looking for a summer vacation placement in mining engineering to build site experience before graduating in 2027." }
+]];
+const BULLET_NANO = `You turn a candidate's answers about one job into polished resume bullet points, ready to use.
+Rules:
+1. Use only what they wrote. Never invent numbers, tools, results or team sizes. Keep numbers exactly.
+2. Each bullet is a complete sentence without "I": action verb, what they did, how (the tools or people they named), and why it mattered or the result.
+3. Describe each task the way a capable person in that role would, with its usual purpose (a barista "kept orders moving through the morning rush"). Never add a task, tool, number or result.
+4. Combine short, related tasks into one fuller bullet. Write 3 to 5 bullets of 16 to 30 words.
+5. Past tense for a past job, present tense for a current job. Each starts with a different strong verb. No "I", "my", "responsible for", clichés or full stops.
+Reply with JSON only: {"bullets": ["..."]}`;
+const BULLET_EXAMPLES = [[
+  `<job>Café Supervisor at Grind Coffee, 2021 – 2024 (a past job: use past tense)</job>
+<their_answers>
+Main responsibilities: opened and closed the café, made coffee, supervised the floor
+Achievements and results: trained 6 new baristas; cut morning wait times by sorting the order queue
+Tools, software, equipment: Square POS, Deputy rosters
+Who they worked with or for: a team of 6, up to 300 customers a day
+</their_answers>`,
+  { bullets: ["Cut morning wait times for up to 300 customers a day by reorganising how the order queue was sorted and worked through", "Supervised a team of 6 on the café floor, opening and closing the café and managing staff rosters in Deputy so every shift was covered", "Trained 6 new baristas to make coffee to the café's standard and use the Square POS system confidently"] }
+]];
+
+/* --- Interview answers --- */
+const IV_NANO = `You are an Australian interview coach. Rate one practice answer and coach the candidate.
+Rules:
+1. Base every comment on what they wrote. Never invent experience for them.
+2. Score each criterion 1 to 10: 5 is acceptable, 7 good, 9 or 10 rare. A short or off-topic answer scores low.
+3. strengths and improvements: 1 to 3 short, specific points each.
+4. stronger_answer: their own answer reorganised with the framework, under 150 words, with [square-bracket prompts] where a detail is missing.
+5. follow_up: one question an interviewer would ask next.
+Reply with JSON only.`;
+const IV_EXAMPLES = [[
+  `<question type="Behavioural">Tell me about a time you had to meet a tight deadline.</question>
+<framework>STAR: Situation, Task, Action (most of it, in "I"), Result.</framework>
+<criteria>Structure, Relevance, Evidence, Result, Delivery</criteria>
+<answer words="34">
+We had a big uni assignment due and the group was behind so we all worked really hard over the weekend and got it done in time. It was stressful but we did it.
+</answer>`,
+  { overall: 4, scores: [{ criterion: "Structure", score: 4, note: "There's a situation and an outcome, but no clear task or actions." }, { criterion: "Relevance", score: 7, note: "On topic: a real deadline." }, { criterion: "Evidence", score: 3, note: "All 'we': it's not clear what you did." }, { criterion: "Result", score: 4, note: "Submitted on time, but no mark or feedback." }, { criterion: "Delivery", score: 3, note: "About 15 seconds; aim for 1.5 to 2 minutes." }], strengths: ["You picked a real example with a genuine deadline."], improvements: ["Say what you personally did, step by step, using 'I'.", "Finish with the result: the mark or what the tutor said."], stronger_answer: "Situation: In my [year] group assignment for [subject], we were [how far] behind with [time] left.\nTask: I needed to [your goal].\nAction: I [what you did first], then [next step], and [how you kept everyone on track].\nResult: We submitted on time and got [mark or feedback]. I learned [one lesson].", follow_up: "What did you personally do to get the group back on track?" }
+]];
+

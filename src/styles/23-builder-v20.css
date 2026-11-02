@@ -1,0 +1,68 @@
+/* ===== Version 20: resume builder and cover letter changes ===== */
+
+/* Import: the resume box is as tall as the LinkedIn column beside it */
+.b-import-grid { align-items: stretch; }
+.b-import-col.b-import-resume { grid-template-rows: auto minmax(0, 1fr); align-content: stretch; }
+.b-import-col.b-import-resume > .drop { height: 100%; min-height: 12rem; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 10px; padding: 20px; }
+
+/* Tick boxes beside a line of text: always on the left, centred on the text */
+.q-check { align-items: center; }
+.q-check input[type="checkbox"], .q-check input[type="radio"] { flex: none; margin: 0; }
+.ch-row .q-check, .ch-sec-head .q-check { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; }
+.ch-txt { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
+.ch-row { align-items: center; }
+.ch-row .ch-count { flex: none; }
+
+/* A tick box standing alone under other fields has no empty label above it */
+.q-solo { margin-top: -4px; }
+@container main (max-width: 560px) {
+  #bForm .q-dates .q-end .q-label { display: none; }
+  #bForm .q-dates .q-end .q-body { min-height: 0; }
+}
+
+/* "Tell us about this job" folds away once there are bullet points */
+.b-fold { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 0 12px; margin: 6px 0; }
+.b-fold > summary { cursor: pointer; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 0; list-style-position: inside; }
+.b-fold > summary .b-sub { margin: 0; }
+.b-fold[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.b-fold[open] { padding-bottom: 12px; display: grid; }
+.b-fold > .q, .b-fold > .q-grid { margin-bottom: 12px; }
+.sort-note { margin-left: 4px; }
+
+/* What next: three cards worth clicking */
+.b-next.nx { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.b-next.nx .nx-card { gap: 6px; padding: 16px 16px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; align-content: start; }
+.b-next.nx .nx-card:hover, .b-next.nx .nx-card:focus-visible { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12); }
+.b-next.nx .nx-card:first-child { border-color: var(--accent); background: var(--accent-soft); }
+.nx-tag { justify-self: start; font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; }
+.b-next.nx .nx-card b { font-size: var(--step-0); line-height: 1.25; }
+.b-next.nx .nx-text { font-size: var(--step--1); color: var(--muted); line-height: 1.45; }
+.b-next.nx .nx-go { margin-top: 6px; font-size: var(--step--1); font-weight: 700; color: var(--accent); }
+.nx-go i { font-style: normal; display: inline-block; transition: transform 0.15s ease; }
+.nx-card:hover .nx-go i { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) { .b-next.nx .nx-card, .nx-go i { transition: none; } .b-next.nx .nx-card:hover { transform: none; } }
+
+/* The AI key was refused */
+.ai-banner { position: fixed; right: 16px; bottom: 16px; z-index: 200; max-width: min(26rem, calc(100vw - 32px)); background: var(--surface); color: var(--ink); border: 1.5px solid var(--warn); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; box-shadow: 0 14px 40px rgba(15, 23, 42, 0.28); }
+.ai-banner p { margin: 0; font-size: var(--step--1); }
+.ai-banner[hidden] { display: none; }
+
+/* Cover letter: clickable warnings with their own fix buttons */
+.ck-head { margin: 14px 0 2px; font-size: var(--step-0); }
+.lt-checklist li.ck-go { cursor: pointer; border-radius: 8px; padding: 6px 8px; margin-inline: -8px; }
+.lt-checklist li.ck-go:hover, .lt-checklist li.ck-go:focus-visible { background: var(--accent-soft); outline: none; }
+.lt-checklist li.ck-go:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+.ck-acts { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 6px; align-items: center; }
+.ck-acts .btn { padding: 3px 12px; min-height: 0; font-size: var(--step--1); }
+.cl-flag .ck-acts { margin-top: 6px; }
+.lt-part.flash-part, .letter .l-para.flash-part { animation: flashpart 1.6s ease-out; }
+@keyframes flashpart { 0% { box-shadow: 0 0 0 3px var(--accent); background: var(--accent-soft); } 100% { box-shadow: 0 0 0 3px transparent; } }
+@media (prefers-reduced-motion: reduce) { .lt-part.flash-part, .letter .l-para.flash-part { animation: none; outline: 2px solid var(--accent); } }
+
+/* Sign-off with a Reword */
+.lt-signoff { display: grid; gap: 4px; }
+.lt-signoff .lt-part-acts { margin-top: 4px; }
+
+/* Match cover letter and resume design */
+.cv-match { margin-top: 10px; }
+.cv-match-note { margin: 4px 0 0; }

@@ -1,0 +1,57 @@
+/* ===================== Create or edit cover letter, letter designs, profile page, LinkedIn create ===================== */
+.lt-layout { display: grid; gap: 16px; margin-top: 12px; }
+@media (min-width: 1100px) { .lt-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr); align-items: start; } .lt-preview { position: sticky; top: 72px; } }
+.lt-form { display: grid; gap: 14px; }
+.lt-parts { display: grid; gap: 14px; }
+.lt-part textarea { width: 100%; min-height: 96px; }
+.lt-part .q-hint { margin: 2px 0 6px; }
+.lt-preview { display: grid; gap: 12px; min-width: 0; }
+.lt-prev-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.lt-prev-head h2 { font-size: var(--step--1); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: var(--font-mono); font-weight: 500; }
+.lt-preview .paper-frame { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; overflow: hidden; }
+.lt-checklist { margin-top: 2px; }
+.lt-checklist .detail { font-size: var(--step--1); color: var(--muted); }
+.dl-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The letter itself: A4 at 96dpi, laid out like the Word and PDF files */
+.lt-sheet { width: 794px; min-height: 1123px; box-sizing: border-box; padding: 64px 76px 72px; background: #fff; color: #1E2533; font: 14.5px/1.55 var(--lt-body); text-align: left; }
+.lt-sheet p { margin: 0 0 12px; }
+.lt-head { padding-bottom: 12px; margin-bottom: 26px; border-bottom: 1.5px solid var(--lt-accent); }
+.lt-name { font: 700 28px/1.15 var(--lt-head); color: var(--lt-accent); letter-spacing: var(--lt-track); }
+.lt-contact { margin-top: 6px; font-size: 12.5px; color: #5B6474; }
+.lt-date { margin-bottom: 18px; }
+.lt-to { margin-bottom: 18px; }
+.lt-re { font-weight: 700; margin-bottom: 16px; }
+.lt-p { text-align: justify; hyphens: auto; }
+.lt-sign { margin-top: 20px !important; }
+.lt-signname { font-weight: 700; margin-top: 30px !important; }
+.lt-center .lt-head { text-align: center; }
+/* band: the name in a coloured band across the top, like the resume */
+.lt-band { padding-top: 0; }
+.lt-band .lt-head { margin: 0 -76px 30px; padding: 40px 76px 22px; background: var(--lt-accent); border-bottom: 0; }
+.lt-band .lt-name, .lt-band .lt-contact { color: #fff; }
+.lt-band .lt-contact { opacity: 0.9; }
+/* side: a thin bar of colour down the left edge */
+.lt-side { border-left: 14px solid var(--lt-accent); padding-left: 62px; }
+.lt-side .lt-head { border-bottom: 0; padding-bottom: 0; }
+
+/* Templates page: cover letters mode */
+.cv-kind { margin-top: 12px; }
+#view-cv[data-kind="letter"] #cvSwLbl::after { content: " (matches your resume)"; text-transform: none; letter-spacing: 0; }
+
+/* Profile page */
+.pf-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.pf-list li { display: grid; grid-template-columns: minmax(0, 9rem) minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.pf-list li:last-child { border-bottom: 0; }
+.pf-k { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.pf-k::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+.pf-ok .pf-k::before { background: var(--good); border-color: var(--good); }
+.pf-v { color: var(--muted); font-size: var(--step--1); min-width: 0; }
+@media (max-width: 560px) { .pf-list li { grid-template-columns: minmax(0, 1fr) auto; } .pf-v { grid-column: 1 / -1; grid-row: 2; } }
+#pfClear[data-sure="1"] { color: var(--bad); border-color: var(--bad); }
+
+/* LinkedIn: improve or create */
+.li-mode { margin-top: 12px; }
+.li-create { background: var(--accent-soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.li-create .b-actions { margin-top: 8px; }
+.li-create a { color: var(--accent); font-weight: 600; }

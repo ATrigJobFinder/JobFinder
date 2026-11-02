@@ -1,0 +1,80 @@
+/* ===== Version 19: resume builder and cover letter changes ===== */
+
+/* The AI key is hidden with CSS instead of type="password", so browsers don't offer to save it as a password */
+.secret-mask { -webkit-text-security: disc; text-security: disc; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 10px 12px; line-height: 1.5; color: var(--ink); font: inherit; }
+.secret-mask:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* Work-type grid folds to the chosen tile */
+.job-picked { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.job-picked .opt-tile { width: auto; min-width: 11rem; }
+
+/* "Suggest more" on every skills box */
+.sugg-row .btn.sugg-more { padding: 3px 12px; font-size: var(--step--1); min-height: 0; }
+
+/* Reword under "What did you do?" in Extras */
+.x-reword { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.x-wrap .bl-alts { margin-top: 6px; }
+.x-wrap .bl-alt { white-space: normal; }
+
+/* Grade left off the resume */
+.b-check[hidden] { display: none; }
+
+/* Choose what goes on this resume */
+.ch-box { display: grid; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--surface); }
+.ch-meter { display: grid; gap: 6px; }
+.ch-meter .bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.ch-meter .bar i { display: block; height: 100%; background: var(--good); border-radius: inherit; }
+.ch-meter.over .bar i { background: var(--warn); }
+.ch-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.ch-sec { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 10px 12px; display: grid; gap: 6px; }
+.ch-sec.off { opacity: 0.75; border-style: dashed; }
+.ch-sec-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ch-sec-head .q-check { flex: 1 1 12rem; }
+.ch-count { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+.ch-move { display: inline-flex; gap: 4px; }
+.ch-move .btn { padding: 2px 10px; min-height: 0; }
+.ch-entries, .ch-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ch-entries { gap: 8px; }
+.ch-entry { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 4px; }
+.ch-entry.off > .ch-row .q-check span { text-decoration: line-through; color: var(--muted); }
+.ch-rows { padding-left: 24px; }
+.ch-rows li.off .q-check span { text-decoration: line-through; color: var(--muted); }
+.ch-row { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; }
+.ch-row .q-check { flex: 1 1 auto; align-items: flex-start; flex-wrap: wrap; gap: 2px 8px; }
+.ch-why { margin: 2px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); font-size: var(--step--1); }
+.ch-single { margin: 0; }
+.ch-newdesign { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 14px; background: var(--surface); }
+.ch-newdesign p { margin: 0; }
+
+/* Gaps are yellow, everywhere: in the letter, the boxes and Word */
+.gap-mark, mark.gap-mark { background: #FFE866; color: #1E2533; border-radius: 3px; padding: 0 2px; }
+.gap-input, input.gap-input { background: #FFF6BF !important; border-color: #D9B800 !important; color: #1E2533 !important; }
+.gap-input::placeholder { color: #7A6700; }
+.letter .l-to mark.gap-mark, .lt-sheet mark.gap-mark { background: #FFE866; }
+
+/* Cover letter boxes: bigger to start, with gaps highlighted behind the text */
+.lt-part .hl-wrap { display: grid; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.lt-part .hl-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lt-part .hl-back, .lt-part .hl-wrap textarea { grid-area: 1 / 1; margin: 0; padding: 12px 14px; font: inherit; font-size: var(--step-0); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; border: 0; border-radius: 8px; box-sizing: border-box; min-height: 12.5rem; width: 100%; letter-spacing: normal; }
+.lt-part .hl-back { color: transparent; pointer-events: none; }
+.lt-part .hl-back .gap-mark { color: transparent; background: #FFE866; }
+.lt-part .hl-wrap textarea { background: transparent; color: var(--ink); resize: none; overflow: hidden; position: relative; }
+.lt-part .hl-wrap textarea:focus { border: 0; box-shadow: none; outline: none; }
+.lt-form .q-grid input { min-height: 44px; font-size: var(--step-0); }
+.lt-alts { display: grid; gap: 6px; }
+.lt-alts:empty { display: none; }
+.lt-alts .bl-alt { white-space: normal; }
+.lt-guide { margin: 0 0 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; background: var(--surface); }
+.lt-guide summary { cursor: pointer; font-size: var(--step--1); color: var(--accent); }
+.lt-guide p { margin: 6px 0; font-size: var(--step--1); }
+.lt-guide .lt-eg { color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
+.lt-designs .lt-tpls { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.lt-designs .b-actions { margin: 10px 0; }
+
+/* The letter's spacing and margins */
+.lt-sheet { padding: calc(var(--lt-mm, 23) * 2.8px) calc(var(--lt-mm, 23) * 3.3px) calc(var(--lt-mm, 23) * 3.1px); line-height: calc(1.55 * var(--lt-lh, 1)); }
+.lt-sheet p { margin-bottom: calc(12px * var(--lt-gap, 1)); }
+
+/* Craft check in the Tailor breakdown */
+.cl-craft { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); margin-bottom: 8px; }
+.cl-craft.ok { border-color: var(--good); }

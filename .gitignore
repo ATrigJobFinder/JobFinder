@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+Thumbs.db
+# your own collector settings and output
+collector/sources.json
+collector/jobs.json
+collector/fixtures/
+
+# built files (Netlify builds them) and local settings
+dist/
+.env
+.env.*
+!.env.example
+jobs-import/out/

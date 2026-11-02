@@ -1,0 +1,153 @@
+/* ===================== Version 18: resume builder, templates, cover letters, Tailor steps and accounts ===================== */
+
+/* Choices that are pressed don't change size (no tick, same weight), so nothing around them moves */
+.opt-chip[aria-pressed="true"] { font-weight: inherit; box-shadow: inset 0 0 0 1px var(--accent); }
+.opt-chip[aria-pressed="true"]::before { content: none; }
+
+/* Every industry as equal tiles */
+.opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 6px; }
+.opt-tile {
+  min-height: 44px; display: flex; align-items: center; text-align: left; padding: 7px 11px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: var(--step--1); line-height: 1.25; cursor: pointer;
+}
+.opt-tile:hover { border-color: var(--accent); }
+.opt-tile[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cv-filter .opt-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+/* Questions: label, then the box, then hints. Boxes side by side line up even when one has a hint and the other doesn't. */
+#bForm .q-body { display: grid; gap: 6px; min-width: 0; align-content: start; }
+#bForm .q-grid .q-body > .q-hint, #bForm .q-dates .q-body > .q-hint { order: 5; }
+@supports (grid-template-rows: subgrid) {
+  #bForm .q-grid > .q, #bForm .q-dates > .q { grid-row: span 2; display: grid; grid-template-rows: subgrid; row-gap: 6px; align-content: start; }
+  #bForm .q-grid > .q > .q-label, #bForm .q-dates > .q > .q-label { align-self: end; }
+}
+#bForm .q-dates .q-end { padding-bottom: 0; align-self: stretch; }
+#bForm .q-dates .q-end .q-body { min-height: 44px; display: flex; align-items: center; }
+#bForm .q-dates .q-end .q-label { visibility: hidden; }
+
+/* A date or place that can't be read */
+#bForm input.bad, #bForm textarea.bad { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad-bg); }
+#bForm input.bad:focus { border-color: var(--bad); }
+
+/* Type-ahead lists */
+.pick.sugg { position: relative; min-width: 0; }
+.pick.sugg .pick-list [role="option"] b { font-weight: 500; color: var(--ink); white-space: normal; }
+.pick.sugg .pick-list [role="option"] b mark { background: transparent; color: var(--accent); font-weight: 700; padding: 0; }
+.pick.sugg .pick-list [role="option"] span { margin-left: 8px; text-align: right; }
+.chip-edit.pick.sugg { position: relative; }
+.chip-edit .pick-list { top: calc(100% + 4px); }
+
+/* Qualification: its full name, made from the level and subject */
+.q-merge { font-size: var(--step--1); padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px dashed var(--line); min-height: 38px; display: flex; align-items: center; }
+
+/* Cards: hidden from this resume, extras heads */
+.card-tag.off { background: var(--warn-bg); color: var(--ink); border-color: transparent; }
+.b-card.is-hidden > summary > span:first-child { opacity: 0.6; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.b-card [data-act="hide"][aria-pressed="true"] { color: var(--warn); }
+.b-extra-head { display: flex; gap: 8px 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.b-card.off > .b-card-body { padding-block: 10px; }
+
+/* The number box under a bullet: a close button beside its question */
+.bl-ask-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+
+/* Autocorrect note */
+.ac-note { font-size: 0.78rem; color: var(--good); margin: 0; }
+.bl-item > .ac-note { grid-column: 1 / -1; }
+
+/* Page setup: each choice fills its share of the box, on one line, with its size under the name */
+.page-setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px 16px; }
+.seg.seg-fill { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); width: 100%; flex-wrap: nowrap; }
+.seg.seg-fill button { display: grid; justify-items: center; gap: 1px; padding: 6px 4px; min-width: 0; white-space: nowrap; }
+.seg.seg-fill button small { font-family: var(--font-mono); font-size: 0.66rem; color: var(--muted); margin: 0; }
+.page-setup .seg button small { margin-left: 0; }
+
+/* Template filters in rows */
+.tpl-filter { gap: 6px 8px; }
+.tpl-frow { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-left: 8px; border-left: 1px solid var(--line); }
+.tpl-flabel { font-family: var(--font-mono); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.cv-more { margin-top: 10px; }
+
+/* Preview heading */
+.b-side-sub { margin-top: -4px; }
+
+/* Import: resume and LinkedIn side by side */
+.b-import-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.b-import-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.b-import-col h3 { font-size: var(--step-0); }
+.b-import-col h3 .opt { font-weight: 400; color: var(--muted); font-size: var(--step--1); }
+.b-li-paste summary { cursor: pointer; font-size: var(--step--1); color: var(--accent); }
+.b-li-paste textarea { min-height: 96px; width: 100%; margin-top: 6px; }
+.b-li-paste .q-label { display: block; margin-top: 8px; font-weight: 500; font-size: var(--step--1); }
+.b-li-url .seg-in input { flex: 1 1 auto; }
+.b-import-ai { margin-top: 4px; }
+@container main (max-width: 760px) { .b-import-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Review: choose what goes on, and saved versions */
+.b-choose { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 18px; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); }
+.b-choose-group { display: grid; gap: 6px; align-content: start; }
+.b-choose-group > b { font-size: var(--step--1); }
+.b-choose .q-check { align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.saved-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.saved-list li { display: flex; justify-content: space-between; gap: 8px 14px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.saved-name { display: grid; gap: 2px; min-width: 0; }
+
+/* Pop-up for naming what you save */
+.jf-dialog { border: 0; padding: 0; border-radius: 14px; background: transparent; max-width: min(460px, calc(100vw - 32px)); width: 100%; }
+.jf-dialog::backdrop { background: rgba(8, 12, 20, 0.45); }
+.jf-dialog-card { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 12px; box-shadow: 0 18px 50px rgba(8, 12, 20, 0.3); }
+.jf-dialog-card h2 { font-size: var(--step-1); }
+.jf-dialog-card .field input { width: 100%; }
+.jf-dialog-card .b-actions { justify-content: flex-end; }
+
+/* A gentle flash on a button to show where to go next */
+.btn.flash { animation: flashok 1.4s ease-out; }
+
+/* Tailor to a job: the mode switch is exactly as wide as its buttons */
+.tailor-mode { justify-self: start; display: inline-grid; grid-auto-flow: column; grid-auto-columns: auto; flex-wrap: nowrap; }
+@container main (max-width: 560px) {
+  .tailor-mode { justify-self: stretch; grid-auto-columns: minmax(0, 1fr); width: 100%; }
+  .tailor-mode button { white-space: normal; padding-inline: 6px; line-height: 1.25; }
+}
+
+/* Tailor: fit the job's criteria (its own step before the cover letter) */
+.fit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.fit-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.fit-item.yes { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.fit-item.no { opacity: 0.55; }
+.fit-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fit-crit { font-weight: 600; font-size: var(--step--1); }
+.fit-ev { font-size: var(--step--1); color: var(--muted); }
+.fit-ev q { font-style: italic; }
+.fit-say { font-size: var(--step--1); background: var(--good-bg); border-radius: 6px; padding: 6px 8px; }
+.fit-say[contenteditable="true"]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fit-gap { font-size: var(--step--1); background: var(--warn-bg); border-radius: 6px; padding: 6px 8px; }
+.fit-qs { display: grid; gap: 14px; }
+.fit-q { display: grid; gap: 6px; }
+.fit-q > b { font-size: var(--step-0); }
+.fit-q .opt-chips .opt-chip { text-align: left; }
+.fit-q textarea { min-height: 64px; width: 100%; }
+.fit-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+
+/* Cover letter page: word targets per paragraph and saved templates */
+.lt-part .opt.short { color: var(--warn); }
+.lt-part .opt.good { color: var(--good); }
+.lt-target { font-size: var(--step--1); color: var(--muted); }
+.lt-saved { display: grid; gap: 8px; }
+
+/* Accounts: sign up and sign in */
+.acct { display: grid; gap: 6px; }
+.acct-btn { justify-content: center; }
+.acct-who { font-size: 0.74rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app[data-nav="rail"] .acct-who, .app[data-nav="rail"] .acct-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.acct-form { display: grid; gap: 10px; }
+.acct-form .field input { width: 100%; }
+.acct-tabs { justify-self: start; }
+.acct-msg { font-size: var(--step--1); min-height: 1.3em; }
+.acct-msg.err { color: var(--bad); }
+.acct-msg.ok { color: var(--good); }
+.cl-part-head > span:last-child { margin-left: auto; }
+.lt-part .lt-part-acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.lt-part .lt-part-acts:empty { display: none; }
+input[type="password"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 10px 12px; line-height: 1.5; color: var(--ink); font: inherit; }
+input[type="password"]:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.cv-filter .formality { align-content: start; }

@@ -1,0 +1,901 @@
+<title>Job Finder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Noto+Color+Emoji&display=swap">
+<!-- @styles -->
+
+<div class="app" id="app" data-nav="open" data-mode="seeker" lang="en-AU">
+  <aside class="sidenav" id="sidenav" aria-label="Job Finder menu">
+    <div class="sn-head">
+      <span class="sn-logo" aria-hidden="true">JF</span>
+      <span class="sn-brand">Job <span>Finder</span></span>
+    </div>
+    <div class="sn-mode" role="group" aria-label="I'm using Job Finder as">
+      <button type="button" data-mode="seeker" aria-pressed="true" title="Job seeker"><span>Job seeker</span></button>
+      <button type="button" data-mode="employer" aria-pressed="false" title="Employer"><span>Employer</span></button>
+    </div>
+    <nav class="sn-nav" aria-label="Tools">
+<a class="sn-item" href="#home" data-view="home" data-for="seeker" title="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>
+        <span class="sn-text"><b>Home</b><small>Start here, see your plan</small></span>
+      </a>
+<a class="sn-item" href="#connect" data-view="connect" title="Connect your AI">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v4M15 3v4"/><path d="M6.5 7h11v4a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5V21"/></svg>
+        <span class="sn-text"><b>Connect your AI</b><small>Choose who does the writing</small></span>
+      </a>
+      <p class="sn-group" data-for="seeker">Build your basics</p>
+      <a class="sn-item" href="#builder" data-view="builder" data-for="seeker" title="Create or edit resume">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M13 3v5h5"/><path d="M8.5 12h5M8.5 15.5h2.5"/><path d="m18.6 12.9 2 2-5.7 5.6H13v-2z"/></svg>
+        <span class="sn-text"><b>Create or edit resume</b><small>Answer questions, get a strong resume</small></span>
+      </a>
+      <a class="sn-item" href="#letter" data-view="letter" data-for="seeker" title="Create or edit cover letter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/></svg>
+        <span class="sn-text"><b>Create or edit cover letter</b><small>One letter you can reuse and tailor</small></span>
+      </a>
+      <a class="sn-item" href="#cv" data-view="cv" data-for="seeker" title="Resume and cover letter templates">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/></svg>
+        <span class="sn-text"><b>Resume and cover letter templates</b><small>Matching designs, casual to formal</small></span>
+      </a>
+      <a class="sn-item" href="#linkedin" data-view="linkedin" data-for="seeker" title="Create or edit LinkedIn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10.5V17M8 7.2v.1M12 17v-6.5M12 13.2c0-1.6 1.1-2.7 2.5-2.7s2.5 1 2.5 2.7V17"/></svg>
+        <span class="sn-text"><b>Create or edit LinkedIn</b><small>Build a profile or improve yours</small></span>
+      </a>
+      <a class="sn-item" href="#profile" data-view="profile" data-for="seeker" title="Create or edit profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c.9-3.6 3.9-5.5 7.5-5.5s6.6 1.9 7.5 5.5"/></svg>
+        <span class="sn-text"><b>Create or edit profile</b><small>Your details, used everywhere</small></span>
+      </a>
+      <p class="sn-group" data-for="seeker">Find work</p>
+      <a class="sn-item" href="#jobs" data-view="jobs" data-for="seeker" title="Find jobs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7"/><path d="M3 12.5h18"/></svg>
+        <span class="sn-text"><b>Find jobs</b><small>One list, no duplicates</small></span>
+      </a>
+      <a class="sn-item" href="#scanner" data-view="scanner" data-for="seeker" title="Tailor to a job">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M13 3v5h5v2"/><circle cx="16.5" cy="16.5" r="3.2"/><path d="m21 21-2.2-2.2"/></svg>
+        <span class="sn-text"><b>Tailor to a job</b><small>Tailor your resume, cover letter or both</small></span>
+      </a>
+      <a class="sn-item" href="#companies" data-view="companies" data-for="seeker" title="Company guides">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 20.5V9l5-3v14.5"/><path d="M8.5 20.5V4.5l7 3.5v12.5"/><path d="M15.5 20.5V11l5 2.5v7"/><path d="M2.5 20.5h19"/><path d="M11 10.5h2M11 14h2"/></svg>
+        <span class="sn-text"><b>Company guides</b><small>Australian employers and what they want</small></span>
+      </a>
+      <hr class="sn-sep" data-for="seeker">
+      <a class="sn-item" href="#tracker" data-view="tracker" data-for="seeker" title="Application tracker">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="5" height="16" rx="1.5"/><rect x="9.5" y="4" width="5" height="11" rx="1.5"/><rect x="15.5" y="4" width="5" height="7" rx="1.5"/></svg>
+        <span class="sn-text"><b>Application tracker</b><small>Track every application</small></span>
+      </a>
+      <p class="sn-group" data-for="seeker">Get ready</p>
+      <a class="sn-item" href="#interview" data-view="interview" data-for="seeker" title="Interviews">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4.5h10a2 2 0 0 1 2 2V12a2 2 0 0 1-2 2H8.5L5 17v-3H4a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/><path d="M19 8.5h1a2 2 0 0 1 2 2V16a2 2 0 0 1-2 2h-1v3l-3.5-3H11a2 2 0 0 1-2-2"/></svg>
+        <span class="sn-text"><b>Interviews</b><small>Screening calls, practice, feedback</small></span>
+      </a>
+      <a class="sn-item" href="#aptitude" data-view="aptitude" data-for="seeker" title="Aptitude tests">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.2 2"/><path d="M4.5 4.5 3 3M19.5 4.5 21 3"/></svg>
+        <span class="sn-text"><b>Aptitude tests</b><small>Timed practice and how to score well</small></span>
+      </a>
+      <a class="sn-item" href="#learning" data-view="learning" data-for="seeker" title="Learning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v4.5c1.5 1.5 3.4 2.2 5.5 2.2s4-.7 5.5-2.2V11"/><path d="M21.5 9v5"/></svg>
+        <span class="sn-text"><b>Learning</b><small>Courses that widen your options</small></span>
+      </a>
+<a class="sn-item" href="#employer" data-view="employer" data-for="employer" title="Hiring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21"/><path d="M14 10h4.5a1.5 1.5 0 0 1 1.5 1.5V21"/><path d="M2.5 21h19M7.5 8h3M7.5 11.5h3M7.5 15h3"/></svg>
+        <span class="sn-text"><b>Hiring</b><small>Post jobs, find and invite candidates</small></span>
+      </a>
+<a class="sn-item" href="#jobs" data-view="jobs" data-for="employer" title="Job market">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7"/><path d="M3 12.5h18"/></svg>
+        <span class="sn-text"><b>Job market</b><small>See what else is advertised</small></span>
+      </a>
+    </nav>
+    <div class="sn-foot" id="snFoot">
+      <button type="button" class="ai-chip" id="aiChip" aria-haspopup="dialog" aria-controls="aiHelp"><span class="dot" aria-hidden="true"></span><span id="aiChipText">Checking AI…</span></button>
+      <span id="profileWhere">Loading your saved details…</span>
+      <div class="acct" id="acct"></div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+  <div class="main" id="main">
+    <div class="appbar" id="appbar">
+      <button class="icon-btn" id="navToggle" type="button" aria-controls="sidenav" aria-expanded="true" aria-label="Collapse the menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/><path d="m15.5 10-2 2 2 2" class="ic-collapse"/><path d="m13.5 10 2 2-2 2" class="ic-expand"/></svg>
+      </button>
+      <span class="ab-brand">Job <span>Finder</span></span>
+      <span class="ab-sep" aria-hidden="true">/</span>
+      <span class="ab-view" id="abView">Home</span>
+    </div>
+    <div class="ai-help" id="aiHelp" role="dialog" aria-modal="false" aria-labelledby="aiHelpTitle" hidden></div>
+
+<section class="view" id="view-scanner" data-stage="scan" aria-labelledby="scannerTitle">
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 id="scannerTitle">Tailor to a job</h1>
+      <p id="tailorIntro">Add your resume and a job ad, scan, place the skills you're missing, then download it in your own format with a cover letter.</p>
+      <div class="seg tailor-mode" id="tailorMode" role="group" aria-label="What to tailor">
+        <button type="button" data-tm="both" aria-pressed="true">Resume and cover letter</button>
+        <button type="button" data-tm="resume" aria-pressed="false">Resume only</button>
+        <button type="button" data-tm="letter" aria-pressed="false">Cover letter only</button>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn ghost" id="loadExample" type="button">Try an example</button>
+      <button class="btn ghost" id="clearAll" type="button">Start over</button>
+    </div>
+  </header>
+
+  <nav class="stepper" aria-label="Your progress">
+    <ol id="stepper">
+      <li data-step="1"><button type="button" data-go="step-jd"><span class="n">1</span><span class="t">Job ad</span></button></li>
+      <li data-step="2"><button type="button" data-go="step-resume"><span class="n">2</span><span class="t">Your resume</span></button></li>
+      <li data-step="3"><button type="button" data-go="scanRow"><span class="n">3</span><span class="t">Scan</span></button></li>
+      <li data-step="4"><button type="button" data-go="sec-place"><span class="n">4</span><span class="t">Place skills</span></button></li>
+      <li data-step="5"><button type="button" data-go="sec-download"><span class="n">5</span><span class="t">Your resume</span></button></li>
+      <li data-step="6"><button type="button" data-go="sec-fit"><span class="n">6</span><span class="t">Fit the criteria</span></button></li>
+      <li data-step="7"><button type="button" data-go="sec-cover"><span class="n">7</span><span class="t">Cover letter</span></button></li>
+    </ol>
+  </nav>
+
+  <div class="example-note" id="exampleNote" hidden>
+    <span class="tag">Example</span>
+    <span id="exampleText"></span>
+  </div>
+
+  <div class="inputs-bar" id="inputsBar" hidden>
+    <div class="bar-item"><span class="bar-k">Resume</span><span class="bar-v" id="barResume"></span></div>
+    <div class="bar-item"><span class="bar-k">Job</span><span class="bar-v" id="barJob"></span></div>
+    <button class="btn" id="editInputs" type="button">Change resume or job ad</button>
+  </div>
+
+  <section class="inputs" id="inputs" aria-label="The job ad, your resume and your cover letter">
+    <div class="sheet" id="step-jd">
+      <div class="sheet-head">
+        <h2><span class="stepno">1</span> The job ad</h2>
+        <span class="count mono" id="jdCount"></span>
+      </div>
+      <input type="hidden" id="jobTitle" value="">
+      <label class="field" for="jobText">Copy and paste the whole job ad: the title, the company, what you'd do and what they're looking for
+        <textarea id="jobText" spellcheck="false" placeholder="Copy the whole ad from Seek, LinkedIn or the company's site"></textarea>
+      </label>
+    </div>
+    <div class="sheet" id="step-resume">
+      <div class="sheet-head">
+        <h2><span class="stepno">2</span> Your resume <span class="muted small" id="inLetterTag">and cover letter</span></h2>
+        <span class="count mono" id="resumeCount"></span>
+      </div>
+      <div class="drop" id="drop">
+        <button class="btn" id="pickFile" type="button">Upload PDF or Word</button>
+        <button class="btn" id="useBuilt" type="button" hidden>Use the resume I built</button>
+        <p>or drop the file here, or paste the text below. Word files can be downloaded again in their exact layout.</p>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" class="visually-hidden">
+      </div>
+      <div class="file-status" id="fileStatus" role="status"></div>
+      <label class="field" for="resumeText">Resume text, as an ATS would read it
+        <textarea id="resumeText" spellcheck="false" placeholder="Upload a file above, or paste your resume here"></textarea>
+      </label>
+      <div class="prev-letters" id="clPrev">
+        <h3>Your cover letter <span class="muted small">(optional)</span></h3>
+        <p class="small muted">A letter you have sent before. It is used to match your voice and reuse genuine details, such as why you chose engineering or your availability. Up to 3.</p>
+        <div class="drop" id="clDrop">
+          <button class="btn" id="clPick" type="button">Upload cover letters</button>
+          <p>PDF, Word or text. Up to 3.</p>
+          <input type="file" id="clFile" multiple accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" class="visually-hidden">
+        </div>
+        <ul class="cl-files" id="clFiles"></ul>
+        <label class="field" for="clPaste">Or paste one here
+          <textarea id="clPaste" spellcheck="false" placeholder="Paste a cover letter you've sent before"></textarea>
+        </label>
+        <label class="toggle"><input type="checkbox" id="clRemember" checked> Remember my cover letters for next time</label>
+        <p class="small muted" id="clStore"></p>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="scan-row" id="scanRow">
+    <button class="btn primary lg" id="scanBtn" type="button" disabled><span class="stepno inv">3</span> Scan resume</button>
+    <span class="scan-hint" id="scanHint"></span>
+    <span class="form-err" id="formErr" role="alert"></span>
+  </div>
+
+  <div class="stale" id="stale" hidden>
+    <span>Your resume or the job ad changed after this scan, so the results below may be out of date.</span>
+    <button class="btn" id="rescan" type="button">Scan again</button>
+  </div>
+
+  <div id="results" class="wrap" aria-live="polite"></div>
+
+  <section class="panel" id="ai" hidden>
+    <div class="panel-head">
+      <h2>Optional: AI review</h2>
+      <p>Your AI reads both texts, finds skills you've described in other words, and suggests rewrites using the ad's language.</p>
+    </div>
+    <div class="ai-actions">
+      <button class="btn" id="aiBtn" type="button" disabled>Get AI suggestions</button>
+      <button class="btn" id="aiStop" type="button" hidden>Stop</button>
+      <span class="ai-status" id="aiStatus" role="status">Connecting to Claude…</span>
+    </div>
+    <div class="ai-out" id="aiOut"></div>
+  </section>
+
+  <section class="panel" id="sec-download" hidden>
+    <div class="panel-head">
+      <h2><span class="stepno">5</span> Your tailored resume</h2>
+      <p id="dlNote"></p>
+    </div>
+    <p class="tw-back"><button class="linkish" type="button" id="rsBack">← Back to your results and skills</button></p>
+    <div class="rs-summary" id="rsSummary" aria-live="polite"></div>
+    <div class="sk-review" id="rsSkills"></div>
+    <div class="rs-paper" id="rsPaper" tabindex="0" aria-label="Your tailored resume, with the job's key skills highlighted"></div>
+    <details class="rs-edit" id="rsEditBox"><summary>Edit the text</summary>
+      <label class="field" for="rsEdit">Change anything, add the detail only you know. The preview, the score and the download follow.
+        <textarea id="rsEdit" spellcheck="true"></textarea>
+      </label>
+    </details>
+    <p class="small" id="dlWhich"></p>
+    <div class="sorter-foot">
+      <button class="btn primary" id="downloadBtn" type="button">Download as Word</button>
+      <button class="btn" id="toCover" type="button">Next: cover letter</button>
+      <button class="btn ghost" id="trackApp" type="button">I've applied: add to Application tracker</button>
+    </div>
+    <p class="small muted" id="downloadStatus" role="status"></p>
+  </section>
+
+  <section class="panel" id="sec-fit" hidden>
+    <p class="tw-back"><button class="linkish" type="button" id="ltBack">← Back to your tailored resume</button></p>
+    <div class="panel-head">
+      <h2><span class="stepno" id="fitStepNo">6</span> Fit the job's criteria</h2>
+      <p>Everything the ad asks for, each matched to the best evidence in your resume, with a sentence you can use. Keep the ones that fit, then answer a few quick questions.</p>
+    </div>
+    <div id="fitBody"></div>
+    <div class="sorter-foot"><button class="btn primary" id="fitNext" type="button">Next: write the cover letter</button></div>
+  </section>
+
+  <section class="panel" id="sec-cover" hidden>
+    <div class="panel-head">
+      <h2><span class="stepno" id="coverStepNo">7</span> Write your cover letter</h2>
+      <p>A formal letter for this job, built from your updated resume, the criteria you chose in the step before, the ad and the cover letters you've written before.</p>
+    </div>
+    <div class="cover-grid one">
+      <div class="cover-col">
+        <h3>Letter details</h3>
+        <div class="field-grid">
+          <label class="field" for="clRole">Role<input type="text" id="clRole" autocomplete="off"></label>
+          <label class="field" for="clCompany">Company<input type="text" id="clCompany" autocomplete="off"></label>
+          <label class="field" for="clRecipient">Hiring manager's name <span class="muted">(if known)</span><input type="text" id="clRecipient" autocomplete="off" placeholder="Leave blank for “Dear Hiring Manager”"></label>
+          <label class="field" for="clAddress">Company address <span class="muted">(optional)</span><input type="text" id="clAddress" autocomplete="off"></label>
+          <label class="field" for="clSource">Where you saw the ad <span class="muted">(optional)</span><input type="text" id="clSource" autocomplete="off" placeholder="e.g. Seek, LinkedIn, the RMIT careers portal"></label>
+          <label class="field wide" for="clWhy">Why this company? <span class="muted">(optional, but it makes a big difference)</span><textarea id="clWhy" rows="2" placeholder="e.g. Your work on hospital ventilation upgrades, and the graduate pathway"></textarea><span class="co-hint" id="clGuideHint" hidden></span></label>
+          <label class="field" for="clAvail">Availability <span class="muted">(optional)</span><input type="text" id="clAvail" autocomplete="off" placeholder="e.g. from 1 December, full time over summer"></label>
+        </div>
+        <h3 class="sub">Your details <span class="muted small">(from your resume)</span></h3>
+        <div class="field-grid">
+          <label class="field" for="clName">Name<input type="text" id="clName" autocomplete="off"></label>
+          <label class="field" for="clEmail">Email<input type="text" id="clEmail" autocomplete="off"></label>
+          <label class="field" for="clPhone">Phone<input type="text" id="clPhone" autocomplete="off"></label>
+          <label class="field" for="clLocation">Location<input type="text" id="clLocation" autocomplete="off"></label>
+        </div>
+      </div>
+    </div>
+    <div class="cl-ready" id="clReady" aria-live="polite"></div>
+    <details class="cl-design" id="clDesignBox"><summary>Design, spacing and margins</summary><div id="clDesigns"></div></details>
+    <div class="sorter-foot">
+      <button class="btn primary" id="clGenerate" type="button">Write my cover letter</button>
+      <span class="engine-note" id="clEngine"></span>
+    </div>
+    <div id="clOut" aria-live="polite"></div>
+  </section>
+
+  <footer class="note">
+    <p>The scan runs in your browser and nothing is uploaded. AI wording and suggestions send the resume and job ad text to the AI you chose (Claude on your own account by default), and only when you ask.</p>
+    <p>Scores are a guide. Every employer's system works differently and none publish how they rank candidates. Only add skills you genuinely have.</p>
+  </footer>
+</div>
+</section>
+<section class="view" id="view-home" hidden aria-labelledby="lpTitle">
+<div class="wrap lp">
+  <header class="lp-hero">
+    <div class="lp-copy">
+      <p class="lp-eyebrow">Free · Made for Australian job seekers · Sign up only if you want to</p>
+      <h1 id="lpTitle">From blank page to job offer, <mark class="lp-swipe">free</mark>.</h1>
+      <p class="lp-lede">Build your resume, match it to any job ad, write the cover letter and practise the interview. Connect your own AI and it fills out everything for you, checked against your real details so nothing is made up.</p>
+      <div class="lp-cta">
+        <a class="btn primary lg" href="#builder">Build my resume</a>
+        <a class="btn lg" href="#connect">Connect your AI</a>
+      </div>
+      <p class="lp-now"><span class="dot" aria-hidden="true"></span><span id="lpNow">Checking which AI is connected…</span></p>
+    </div>
+    <div class="lp-demo" aria-hidden="true">
+      <div class="lp-ad">
+        <p class="lp-ad-k">Job ad</p>
+        <p><b>Graduate Civil Engineer</b> · Brisbane QLD</p>
+        <p>You'll have <span class="lp-hl">AutoCAD</span> skills, a <span class="lp-hl">civil engineering degree</span> and clear <span class="lp-hl">communication</span> with site teams.</p>
+      </div>
+      <div class="lp-sheet">
+        <p class="lp-name">Sam Taylor</p>
+        <p class="lp-role">Graduate Civil Engineer · Brisbane QLD · 0400 000 000</p>
+        <p class="lp-h">Experience</p>
+        <p class="lp-line l1">Drafted 40 retaining wall details in <span class="lp-hl">AutoCAD</span> for a council stormwater upgrade</p>
+        <p class="lp-line l2">Briefed site crews each morning, keeping <span class="lp-hl">communication</span> clear across three subcontractors</p>
+        <p class="lp-h">Education</p>
+        <p class="lp-line l3">Bachelor of <span class="lp-hl">Civil Engineering</span> (Hons), QUT · WAM 72</p>
+        <p class="lp-fill"><span class="lp-spark"></span>Written from Sam's answers by <span id="lpAiName">your AI</span></p>
+      </div>
+      <div class="lp-score"><span>Match</span><b>86%</b></div>
+      <p class="lp-demo-note">Example: Sam is made up</p>
+    </div>
+  </header>
+
+  <section class="lp-band" aria-labelledby="lpToolsTitle">
+    <div class="lp-band-head">
+      <h2 id="lpToolsTitle">Everything between you and the job</h2>
+      <p>One profile feeds every tool, so you only type your details once.</p>
+    </div>
+    <div class="lp-tools">
+      <a class="lp-tool" href="#builder"><span class="lp-tool-k">Create or edit resume</span><b>Answer simple questions, get a strong resume</b><span>Your AI turns rough answers into bullet points with action words and results, in one of 100 designs.</span></a>
+      <a class="lp-tool" href="#scanner"><span class="lp-tool-k">Tailor to a job</span><b>Match your resume to the ad, then write the letter</b><span>See your match score, place the skills you're missing, and get a cover letter that credits each job correctly.</span></a>
+      <a class="lp-tool" href="#jobs"><span class="lp-tool-k">Find jobs</span><b>One list of jobs, with duplicates merged</b><span>The same job from three sites shows once. Save it, track it, follow up on time.</span></a>
+      <a class="lp-tool" href="#interview"><span class="lp-tool-k">Interviews and tests</span><b>Practise until the answers come easily</b><span>Phone screens, STAR answers and timed aptitude tests, scored with feedback on every try.</span></a>
+    </div>
+    <p class="lp-more">Also here: <a href="#letter">Cover letter</a> · <a href="#cv">Resume and cover letter templates</a> · <a href="#linkedin">LinkedIn</a> · <a href="#profile">Profile</a> · <a href="#tracker">Application tracker</a> · <a href="#aptitude">Aptitude tests</a> · <a href="#learning">Courses and licences</a></p>
+  </section>
+
+  <section class="lp-band lp-byo" aria-labelledby="lpByoTitle">
+    <div class="lp-band-head">
+      <h2 id="lpByoTitle">Bring your own AI</h2>
+      <p>Pick who does the writing: three ways, from free and private to the strongest writing. Most people should start at a highlighted step. Both are free.</p>
+    </div>
+    <ol class="lp-stairs" id="lpStairs"></ol>
+    <div class="lp-cta"><a class="btn primary" href="#connect">Choose your AI</a><span class="small muted">Takes about two minutes.</span></div>
+  </section>
+
+  <section class="lp-band" aria-labelledby="lpTrustTitle">
+    <div class="lp-band-head"><h2 id="lpTrustTitle">Honest by design</h2></div>
+    <div class="lp-trust">
+      <div><h3>Nothing made up</h3><p>Every AI answer is checked before you see it. A number, tool or employer that isn't in your own details is thrown out, and the page says so.</p></div>
+      <div><h3>Your key stays with you</h3><p>An API key you add is kept in this browser only. It goes straight to the AI company you chose and is never stored by Job Finder.</p></div>
+      <div><h3>Free to use</h3><p>Every tool works without paying, even with no AI at all. AI makes the writing faster and better, and you choose how.</p></div>
+    </div>
+  </section>
+
+  <section class="lp-band lp-plan" aria-labelledby="homeTitle">
+    <div class="lp-band-head">
+      <h2 id="homeTitle">Your job search, step by step</h2>
+      <p>Seven steps that make the biggest difference, in order. Start anywhere: everything you add is shared between the tools.</p>
+    </div>
+    <div class="home-progress" id="homeProgress"></div>
+    <section class="panel home-today" id="homeToday" hidden aria-label="Today"></section>
+    <ol class="plan" id="homePlan"></ol>
+  </section>
+
+  <aside class="lp-employer">
+    <p><b>Hiring?</b> Post jobs, check your ad for biased wording and invite people from the talent pool, free.</p>
+    <button class="btn" type="button" id="lpEmployer">Switch to employer</button>
+  </aside>
+</div>
+</section>
+
+<section class="view" id="view-connect" hidden aria-labelledby="aicTitle">
+<div class="wrap aic">
+  <header class="view-head">
+    <div>
+      <h1 id="aicTitle">Connect your AI</h1>
+      <p>Choose which AI fills out your resume, cover letters and interview feedback. The three options run from free and private down to the best results. Whatever you pick, every answer is checked against your own details before you see it.</p>
+    </div>
+  </header>
+  <section class="aic-now panel" aria-labelledby="aicNowTitle">
+    <div class="aic-now-main">
+      <p class="aic-k" id="aicNowTitle">Writing with</p>
+      <p class="aic-now-name" id="aicNowName">…</p>
+      <p class="small muted" id="aicNowWhy"></p>
+    </div>
+    <div class="aic-now-act">
+      <button class="btn" type="button" id="aicTestNow">Test it</button>
+      <p class="aic-msg small" id="aicTestNowOut" role="status"></p>
+    </div>
+    <label class="aic-check"><input type="checkbox" id="aicFallback"> If my chosen AI fails, use Claude instead (when Job Finder is opened in Claude)</label>
+  </section>
+  <aside class="aic-tip">
+    <p><b>Our suggestion.</b> For the best free results, <a href="#connect" data-jump="key">bring a free Gemini key</a> (about two minutes). To keep everything on your computer, <a href="#connect" data-jump="browser">use an AI in your browser</a>.</p>
+  </aside>
+  <ol class="aic-ladder" id="aicLadder"></ol>
+  <p class="small muted aic-foot">Easiest at the top, best at the bottom. You can change this any time; your choice is remembered in this browser.</p>
+</div>
+</section>
+
+<section class="view" id="view-tracker" hidden aria-labelledby="trkTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="trkTitle">Application tracker</h1>
+      <p>Every job you're interested in, from saved to offer. Set a follow-up date and you'll see it on Home when it's due.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary" id="trkAdd" type="button">+ Add a job</button>
+      <button class="btn" id="trkCsv" type="button">Export to a spreadsheet</button>
+    </div>
+  </header>
+  <div class="iv-stats" id="trkStats"></div>
+  <div class="trk-bar">
+    <label class="field trk-search" for="trkSearch">Search<input type="text" id="trkSearch" placeholder="Job title, company or notes" autocomplete="off"></label>
+    <p class="small muted" id="trkWhere"></p>
+    <p class="status-line" id="trkStatus" role="status"></p>
+  </div>
+  <div class="trk-board" id="trkBoard"></div>
+</div>
+</section>
+
+<section class="view" id="view-companies" hidden aria-labelledby="coTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="coTitle">Company guides</h1>
+      <p><span id="coTotal">Australian employers</span>, from small firms to global ones. Every link goes to the employer's own careers page. Companies with a full guide also show what they ask for in a resume and cover letter, how they interview, and what they value. Tick the ones you want and add them to your Application tracker in one go.</p>
+    </div>
+    <div class="top-actions"><button class="btn" id="coSelAll" type="button">Select all shown</button><button class="btn" id="coOpenAll" type="button">Open all guides</button></div>
+  </header>
+  <section class="panel co-tools" aria-label="Filter the companies">
+    <div class="co-filters">
+      <label class="field co-search" for="coSearch">Search<input type="search" id="coSearch" placeholder="Company, value or industry" autocomplete="off"></label>
+      <label class="field" for="coIndustry">Industry<select id="coIndustry"><option value="all">All industries</option></select></label>
+      <label class="field" for="coState">State<select id="coState"><option value="all">Anywhere in Australia</option><option value="NSW">NSW</option><option value="VIC">Victoria</option><option value="QLD">Queensland</option><option value="WA">Western Australia</option><option value="SA">South Australia</option><option value="TAS">Tasmania</option><option value="ACT">ACT</option><option value="NT">Northern Territory</option></select></label>
+      <label class="field" for="coSort">Order<select id="coSort"><option value="rank">Ranking</option><option value="small">Size: small to big</option><option value="big">Size: big to small</option><option value="az">A to Z</option></select></label>
+    </div>
+    <div class="co-segs">
+      <div class="seg" id="coKind" role="group" aria-label="Show"><button type="button" data-v="all">All employers</button><button type="button" data-v="guides">Full guides only</button></div>
+      <div class="seg" id="coView" role="group" aria-label="Layout"><button type="button" data-v="group">Group by industry</button><button type="button" data-v="list">One list</button></div>
+      <div class="seg" id="coSize" role="group" aria-label="Size"><button type="button" data-v="all">Any size</button><button type="button" data-v="small">Small</button><button type="button" data-v="medium">Medium</button><button type="button" data-v="large">Large</button><button type="button" data-v="global">Global</button></div>
+    </div>
+    <details class="co-about">
+      <summary class="small">How they're ranked, and how Job Finder uses this</summary>
+      <p class="small muted co-how"><b>Links:</b> every company link goes to the employer's own website, usually its careers page and, where it has one, its graduate or early-careers page. Tips taken from graduate review sites are named but not linked.</p>
+      <p class="small muted co-how"><b>Ranking:</b> companies with a full guide are ranked by the 2026 SEEK Grad Top100, the student vote run by GradConnection (now SEEK Grad), from #1 EY down. Guides that weren't in it follow, biggest first, then every other employer, biggest first.</p>
+      <p class="small muted co-how"><b>Sizes:</b> small is under 500 staff, medium 500 to 5,000, large over 5,000, and global means a large firm working in many countries. <b>States:</b> “National” means offices or roles across Australia.</p>
+      <p class="small muted co-how"><b>Sending your resume to many employers:</b> tick each company, then <b>Add to Application tracker</b>. Each one is saved with its careers link, so you can work through them, tailor your resume for each, and record when you applied.</p>
+      <p class="small muted co-how"><b>In your applications:</b> scan an ad from one of these companies in Tailor to a job and its values and tips appear in “What this job needs”, and go into your cover letter. “Our tip” marks our suggestion, based on what the company says it wants.</p>
+    </details>
+    <p class="small muted" id="coCount" role="status"></p>
+  </section>
+  <div id="coList"></div>
+  <div class="co-bulk" id="coBulk" hidden role="region" aria-label="Selected employers">
+    <span id="coBulkN" aria-live="polite"></span>
+    <button class="btn primary" id="coBulkAdd" type="button">Add to Application tracker</button>
+    <button class="btn ghost" id="coBulkClear" type="button">Clear</button>
+  </div>
+  <p class="status-line" id="coBulkStatus" role="status"></p>
+  <p class="small muted">Careers links checked October 2026 on each employer's own website. Guide tips come from company careers pages, plus graduate reviews where named. Programs, dates and rules change, so open the careers page before you apply.</p>
+</div>
+</section>
+
+<section class="view" id="view-builder" hidden aria-labelledby="bTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="bTitle">Create or edit your resume</h1>
+      <p>Answer the questions a good recruiter would ask. Your answers become a clean resume that applicant tracking systems read well, which you can download, restyle in Templates, or tailor to a job ad.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary" id="bImportBtn" type="button" aria-expanded="false" aria-controls="bImport">Start from my resume or LinkedIn</button>
+      <button class="btn ghost" id="bReset" type="button">Start fresh</button>
+    </div>
+  </header>
+
+  <div class="panel b-import" id="bImport" hidden>
+    <div class="panel-head">
+      <h2>Start from what you already have</h2>
+      <p>Bring in your old resume, your LinkedIn profile, or both. We fill in as many answers as we can, and nothing you've already typed is replaced. You can change anything afterwards.</p>
+    </div>
+    <div class="b-import-grid">
+      <div class="b-import-col b-import-resume">
+        <h3>Your old resume</h3>
+        <div class="drop" id="bDrop">
+          <button class="btn" id="bPick" type="button">Upload PDF or Word</button>
+          <button class="btn" id="bFromScanner" type="button" hidden>Use the resume from Tailor to a job</button>
+          <p>or drop the file here. It's read in your browser.</p>
+          <input type="file" id="bFile" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" class="visually-hidden">
+        </div>
+      </div>
+      <div class="b-import-col">
+        <h3>Your LinkedIn profile <span class="opt">(optional)</span></h3>
+        <div class="q li-url b-li-url">
+          <label class="q-label" for="bLiUrl">Your profile link</label>
+          <div class="seg-in"><input type="url" id="bLiUrl" placeholder="linkedin.com/in/your-name" autocomplete="url"><button class="btn" id="bLiOpen" type="button">Open it ↗</button></div>
+        </div>
+        <div class="drop" id="bLiDrop">
+          <button class="btn" id="bLiPick" type="button">Upload LinkedIn PDF</button>
+          <p>On your profile choose <b>Resources</b> (or <b>More</b>) › <b>Save to PDF</b>, then drop the PDF here.</p>
+          <input type="file" id="bLiFile" accept=".pdf,application/pdf" class="visually-hidden">
+        </div>
+        <details class="b-li-paste">
+          <summary>Or copy and paste your profile page</summary>
+          <label class="q-label" for="bLiPaste">On your LinkedIn profile press Ctrl+A then Ctrl+C (Cmd on a Mac), then paste here</label>
+          <textarea id="bLiPaste" rows="4" placeholder="Paste everything you copied from your profile page"></textarea>
+          <div class="b-actions"><button class="btn" id="bLiPasteGo" type="button">Fill in from this</button></div>
+        </details>
+        <p class="small muted">LinkedIn doesn't let other websites read a profile from its link, even a public one, so the PDF or a copy of the page is the way in. Nothing is posted to LinkedIn.</p>
+      </div>
+    </div>
+    <label class="q-check b-import-ai"><input type="checkbox" id="bImportAi" checked> Also have my AI read them closely, to fill in more (every detail it adds is checked against your file)</label>
+    <p class="status-line" id="bImportStatus" role="status"></p>
+  </div>
+
+  <nav class="b-steps" aria-label="Resume sections"><ol id="bSteps"></ol></nav>
+
+  <div class="b-layout">
+    <section class="panel b-form" id="bForm" aria-labelledby="bStepTitle"></section>
+    <aside class="b-side" aria-label="Preview of your resume">
+      <div class="b-side-head">
+        <h2>Preview of Complete Resume</h2>
+        <span class="b-score" id="bScoreMini"></span>
+      </div>
+      <p class="small muted b-side-sub">This is all your achievements. You can hide and select specific ones at the end to perfect the resume. Everything is kept in your profile, ready for when it fits a specific job.</p>
+      <div class="paper-frame" id="bPaper"></div>
+      <p class="small muted" id="bPages"></p>
+    </aside>
+  </div>
+</div>
+</section>
+
+<section class="view" id="view-letter" hidden aria-labelledby="ltTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="ltTitle">Create or edit your cover letter</h1>
+      <p>Write one strong letter you can send anywhere. It's laid out in the same design as your resume, and when you tailor a letter to a job, Job Finder reuses its best sentences.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn primary" id="ltFromProfile" type="button">Start from my profile</button>
+      <button class="btn" id="ltImport" type="button">Upload a letter</button>
+      <input type="file" id="ltFile" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" class="visually-hidden">
+    </div>
+  </header>
+  <p class="status-line" id="ltStatus" role="status"></p>
+  <section class="panel lt-designs" aria-labelledby="ltDesignsH">
+    <div class="panel-head"><h2 id="ltDesignsH">Start with a design</h2><p>Pick a cover letter template, then set its spacing and margins. Your letter takes its fonts and colour from it, and the preview, Word and PDF all follow.</p></div>
+    <div id="ltDesigns"></div>
+  </section>
+  <div class="lt-layout">
+    <section class="panel lt-form" aria-labelledby="ltFormH">
+      <div class="panel-head"><h2 id="ltFormH">Your letter</h2><p>Five paragraphs, each with one job to do. Saved as you type, gaps and all. <span class="lt-target" id="ltTarget"></span></p></div>
+      <div class="q-grid">
+        <label class="field" for="lt-role">Role you're applying for<input type="text" id="lt-role" data-lt="role" autocomplete="off"></label>
+        <label class="field" for="lt-company">Company<input type="text" id="lt-company" data-lt="company" autocomplete="off" placeholder="[XXX] until you add it"></label>
+        <label class="field" for="lt-recipient">Addressed to<input type="text" id="lt-recipient" data-lt="recipient" autocomplete="off" placeholder="[XXX] until you add it"></label>
+        <label class="field" for="lt-sal">Greeting<input type="text" id="lt-sal" data-lt="salutation" autocomplete="off"></label>
+      </div>
+      <div id="ltParts" class="lt-parts"></div>
+      <div class="lt-signoff"><label class="field" for="lt-sign">Sign-off<input type="text" id="lt-sign" data-lt="signoff" autocomplete="off"></label>
+        <div class="lt-part-acts"><button class="btn" type="button" id="ltSignReword">Reword</button><span class="small muted">Other sign-offs that suit your greeting.</span></div><div class="lt-alts" id="ltSignAlts"></div></div>
+      <div id="ltChecks"></div>
+      <div class="lt-saved" id="ltSaved"></div>
+    </section>
+    <section class="panel lt-preview" aria-labelledby="ltDesign">
+      <div class="lt-prev-head"><h2 id="ltDesign" class="small">Design</h2><button class="linkish" id="ltDesignBtn" type="button">Change design</button></div>
+      <div class="paper-frame" id="ltPaper"></div>
+      <div class="dl-row">
+        <button class="btn primary" id="ltDocx" type="button">Download as Word</button>
+        <button class="btn primary" id="ltPdf" type="button">Download as PDF</button>
+        <button class="btn" id="ltCopy" type="button">Copy text</button>
+        <button class="btn" id="ltTailor" type="button">Tailor it to a job</button>
+        <button class="btn primary" id="ltSave" type="button">Save to my profile…</button>
+      </div>
+      <p class="status-line" id="ltDlStatus" role="status"></p>
+    </section>
+  </div>
+</div>
+</section>
+
+<section class="view" id="view-profile" hidden aria-labelledby="pfTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="pfTitle">Create or edit your profile</h1>
+      <p>The details every page uses: your resume, cover letter, LinkedIn, applications and the checks in Tailor to a job. Change something here and it changes everywhere.</p>
+    </div>
+  </header>
+  <div class="stack">
+    <div id="pfForm" class="stack"></div>
+    <section class="panel" aria-labelledby="pfSavedH">
+      <div class="panel-head"><h2 id="pfSavedH">What you've built</h2></div>
+      <div id="pfSaved"></div>
+    </section>
+    <section class="panel" aria-labelledby="pfDataH" id="pfData">
+      <div class="panel-head"><h2 id="pfDataH">Your data and account</h2><p id="pfWhere"></p></div>
+      <div class="b-actions" id="pfAcct"></div>
+      <div class="b-actions"><button class="btn" id="pfExport" type="button">Download my data</button><button class="btn ghost" id="pfClear" type="button">Delete my profile</button></div>
+      <p class="status-line" id="pfStatus" role="status"></p>
+    </section>
+  </div>
+</div>
+</section>
+
+<section class="view" id="view-cv" hidden aria-labelledby="cvTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="cvTitle">Resume and cover letter templates</h1>
+      <p>Pick a design that suits the job, from casual to formal. Each one has a matching cover letter, and every template uses the same details, so you can switch as often as you like.</p>
+      <div class="seg cv-kind" id="cvKind" role="group" aria-label="Show designs for">
+        <button type="button" data-kind="resume" aria-pressed="true">Resumes</button>
+        <button type="button" data-kind="letter" aria-pressed="false">Cover letters</button>
+      </div>
+      <label class="q-check cv-match"><input type="checkbox" id="cvMatch" checked> Match my cover letter and resume design</label>
+      <p class="small muted cv-match-note" id="cvMatchNote"></p>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="cvEditBtn" type="button">Edit my details</button>
+    </div>
+  </header>
+
+  <div class="cv-source" id="cvSource"></div>
+
+  <section class="panel cv-filter" aria-label="Find a template">
+    <div>
+      <h2 id="cvJobLbl">What kind of job is it for?</h2>
+      <div class="opt-grid" id="cvJobs" role="group" aria-labelledby="cvJobLbl"></div>
+    </div>
+    <div class="formality">
+      <h2><label for="cvFormal">How formal?</label></h2>
+      <input type="range" id="cvFormal" min="1" max="5" step="1" value="3" aria-describedby="cvFormalOut">
+      <div class="ends" aria-hidden="true"><span>Casual</span><span>Formal</span></div>
+      <output id="cvFormalOut" for="cvFormal"></output>
+    </div>
+  </section>
+
+  <div id="cvTplFilter"></div>
+  <div class="cv-gallery" id="cvGallery" role="group" aria-label="Templates, best match first"></div>
+
+  <section class="panel" id="cvEditorPanel" aria-labelledby="cvTplName">
+    <div class="panel-head">
+      <h2 id="cvTplName"></h2>
+      <p id="cvTplBlurb"></p>
+    </div>
+    <div class="cv-editor">
+      <div class="cv-preview-wrap"><div class="paper-frame" id="cvPaper"></div></div>
+      <div class="cv-options">
+        <div>
+          <h3 id="cvSwLbl">Colour</h3>
+          <div class="swatches" id="cvSwatches" role="group" aria-labelledby="cvSwLbl"></div>
+        </div>
+        <div class="cv-why" id="cvWhy"></div>
+        <div>
+          <h3>Download</h3>
+          <div class="dl-row">
+            <button class="btn primary" id="cvDocx" type="button">Download as Word</button>
+            <button class="btn primary" id="cvPdf" type="button">Download as PDF</button>
+          </div>
+          <p class="pages-note" id="cvPages"></p>
+          <p class="status-line" id="cvStatus" role="status"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+</section>
+
+<section class="view" id="view-linkedin" hidden aria-labelledby="liTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="liTitle">Create or edit your LinkedIn</h1>
+      <p>Score your profile against what recruiters search for, see the fixes worth the most, and get a better headline and About section written from your own details. New to LinkedIn? Build one from your profile instead.</p>
+      <div class="seg li-mode" id="liMode" role="group" aria-label="What do you want to do?">
+        <button type="button" data-limode="improve" aria-pressed="true">Improve my profile</button>
+        <button type="button" data-limode="create" aria-pressed="false">Create a new one</button>
+      </div>
+    </div>
+  </header>
+  <section class="panel" id="liForm" aria-labelledby="liFormH">
+    <div class="panel-head"><h2 id="liFormH">Bring in your profile</h2><p>Nothing is posted to LinkedIn. Your answers are saved privately so you can come back.</p></div>
+    <div class="li-create" id="liCreate" hidden>
+      <ol class="li-steps">
+        <li><b>Make your account</b> at <a href="https://www.linkedin.com/signup" target="_blank" rel="noopener">linkedin.com/signup ↗</a>. Use your personal email so you keep the account when you change jobs.</li>
+        <li><b>Fill in the boxes below from your profile</b>, edit them, then copy each one into LinkedIn.
+          <div class="b-actions"><button class="btn primary" id="liFillAll" type="button">Fill everything from my profile</button></div></li>
+        <li><b>Add a clear photo and claim a custom link</b> (linkedin.com/in/your-name) under <b>Edit public profile &amp; URL</b>, then paste the link here.</li>
+      </ol>
+    </div>
+    <div class="q li-url">
+      <label class="q-label" for="li-url">Your LinkedIn profile link</label>
+      <div class="seg-in"><input type="url" id="li-url" placeholder="linkedin.com/in/your-name" autocomplete="url"><button class="btn" id="liOpen" type="button">Open my profile ↗</button></div>
+      <p class="q-hint" id="liUrlNote"></p>
+    </div>
+    <div class="drop li-drop" id="liDrop">
+      <p class="li-drop-h"><b>Fill in the boxes below from your profile</b></p>
+      <p class="small muted">LinkedIn blocks other websites from reading a profile from its link (even a public one), so bring it across in one of these two ways. Both take about 30 seconds.</p>
+      <ol class="li-steps">
+        <li><b>Save it as a PDF:</b> select <b>Open my profile</b> above, then on LinkedIn choose <b>Resources</b> (or <b>More</b>) › <b>Save to PDF</b>. Drop that PDF here, or <button class="linkish" id="liPick" type="button">choose it</button>.</li>
+        <li><b>Or copy the page:</b> on your profile press Ctrl+A then Ctrl+C (Cmd on a Mac), and <button class="linkish" id="liPasteOpen" type="button" aria-expanded="false" aria-controls="liPasteBox">paste it here</button>.</li>
+      </ol>
+      <div class="li-paste" id="liPasteBox" hidden>
+        <label class="q-label" for="liPaste">Your LinkedIn profile page, pasted</label>
+        <textarea id="liPaste" rows="5" placeholder="Paste everything you copied from your profile page"></textarea>
+        <div class="b-actions"><button class="btn primary" id="liPasteGo" type="button">Fill in the boxes below</button></div>
+      </div>
+      <div class="b-actions"><button class="btn ghost" id="liFromResume" type="button">Or fill gaps from my resume</button></div>
+      <input type="file" id="liFile" accept=".pdf,application/pdf" class="visually-hidden">
+    </div>
+    <p class="status-line" id="liFileStatus" role="status"></p>
+    <div class="q-grid">
+      <div class="q wide"><label class="q-label" for="li-target">The job you want</label><input type="text" id="li-target" autocomplete="off"></div>
+      <div class="q wide"><label class="q-label" for="li-headline">Headline <span class="opt" id="liHeadCount">0/220</span></label><input type="text" id="li-headline" autocomplete="off" placeholder="The line under your name"></div>
+      <div class="q wide"><label class="q-label" for="li-about">About</label><textarea id="li-about" rows="5" placeholder="Paste your About section, or have AI write one from your resume"></textarea>
+        <div class="b-actions"><button class="btn" id="liAboutAi" type="button">Write my About with AI</button><span class="engine-note" id="liAboutNote" role="status"></span></div>
+        <div id="liAboutDraft" class="li-suggs"></div></div>
+      <div class="q"><label class="q-label" for="li-experience">Experience</label><textarea id="li-experience" rows="7" placeholder="Paste your Experience section: company, title, dates and description for each role"></textarea></div>
+      <div class="q"><label class="q-label" for="li-skills">Skills</label><textarea id="li-skills" rows="7" placeholder="One per line, or separated by commas"></textarea></div>
+      <div class="q wide"><label class="q-label" for="li-education">Education <span class="opt">(optional)</span></label><textarea id="li-education" rows="2"></textarea></div>
+    </div>
+    <div class="q"><span class="q-label">Tick what your profile already has</span><div class="li-checks" id="liChecks"></div></div>
+    <div class="b-actions"><button class="btn primary lg" id="liScore" type="button">Score my profile</button></div>
+  </section>
+  <div id="liOut" class="stack" aria-live="polite"></div>
+</div>
+</section>
+
+<section class="view" id="view-interview" hidden aria-labelledby="ivTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="ivTitle">Interviews</h1>
+      <p>Learn how you'll be asked, get your stories and screening answers ready, then practise with random questions and get a score with suggestions.</p>
+    </div>
+    <div class="seg" role="tablist" aria-label="Interview prep sections">
+      <button type="button" role="tab" id="ivTabFormats" data-ivtab="formats" aria-controls="ivFormats" aria-selected="true">How you'll be asked</button>
+      <button type="button" role="tab" id="ivTabPrepare" data-ivtab="prepare" aria-controls="ivPrepare" aria-selected="false" tabindex="-1">Get ready</button>
+      <button type="button" role="tab" id="ivTabPractice" data-ivtab="practice" aria-controls="ivPractice" aria-selected="false" tabindex="-1">Practise</button>
+      <button type="button" role="tab" id="ivTabHistory" data-ivtab="history" aria-controls="ivHistory" aria-selected="false" tabindex="-1">Your progress</button>
+    </div>
+  </header>
+
+  <div role="tabpanel" id="ivFormats" aria-labelledby="ivTabFormats">
+    <p class="small muted iv-intro">Fifteen ways you'll be asked to respond, from the classic STAR question to one-way video and assessment centres. Open one to see how to answer, then practise it.</p>
+    <div class="iv-formats" id="ivFormatList"></div>
+  </div>
+
+  <div role="tabpanel" id="ivPrepare" aria-labelledby="ivTabPrepare" hidden></div>
+
+  <div role="tabpanel" id="ivPractice" aria-labelledby="ivTabPractice" hidden>
+    <section class="panel iv-setup" aria-label="Practice settings">
+      <div class="iv-set">
+        <h2 id="ivModeLbl">How do you want to practise?</h2>
+        <div class="opt-chips" id="ivModes" role="radiogroup" aria-labelledby="ivModeLbl"></div>
+      </div>
+      <div class="iv-set" id="ivTypeBox">
+        <h2 id="ivTypeLbl">Which questions?</h2>
+        <div class="opt-chips" id="ivTypes" role="group" aria-labelledby="ivTypeLbl"></div>
+      </div>
+      <div class="iv-job" id="ivJob"></div>
+      <div class="iv-sheet" id="ivScreenSheet" hidden></div>
+      <div class="b-actions">
+        <button class="btn primary lg" id="ivStart" type="button">Ask me a question</button>
+        <span class="engine-note" id="ivEngine"></span>
+      </div>
+    </section>
+    <div id="ivStage"></div>
+  </div>
+
+  <div role="tabpanel" id="ivHistory" aria-labelledby="ivTabHistory" hidden>
+    <section class="panel" id="ivHistoryPanel" aria-live="polite"></section>
+  </div>
+</div>
+</section>
+
+<section class="view" id="view-jobs" hidden aria-labelledby="jbTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="jbTitle">Find jobs</h1>
+      <p>Jobs posted here, listings imported from company career sites and job boards, and jobs you've saved, in one list. The same job from several places is shown once.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn" id="jbAddBtn" type="button">+ Add a job you found</button>
+    </div>
+  </header>
+  <p class="note-bar" id="jbNote" hidden></p>
+  <section class="panel" id="jbAdd" hidden aria-labelledby="jbAddH">
+    <div class="panel-head"><h2 id="jbAddH">Add a job you found</h2><p>Paste the ad from anywhere. It's saved to the Application tracker, and if the same job turns up again it's merged, not repeated.</p></div>
+    <label class="field" for="jbAddText">The job ad<textarea id="jbAddText" rows="6" placeholder="Paste the whole ad"></textarea></label>
+    <label class="field" for="jbAddUrl">Link <span class="muted">(optional)</span><input type="url" id="jbAddUrl" placeholder="https://"></label>
+    <div class="b-actions"><button class="btn primary" id="jbAddSave" type="button">Save it</button><span class="status-line" id="jbAddStatus" role="status"></span></div>
+  </section>
+  <section class="panel jb-invites" id="jbInvites" hidden aria-live="polite"></section>
+  <div class="jb-layout">
+    <div class="jb-main">
+      <div class="jb-filters" role="search" aria-label="Filter jobs">
+        <label class="field jb-q" for="jbQ">Keywords<input type="search" id="jbQ" data-jbf="q" placeholder="Job title, skill or company" autocomplete="off"></label>
+        <label class="field" for="jbWhere">Where<input type="text" id="jbWhere" data-jbf="where" placeholder="City, state or remote" autocomplete="off"></label>
+        <label class="field" for="jbType">Work type<select id="jbType" data-jbf="type"><option value="">Any</option><option>Full time</option><option>Part time</option><option>Casual</option><option>Contract</option><option>Internship</option><option>Graduate program</option></select></label>
+        <label class="field" for="jbSource">From<select id="jbSource" data-jbf="source"><option value="">Everywhere</option><option value="site">Posted on Job Finder</option><option value="other">Company sites and job boards</option><option value="user">Saved by you</option></select></label>
+        <label class="field" for="jbSort">Sort<select id="jbSort" data-jbf="sort"><option value="match">Best match</option><option value="new">Newest</option></select></label>
+      </div>
+      <p class="small" id="jbSummary" aria-live="polite"></p>
+      <div class="jb-list" id="jbList"></div>
+    </div>
+    <aside class="jb-aside">
+      <section class="panel" id="jbTalent" aria-label="Talent pool"></section>
+      <section class="panel" aria-labelledby="jbHowH">
+        <h2 id="jbHowH">How listings get here</h2>
+        <ul class="small jb-how">
+          <li><b>Posted on Job Finder:</b> employers post directly from Hiring.</li>
+          <li><b>Company career sites:</b> a collector reads the public job feeds that companies' hiring systems publish (Greenhouse, Lever, Ashby, SmartRecruiters, Workable and others) and job pages marked up for search engines.</li>
+          <li><b>Job boards and aggregators:</b> through their official APIs, such as Adzuna.</li>
+          <li><b>No duplicates:</b> listings are matched on company, title, place, ad reference, link and wording. The company's own listing is kept, and the others are shown as “also listed on”.</li>
+        </ul>
+        <div class="jb-import">
+          <button class="btn ghost" id="jbFeedBtn" type="button">Import listings (owner)</button>
+          <input type="file" id="jbFeedFile" accept=".json,application/json" class="visually-hidden">
+          <p class="status-line" id="jbFeedStatus" role="status"></p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+</section>
+
+<section class="view" id="view-aptitude" hidden aria-labelledby="aptTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="aptTitle">Aptitude tests</h1>
+      <p>Employers use these to shortlist. Practise each format with fresh questions every time, timed like the real thing, and learn the tricks that lift your score.</p>
+    </div>
+  </header>
+  <div id="aptStage" aria-live="polite"></div>
+  <div class="apt-grid" id="aptCards"></div>
+  <section class="panel apt-scoring-panel" aria-labelledby="aptScH">
+    <div class="panel-head"><h2 id="aptScH">How these tests are scored</h2><p>And what that means for you.</p></div>
+    <ul class="apt-scoring" id="aptScoring"></ul>
+  </section>
+</div>
+</section>
+
+<section class="view" id="view-learning" hidden aria-labelledby="lnTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="lnTitle">Learning</h1>
+      <p>Short courses and qualifications you can do online that open up more jobs, matched to the gaps in your resume. Real Australian course codes and links, so you can enrol straight away.</p>
+    </div>
+  </header>
+  <section class="panel" aria-labelledby="lnGoalH">
+    <div class="panel-head"><h2 id="lnGoalH">What do you want from it?</h2></div>
+    <div class="seg seg-big" id="lnGoal" role="group" aria-label="Goal">
+      <button type="button" data-goal="faster" aria-pressed="true"><b>A job sooner</b><small>Tickets and short courses, days to weeks</small></button>
+      <button type="button" data-goal="career" aria-pressed="false"><b>A better career</b><small>Certificates, diplomas and degrees, months to years</small></button>
+    </div>
+    <div id="lnGaps"></div>
+    <div class="b-actions"><button class="btn primary" type="button" id="lnAi">Build me a plan with AI</button><span class="engine-note" id="lnAiStatus" role="status"></span></div>
+  </section>
+  <section class="panel" aria-labelledby="lnPlanH">
+    <div class="panel-head"><h2 id="lnPlanH">Your plan</h2><p>Tick courses off as you finish them, then add them to your resume.</p></div>
+    <div id="lnPlan"></div>
+  </section>
+  <div class="stack" id="lnRecs"></div>
+  <p class="small muted">Prices, dates and Fee-Free TAFE eligibility change, so check with the provider before you enrol. Fee-Free TAFE places are for priority groups and vary by state.</p>
+</div>
+</section>
+
+<section class="view" id="view-employer" hidden aria-labelledby="emTitle">
+<div class="wrap">
+  <header class="view-head">
+    <div>
+      <h1 id="emTitle">Hiring</h1>
+      <p>Post jobs, see who's in the talent pool before anyone applies, and invite the best matches to apply.</p>
+    </div>
+  </header>
+  <p class="note-bar" id="emNote" hidden></p>
+  <div class="seg em-tabs" role="tablist" aria-label="Hiring sections">
+    <button type="button" role="tab" data-emtab="jobs" aria-selected="true">Your jobs</button>
+    <button type="button" role="tab" data-emtab="people" aria-selected="false">Find candidates</button>
+    <button type="button" role="tab" data-emtab="applicants" aria-selected="false">Applicants</button>
+  </div>
+  <div class="stack" id="emBody" role="tabpanel" aria-label="Hiring"></div>
+</div>
+</section>
+
+
+  </div>
+</div>
+
+
+<!-- @scripts -->
+
+</body></html>

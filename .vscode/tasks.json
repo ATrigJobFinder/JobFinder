@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Job Finder",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": { "owner": "job-finder", "pattern": { "regexp": "^x$" }, "background": { "activesBegin": true, "beginsPattern": "^", "endsPattern": "Job Finder is running" } },
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Build Job Finder",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": []
+    }
+  ]
+}

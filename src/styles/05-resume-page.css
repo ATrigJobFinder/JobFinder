@@ -1,0 +1,86 @@
+/* ===================== The resume page itself (all templates) ===================== */
+.cv {
+  width: 794px; min-height: 1123px; background: #fff; color: #1E2533; font-family: var(--cv-body); font-size: var(--cv-size);
+  line-height: calc(1.38 * var(--cv-lh, 1)); text-align: left; overflow-wrap: anywhere; position: relative; -webkit-font-smoothing: antialiased;
+}
+.cv *, .cv *::before { box-sizing: border-box; }
+.cv-body { padding: var(--cv-margin); }
+.cv-head { margin-bottom: calc(0.9em * var(--cv-gap, 1)); }
+.cv-name { font-family: var(--cv-head); font-size: var(--cv-name); font-weight: var(--cv-name-w); letter-spacing: var(--cv-name-track); line-height: 1.08; color: var(--cv-accent); }
+.cv.n-caps .cv-name { text-transform: uppercase; }
+.cv.n-center .cv-head { text-align: center; }
+.cv-headline { font-size: 1.14em; margin-top: 0.3em; color: #3A4252; }
+.cv-contact { margin-top: 0.45em; font-size: 0.9em; color: #5B6474; display: flex; flex-wrap: wrap; gap: 0 0.55em; }
+.cv-contact i { font-style: normal; color: #B9BFCA; }
+.cv.n-center .cv-contact { justify-content: center; }
+.cv.n-rule .cv-head { border-bottom: 3.4px solid var(--cv-accent); padding-bottom: 0.65em; }
+.cv-sec { margin-top: calc(0.95em * var(--cv-gap, 1)); }
+.cv-mainc > .cv-sec:first-child, .cv-side > .cv-sec:first-child { margin-top: 0; }
+.cv-h { font-family: var(--cv-head); font-size: 1.05em; font-weight: 700; color: var(--cv-accent); margin: 0 0 0.45em; line-height: 1.25; }
+.cv.hc .cv-h { text-transform: uppercase; letter-spacing: 0.07em; }
+.cv.h-rule .cv-h { border-bottom: 1px solid var(--cv-accent); padding-bottom: 0.18em; }
+.cv.h-rules .cv-mainc .cv-h, .cv.h-rules .cv-body .cv-h { text-align: center; }
+.cv.h-rules .cv-h { border-top: 0.8px solid var(--cv-accent); border-bottom: 0.8px solid var(--cv-accent); padding: 0.22em 0; letter-spacing: 0.16em; }
+.cv.h-accent .cv-h { letter-spacing: 0.12em; border-bottom: 1.2px solid var(--cv-tint2); padding-bottom: 0.2em; }
+.cv.h-bar .cv-h { border-left: 4px solid var(--cv-accent); padding-left: 0.5em; color: #1E2533; font-size: 1.1em; }
+.cv.h-pill .cv-h span { display: inline-block; background: var(--cv-tint2); color: var(--cv-accent); padding: 0.2em 0.85em; border-radius: 999px; }
+.cv.h-pill .cv-h { font-size: 1.1em; }
+.cv.h-quiet .cv-h { color: #8A919E; font-size: 0.88em; letter-spacing: 0.18em; font-weight: 700; }
+.cv-p { margin: 0; }
+.cv-entry { margin-bottom: calc(0.65em * var(--cv-gap, 1)); }
+.cv-eh { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; }
+.cv-et { font-weight: 700; }
+.cv-ed { color: #5B6474; font-size: 0.94em; white-space: nowrap; flex: none; }
+.cv.t-executive .cv-ed { font-style: italic; }
+.cv-org { color: var(--cv-accent); }
+.cv.t-classic .cv-org, .cv.t-academic .cv-org, .cv.t-executive .cv-org { color: #3A4252; font-style: italic; }
+.cv.t-minimal .cv-org { color: #3A4252; }
+.cv-ul { margin: 0.22em 0 0; padding-left: 1.1em; }
+.cv-ul li { margin: calc(0.1em * var(--cv-gap, 1)) 0; padding-left: 0.1em; position: relative; }
+.cv-ul li::marker { color: var(--cv-accent); }
+.cv.b-dot .cv-ul { list-style: disc; }
+.cv.b-square .cv-ul { list-style: square; }
+.cv.b-dash .cv-ul { list-style: none; }
+.cv.b-dash .cv-ul li::before { content: "–"; position: absolute; left: -1em; color: var(--cv-accent); }
+.cv.d-gutter .cv-entry, .cv.d-timeline .cv-entry { display: grid; grid-template-columns: 113px minmax(0, 1fr); gap: 0; }
+.cv.d-gutter .cv-ed, .cv.d-timeline .cv-ed { white-space: normal; font-size: 0.9em; padding-right: 10px; }
+/* Timeline: a line down the left of each entry, with a dot where it starts */
+.cv.d-timeline .cv-entry { margin-bottom: 0; }
+.cv.d-timeline .cv-eb { position: relative; border-left: 1.5px solid var(--cv-tint2); padding: 0 0 calc(0.65em * var(--cv-gap, 1)) 12px; }
+.cv.d-timeline .cv-eb::before { content: ""; position: absolute; left: -5px; top: 0.42em; width: 8px; height: 8px; border-radius: 50%; background: var(--cv-accent); }
+/* Short headings: the title, then a short accent bar */
+.cv.h-short .cv-h { color: #1E2533; }
+.cv.h-short .cv-h::after { content: ""; display: block; width: 2.4em; height: 3px; margin-top: 0.3em; border-radius: 2px; background: var(--cv-accent); }
+.cv.h-short .cv-side .cv-h { color: var(--cv-side-head); }
+.cv.h-short.tone-dark .cv-side .cv-h { color: #fff; }
+.cv.h-short .cv-side .cv-h::after { background: var(--cv-side-head); }
+.cv-g { margin: 0.12em 0; }
+.cv-gl { font-weight: 700; }
+.cv-chips { display: flex; flex-wrap: wrap; gap: 0.35em; margin: 0.25em 0 0.6em; }
+.cv-chips span { background: var(--cv-tint); border-radius: 999px; padding: 0.12em 0.7em; font-size: 0.92em; }
+.cv-plain { list-style: none; margin: 0.15em 0 0.6em; padding: 0; }
+.cv-plain li { margin: 0.18em 0; }
+.cv-ref { margin-bottom: 0.5em; }
+.cv-muted { color: #5B6474; font-size: 0.92em; }
+/* Two columns */
+.cv-cols { display: grid; grid-template-columns: var(--cv-side-w) minmax(0, 1fr); min-height: 1123px; }
+.cv-side { background: var(--cv-side-bg); color: var(--cv-side-ink); padding: var(--cv-margin) calc(var(--cv-margin) * 0.62); font-size: 0.96em; }
+.cv-side .cv-h { color: var(--cv-side-head); }
+.cv-side .cv-gl { color: var(--cv-side-muted); font-size: 0.92em; margin-top: 0.4em; }
+.cv-mainc { padding: var(--cv-margin) var(--cv-margin) var(--cv-margin) calc(var(--cv-margin) * 0.65); }
+.cv-clist li { overflow-wrap: anywhere; }
+.cv.tone-dark .cv-side .cv-name { color: #fff; }
+.cv.tone-dark .cv-side .cv-headline { color: var(--cv-side-head); font-weight: 700; }
+.cv.tone-dark .cv-side .cv-head { margin-bottom: 1.4em; }
+.cv.tone-dark .cv-side .cv-h { border-bottom-color: rgba(255, 255, 255, 0.3); }
+.cv.tone-dark .cv-side .cv-chips span { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.cv.tone-dark .cv-side .cv-muted { color: var(--cv-side-muted); }
+/* Colour band */
+.cv-band { background: var(--cv-accent); color: #fff; padding: calc(var(--cv-margin) * 0.7) var(--cv-margin) calc(var(--cv-margin) * 0.6); }
+.cv-band .cv-head { margin: 0; }
+.cv-band .cv-name { color: #fff; }
+.cv-band .cv-headline, .cv-band .cv-contact { color: rgba(255, 255, 255, 0.86); }
+.cv-band .cv-contact i { color: rgba(255, 255, 255, 0.4); }
+.cv.l-band .cv-body { padding-top: calc(var(--cv-margin) * 0.75); }
+.cv.l-band .cv-body > .cv-sec:first-child { margin-top: 0; }
+

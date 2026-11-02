@@ -1,0 +1,16 @@
+{
+  "name": "job-finder",
+  "version": "20.0.0",
+  "private": true,
+  "description": "Job Finder: a free resume-to-job website with a resume creator, tailoring, cover letters, job board, interview prep and bring-your-own AI.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "collect": "node collector/collect.mjs",
+    "sync-dedup": "node scripts/sync-dedup.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

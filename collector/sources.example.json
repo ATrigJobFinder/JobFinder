@@ -1,0 +1,13 @@
+{
+  "_help": "Copy to sources.json and list the companies and searches you want. Each 'type' is a public job feed: greenhouse (board token from boards.greenhouse.io/<token>), lever (site from jobs.lever.co/<site>), ashby (board from jobs.ashbyhq.com/<board>), smartrecruiters (companyId from jobs.smartrecruiters.com/<companyId>), workable (account from apply.workable.com/<account>), recruitee (site from <site>.recruitee.com), adzuna (needs ADZUNA_APP_ID and ADZUNA_APP_KEY), jsonld (any careers page with schema.org JobPosting markup). onlyLocations keeps jobs whose location matches (plus remote).",
+  "sources": [
+    { "type": "greenhouse", "company": "Example Company", "board": "examplecompany", "onlyLocations": "Australia|NSW|VIC|QLD|WA|SA|TAS|ACT|NT|Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Canberra|Darwin" },
+    { "type": "lever", "company": "Example Startup", "site": "examplestartup" },
+    { "type": "ashby", "company": "Example Tech", "board": "exampletech" },
+    { "type": "smartrecruiters", "company": "Example Retailer", "companyId": "ExampleRetailer", "country": "au" },
+    { "type": "workable", "company": "Example Builders", "account": "example-builders" },
+    { "type": "recruitee", "company": "Example Advisory", "site": "exampleadvisory" },
+    { "type": "adzuna", "what": "graduate engineer", "where": "Brisbane", "country": "au", "pages": 2 },
+    { "type": "jsonld", "company": "Example Health", "urls": ["https://careers.example-health.com.au/jobs"] }
+  ]
+}

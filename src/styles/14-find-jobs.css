@@ -1,0 +1,41 @@
+/* ===================== Find jobs ===================== */
+.note-bar { background: var(--warn-bg); color: var(--ink); border-radius: 8px; padding: 10px 14px; font-size: var(--step--1); border-left: 3px solid var(--warn); }
+.jb-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 20px; align-items: start; }
+.jb-main { display: grid; gap: 12px; min-width: 0; }
+.jb-aside { display: grid; gap: 14px; position: sticky; top: 72px; }
+@container main (max-width: 900px) { .jb-layout { grid-template-columns: minmax(0, 1fr); } .jb-aside { position: static; } }
+.jb-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.jb-filters .jb-q { grid-column: 1 / -1; }
+@container main (max-width: 560px) { .jb-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.jb-filters input, .jb-filters select { padding: 8px 10px; }
+input[type="search"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 10px 12px; line-height: 1.5; }
+input[type="search"]:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.jb-list { display: grid; gap: 10px; }
+.job { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.job.open { border-color: var(--accent); }
+.job-main { all: unset; box-sizing: border-box; cursor: pointer; padding: 14px 16px; display: grid; gap: 3px; min-width: 0; border-radius: var(--radius); }
+.job-main:hover .job-title { color: var(--accent); }
+.job-main:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.job-title { font-family: var(--font-display); font-stretch: 110%; font-weight: 700; font-size: var(--step-0); color: var(--ink); }
+.job-co { font-size: var(--step--1); color: var(--ink); }
+.job-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.job-side { padding: 14px 16px 14px 0; display: grid; gap: 6px; justify-items: end; align-content: start; text-align: right; }
+.job-src { font-size: 0.75rem; color: var(--muted); }
+.job-match { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.job-match.hi { background: var(--good-bg); color: var(--good); }
+.job-match.mid { background: var(--accent-soft); color: var(--accent); }
+.job-match.lo { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.job-detail { grid-column: 1 / -1; border-top: 1px solid var(--line); padding: 14px 16px 16px; display: grid; gap: 12px; }
+.job-skills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.job-skills .small { margin-right: 2px; }
+.job-skills .small:not(:first-child) { margin-left: 8px; }
+.job-desc { white-space: pre-line; font-size: var(--step--1); max-width: 80ch; max-height: 22em; overflow: auto; }
+.apply-form { display: grid; gap: 10px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 14px 16px; }
+.jb-how { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+.jb-import { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.jb-import .btn { justify-self: start; }
+.talent-preview { margin: 0; padding: 10px 12px 10px 1.6em; background: var(--surface-2); border-radius: 8px; display: grid; gap: 3px; }
+.inv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.inv-list li { display: grid; gap: 6px; justify-items: start; padding: 10px 12px; border-left: 3px solid var(--good); background: var(--good-bg); border-radius: 0 8px 8px 0; }
+.inv-list .btn { justify-self: start; }
+

@@ -1,0 +1,20 @@
+/* ===================== Interviews: Get ready ===================== */
+.prac-steps li span { display: grid; gap: 2px; }
+.prac-steps li b { font-weight: 600; }
+.iv-hint table th { text-align: left; white-space: nowrap; padding-right: 12px; vertical-align: top; }
+.iv-hint table td, .iv-hint table th { padding-block: 5px; border-bottom: 1px solid var(--line); }
+.iv-sheet-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
+.iv-sheet textarea, .story textarea { min-height: 0; }
+#ivScreenSheet { border: 1px dashed var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; background: var(--surface-2); }
+#ivScreenSheet .q-label { font-size: var(--step--1); }
+.story-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 10px; align-items: start; }
+.story { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.story > summary { list-style: none; cursor: pointer; padding: 11px 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; font-weight: 600; font-size: var(--step--1); border-radius: 8px; }
+.story > summary::-webkit-details-marker { display: none; }
+.story > summary:hover { background: var(--surface-2); }
+.story[open] > summary { border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; }
+.story-state { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; white-space: nowrap; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.story-state.ok { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.story-state.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.story-body { padding: 12px 14px; display: grid; gap: 10px; }
+

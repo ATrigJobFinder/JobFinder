@@ -1,0 +1,31 @@
+/* ===================== Applications tracker ===================== */
+.iv-stat.warn b { color: var(--warn); }
+.trk-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; }
+.trk-search { min-width: min(320px, 100%); }
+.trk-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; align-items: start; }
+.trk-col { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.trk-col-head { display: flex; justify-content: space-between; align-items: center; }
+.trk-col-head h2 { font-size: var(--step-0); }
+.trk-col-head .count { font-family: var(--font-mono); font-size: 0.75rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+.trk-tip { font-size: 0.72rem; color: var(--muted); }
+.trk-empty { font-size: var(--step--1); color: var(--muted); padding: 6px 2px; }
+.trk-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; }
+.trk-card.open { border-color: var(--accent); }
+.trk-main { border: 0; background: none; padding: 0; text-align: left; display: grid; gap: 2px; cursor: pointer; color: var(--ink); }
+.trk-main b { font-size: var(--step--1); }
+.trk-main span { font-size: 0.78rem; color: var(--muted); }
+.trk-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 0.72rem; color: var(--muted); }
+.trk-meta .due { font-weight: 600; }
+.trk-meta .due.overdue { color: var(--bad); }
+.trk-meta .due.today { color: var(--warn); }
+.trk-move { display: flex; gap: 6px; }
+.trk-move select { padding: 5px 8px; font-size: 0.78rem; }
+.trk-move .btn { padding: 5px 9px; font-size: 0.78rem; white-space: nowrap; }
+.trk-detail { display: grid; gap: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.trk-detail .q-grid { grid-template-columns: minmax(0, 1fr); }
+.trk-detail input, .trk-detail textarea, .trk-detail select { color: var(--ink); }
+.trk-detail textarea { min-height: 0; }
+.trk-jd { white-space: pre-wrap; font-size: 0.75rem; color: var(--muted); max-height: 200px; overflow: auto; }
+.trk-hist { font-size: 0.72rem; color: var(--muted); }
+input[type="date"] { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 9px 12px; font: inherit; color: var(--ink); }
+

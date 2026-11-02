@@ -1,0 +1,97 @@
+/* ===================== Company guides ===================== */
+.co-tools { display: grid; gap: 12px; }
+.co-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 17em) minmax(0, 12em) minmax(0, 12em); gap: 10px 14px; align-items: end; }
+.co-segs { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.co-how { max-width: 90ch; }
+.co-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+#coList { margin: 16px 0; display: grid; gap: 14px; }
+.co-group { border-radius: var(--radius); }
+.co-group > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 4px 10px; border-bottom: 2px solid var(--line); margin-bottom: 10px; }
+.co-group > summary::-webkit-details-marker { display: none; }
+.co-group > summary h2 { font-size: var(--step-1); font-weight: 800; font-stretch: 112%; }
+.co-group > summary .co-gmeta { font-size: var(--step--1); color: var(--muted); }
+.co-group > summary .co-chev { margin-left: auto; align-self: center; }
+.co-group[open] > summary .co-chev { transform: rotate(180deg); }
+.co-group > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.co-about summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.co-about[open] { display: grid; gap: 6px; }
+.co-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.co-card[open] { box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08); }
+.co-card > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 6px 14px; padding: 12px 16px; }
+.co-card > summary::-webkit-details-marker { display: none; }
+.co-card > summary:hover { background: var(--surface-2); }
+.co-card > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.co-rank { font-family: var(--font-mono); font-weight: 500; font-size: 0.85rem; min-width: 2.2em; height: 2.2em; display: grid; place-items: center; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.co-card[open] .co-rank { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.co-title { display: grid; gap: 2px; min-width: 0; }
+.co-title b { font-family: var(--font-display); font-size: var(--step-0); font-weight: 700; font-stretch: 108%; }
+.co-title small { color: var(--muted); font-size: var(--step--1); }
+.co-badges { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.co-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; text-decoration: none; }
+.co-badge.top { background: var(--good-bg); color: var(--good); border-color: transparent; }
+.co-badge.eng { background: var(--accent-soft); color: var(--ink); border-color: transparent; }
+.co-badge.ind { background: var(--surface-2); }
+.co-chev { width: 18px; height: 18px; color: var(--muted); transition: transform 0.15s ease; }
+.co-card[open] .co-chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .co-chev { transition: none; } }
+.co-body { border-top: 1px solid var(--line); padding: 16px; display: grid; gap: 16px; }
+.co-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; align-items: start; }
+.co-top > div:first-child { display: grid; gap: 8px; }
+.co-purpose { font-size: var(--step-0); font-weight: 500; }
+.co-purpose .small { display: block; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; }
+.co-actions { flex-direction: column; align-items: stretch; }
+.co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.co-sec { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 12px 14px; display: grid; gap: 6px; align-content: start; }
+.co-sec h4 { margin: 0; font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.co-tips { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: var(--step--1); }
+.co-steps { margin: 0; padding-left: 1.4em; display: grid; gap: 3px; font-size: var(--step--1); }
+.co-src { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); text-decoration: none; white-space: nowrap; vertical-align: 1px; }
+a.co-src:hover { color: var(--accent); border-color: var(--accent); }
+.co-src.ours { background: var(--warn-bg); border-color: transparent; color: var(--ink); }
+.co-vrow { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.co-values .chip { font-family: var(--font-body); font-size: 0.78rem; background: var(--surface); }
+.co-links { color: var(--muted); }
+.co-links a { color: inherit; }
+.co-empty { padding: 20px; text-align: center; color: var(--muted); }
+@container main (max-width: 900px) { .co-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .co-filters .co-search { grid-column: 1 / -1; } }
+@container main (max-width: 640px) {
+  .co-filters { grid-template-columns: minmax(0, 1fr); }
+  .co-card > summary { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .co-badges { grid-column: 2 / -1; grid-row: 2; justify-content: flex-start; }
+  .co-top { grid-template-columns: minmax(0, 1fr); }
+  .co-actions { flex-direction: row; flex-wrap: wrap; }
+  .co-segs .seg { width: 100%; }
+  .co-segs .seg button { flex: 1 1 auto; padding-inline: 8px; }
+}
+
+/* In Tailor to a job and the cover letter */
+.co-needs { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); }
+.co-needs.none { border-style: dashed; background: none; }
+.co-needs.none select, .co-needs-foot select { margin-left: 4px; max-width: 100%; }
+.co-needs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px 16px; }
+.co-needs-grid > div { display: grid; gap: 4px; align-content: start; font-size: var(--step--1); }
+.co-needs-foot { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.co-hint { display: block; font-weight: 400; color: var(--ink); font-size: var(--step--1); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin-top: 4px; }
+.co-hint[hidden] { display: none; }
+
+/* v17: every employer, picked with a tick box, with links only to their own careers pages */
+.co-gli { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: start; }
+.co-pick { display: grid; place-items: center; width: 28px; min-height: 44px; cursor: pointer; }
+.co-gli > .co-pick { min-height: 58px; }
+.co-pick input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.co-pick input:disabled { cursor: not-allowed; opacity: 0.4; }
+.co-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 6px 14px 6px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.co-row > .co-pick { margin-left: 4px; }
+.co-row.picked, .co-gli.picked > .co-card { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.co-rlinks { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: flex-end; font-size: var(--step--1); }
+.btn.small { padding: 5px 10px; font-size: var(--step--1); }
+.co-badge.guide { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.co-src.via { border-style: dashed; }
+.co-actions a.btn { text-align: center; }
+.co-bulk { position: sticky; bottom: 12px; z-index: 6; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-top: 14px; padding: 10px 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--accent); box-shadow: 0 6px 24px rgba(15, 23, 42, 0.18); }
+.co-bulk span { font-weight: 600; margin-right: auto; }
+@media (max-width: 560px) {
+  .co-row { grid-template-columns: auto minmax(0, 1fr); padding-right: 10px; }
+  .co-rlinks { grid-column: 2; justify-content: flex-start; padding-bottom: 6px; }
+  .co-bulk .btn { flex: 1 1 auto; }
+}

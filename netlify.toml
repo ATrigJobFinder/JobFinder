@@ -1,0 +1,7 @@
+# Netlify builds Job Finder from src/ into dist/ on every push.
+[build]
+  command = "node scripts/build.mjs"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
