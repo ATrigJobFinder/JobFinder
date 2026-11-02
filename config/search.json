@@ -1,11 +1,12 @@
 {
   "engineering_only": true,
   "adzuna": {
+    "validate_categories": false,
     "categories": ["engineering-jobs"],
-    "keywords": ["graduate engineer", "mechanical engineer", "civil engineer", "electrical engineer", "chemical engineer", "structural engineer", "mining engineer", "software engineer"],
-    "locations": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra", "Hobart", "Darwin", "Australia"],
+    "keywords": [],
+    "locations": ["Australia"],
     "max_days_old": 8,
-    "max_pages": 10
+    "max_pages": 5
   },
   "jooble": {
     "keywords": ["engineer", "graduate engineer", "mechanical engineer", "civil engineer", "electrical engineer", "chemical engineer", "structural engineer", "mining engineer", "software engineer"],

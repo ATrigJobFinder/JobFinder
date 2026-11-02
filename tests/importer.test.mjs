@@ -151,7 +151,7 @@ const jsonRes = (body, status = 200) => ({ ok: status < 400, status, json: async
 test("Adzuna stops cleanly at its call budget", async () => {
   let calls = 0;
   const fetchImpl = async url => { calls++; return jsonRes(String(url).includes("/categories") ? { results: [{ tag: "engineering-jobs" }] } : { results: Array.from({ length: 50 }, (_, i) => ({ ...fx("adzuna.json").results[0], id: String(calls * 100 + i) })) }); };
-  const r = await runAdzuna({ cfg: { engineering_only: false, adzuna: { categories: ["engineering-jobs"], locations: ["Sydney", "Australia"], max_pages: 6 } }, appId: "id", appKey: "key", max: 3, fetchImpl });
+  const r = await runAdzuna({ cfg: { engineering_only: false, adzuna: { validate_categories: true, categories: ["engineering-jobs"], locations: ["Sydney", "Australia"], max_pages: 6 } }, appId: "id", appKey: "key", max: 3, fetchImpl });
   assert.equal(calls, 3); assert.equal(r.calls, 3); assert.equal(r.stoppedAtBudget, true);
   assert.ok(r.notes.some(n => /Stopped cleanly/.test(n)));
   assert.equal(r.rows.length, 100);

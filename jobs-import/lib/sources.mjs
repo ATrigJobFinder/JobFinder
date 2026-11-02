@@ -17,7 +17,7 @@ export async function runAdzuna({ cfg, appId, appKey, max, fetchImpl, log = () =
   try {
     // the category list is fetched once, so a wrong category tag in the config is noticed
     let tags = null;
-    try { const c = await fetchJSON(`${base}/categories?${auth}`, { budget, wait, fetchImpl }); tags = new Set((c.results || []).map(x => x.tag)); } catch (e) { if (e.budgetSpent) throw e; notes.push(`Couldn't read Adzuna's category list: ${e.message}`); }
+    if (a.validate_categories) try { const c = await fetchJSON(`${base}/categories?${auth}`, { budget, wait, fetchImpl }); tags = new Set((c.results || []).map(x => x.tag)); } catch (e) { if (e.budgetSpent) throw e; notes.push(`Couldn't read Adzuna's category list: ${e.message}`); }
     const searches = [...(a.categories || []).filter(t => { const ok = !tags || tags.has(t); if (!ok) notes.push(`Adzuna has no category “${t}”; skipped.`); return ok; }).map(category => ({ category })), ...(a.keywords || []).map(what => ({ what }))];
     // Page 1 of every city comes before page 2 of any city, so a small budget still covers the whole country
     for (const s of searches) {
