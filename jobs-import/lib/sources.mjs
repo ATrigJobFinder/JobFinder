@@ -19,16 +19,20 @@ export async function runAdzuna({ cfg, appId, appKey, max, fetchImpl, log = () =
     let tags = null;
     try { const c = await fetchJSON(`${base}/categories?${auth}`, { budget, wait, fetchImpl }); tags = new Set((c.results || []).map(x => x.tag)); } catch (e) { if (e.budgetSpent) throw e; notes.push(`Couldn't read Adzuna's category list: ${e.message}`); }
     const searches = [...(a.categories || []).filter(t => { const ok = !tags || tags.has(t); if (!ok) notes.push(`Adzuna has no category “${t}”; skipped.`); return ok; }).map(category => ({ category })), ...(a.keywords || []).map(what => ({ what }))];
-    for (const s of searches) for (const where of a.locations || ["Australia"]) {
-      for (let page = 1; page <= (a.max_pages || 6); page++) {
-        const q = [auth, "results_per_page=50", "sort_by=date", `max_days_old=${a.max_days_old || 8}`, "content-type=application/json", s.category && `category=${encodeURIComponent(s.category)}`, s.what && `what=${encodeURIComponent(s.what)}`, where && where !== "Australia" && `where=${encodeURIComponent(where)}`].filter(Boolean).join("&");
-        let d;
-        try { d = await fetchJSON(`${base}/search/${page}?${q}`, { budget, wait, fetchImpl }); }
-        catch (e) { if (e.budgetSpent) throw e; notes.push(`Adzuna ${s.category || s.what} in ${where}, page ${page}: ${e.message}`); break; }
-        const list = d.results || [];
-        for (const r of list) { try { const row = mapAdzuna(r); if (row.url && row.title && keep(cfg, row) && !rows.has(row.source_id)) rows.set(row.source_id, row); } catch (e) { notes.push(`Skipped an Adzuna ad: ${e.message}`); } }
-        log(`Adzuna ${s.category || s.what} / ${where} / page ${page}: ${list.length} ads (${budget.used} of ${max} calls used)`);
-        if (list.length < 50) break;
+    // Page 1 of every city comes before page 2 of any city, so a small budget still covers the whole country
+    for (const s of searches) {
+      let active = [...(a.locations || ["Australia"])];
+      for (let page = 1; page <= (a.max_pages || 6) && active.length; page++) {
+        for (const where of [...active]) {
+          const q = [auth, "results_per_page=50", "sort_by=date", `max_days_old=${a.max_days_old || 8}`, "content-type=application/json", s.category && `category=${encodeURIComponent(s.category)}`, s.what && `what=${encodeURIComponent(s.what)}`, where && where !== "Australia" && `where=${encodeURIComponent(where)}`].filter(Boolean).join("&");
+          let d;
+          try { d = await fetchJSON(`${base}/search/${page}?${q}`, { budget, wait, fetchImpl }); }
+          catch (e) { if (e.budgetSpent) throw e; notes.push(`Adzuna ${s.category || s.what} in ${where}, page ${page}: ${e.message}`); active = active.filter(x => x !== where); continue; }
+          const list = d.results || [];
+          for (const r of list) { try { const row = mapAdzuna(r); if (row.url && row.title && keep(cfg, row) && !rows.has(row.source_id)) rows.set(row.source_id, row); } catch (e) { notes.push(`Skipped an Adzuna ad: ${e.message}`); } }
+          log(`Adzuna ${s.category || s.what} / ${where} / page ${page}: ${list.length} ads (${budget.used} of ${max} calls used)`);
+          if (list.length < 50) active = active.filter(x => x !== where);
+        }
       }
     }
   } catch (e) { if (!e.budgetSpent) throw e; notes.push(`Stopped cleanly: all ${max} Adzuna calls for this run were used.`); }

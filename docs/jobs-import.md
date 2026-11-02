@@ -1,6 +1,6 @@
 # Weekly jobs import
 
-Every Sunday night (about 3am Monday in Sydney) a free GitHub Actions job collects current Australian **engineering** jobs from three places, saves them in a free Supabase database, deletes anything older than 30 days, and the **Find jobs** page reads them.
+Every Sunday night (about 3am Monday in Sydney) a free GitHub Actions job collects current Australian **engineering** jobs from three places, saves them in a free Supabase database, deletes anything older than 30 days (see the note below about employers), and the **Find jobs** page reads them.
 
 ```
 GitHub Actions (weekly) -> jobs-import/import-jobs.mjs -> Supabase database
@@ -33,7 +33,7 @@ Only Australian jobs are kept. Engineering is decided by the job title (see `job
 
 ### 2. Tell the website where the database is
 
-In `src/scripts/07a-account-config.js` fill in the Project URL and the **anon** key (never the service key). Save, commit and push; Netlify rebuilds the site. Until you do, Find jobs shows its example jobs.
+In `src/scripts/07a-account-config.js` fill in `JOBS_CFG` with the Project URL and the **anon** key (never the service key). Save, commit and push; Netlify rebuilds the site. Until you do, Find jobs shows its example jobs.
 
 ### 3. Give GitHub the secrets
 
@@ -75,7 +75,7 @@ It prints how many Australian engineering jobs it found. If that's more than zer
 
 Companies on other systems (Workday, SuccessFactors, their own site) can't be read this way. That includes most large engineering consultancies, so Adzuna and Jooble cover them instead.
 
-**Change the call budgets.** On GitHub: **Settings** > **Secrets and variables** > **Actions** > **Variables**: set `ADZUNA_MAX_CALLS_PER_RUN` or `JOOBLE_MAX_CALLS_PER_RUN`. Each run stops cleanly when its budget is used and says so in the log. Adzuna's free plan allows roughly 1,000 calls a month, so 200 a week is about right; check your own limit on your Adzuna dashboard. To change what is searched for (categories, keywords, cities) edit `config/search.json`.
+**Change the call budgets.** On GitHub: **Settings** > **Secrets and variables** > **Actions** > **Variables**: set `ADZUNA_MAX_CALLS_PER_RUN` or `JOOBLE_MAX_CALLS_PER_RUN`. Each run stops cleanly when its budget is used and says so in the log. Adzuna is searched page 1 of every city first, then page 2 of every city, so even a small budget covers the whole country. If a city is missing from Find jobs, check the variable isn't set too low (the default is 200). Adzuna's free plan allows roughly 1,000 calls a month, so 200 a week is about right; check your own limit on your Adzuna dashboard. To change what is searched for (categories, keywords, cities) edit `config/search.json`.
 
 **Run it by hand.** Actions tab > Import jobs > Run workflow. On your own computer: copy `.env.example` to `.env`, fill it in, then `node jobs-import/import-jobs.mjs` (add `DRY_RUN=true` to only count).
 
@@ -87,6 +87,12 @@ Companies on other systems (Workday, SuccessFactors, their own site) can't be re
 - *One employer fails:* it is skipped and **none of its existing jobs are deleted**. Run `--check-employer` for it; if the board has been renamed or moved to a different system, fix or remove its line in `config/employers.yaml`.
 
 ---
+
+## How old listings are removed
+
+- **Adzuna and Jooble** listings are removed 30 days after their posted date (`MAX_AGE_DAYS`).
+- **Employers' own jobs** are removed as soon as the employer's feed stops listing them (the job has closed). A job still open on the employer's page stays, however long ago it was first posted, so a job that has been open for 40 days is not deleted and re-added every week. If an employer is taken out of `config/employers.yaml`, its jobs go 30 days after they were last seen. If you would rather remove employer jobs by posted date too, change `deleteOld` in `jobs-import/lib/db.mjs`.
+- If a feed can't be fetched, none of that employer's jobs are removed.
 
 ## Two things that can switch it off
 

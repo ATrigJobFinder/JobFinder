@@ -8,3 +8,10 @@ const ACCOUNT_CFG = {
   url: "",       // your Supabase project URL, like "https://abcdefghijkl.supabase.co"
   anonKey: ""    // Project Settings › API › the "anon" public key
 };
+
+// The weekly imported jobs on Find jobs (see docs/jobs-import.md). This is a separate setting from accounts above, so you can
+// use one without the other. The anon key is public by design: the database lets it read jobs and nothing else.
+const JOBS_CFG = {
+  url: "https://ghyjrhbgxkwvogpdomcg.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdoeWpyaGJneGt3dm9ncGRvbWNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NzUzNjgsImV4cCI6MjEwOTE1MTM2OH0.UvzNSoTtcfIEbTgLdXn6rn_SJLDFE-ByE9xi3BbQF80"
+};

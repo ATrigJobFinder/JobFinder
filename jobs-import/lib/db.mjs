@@ -35,9 +35,12 @@ export function connect({ url, key, fetchImpl = fetch }) {
       for (let i = 0; i < ids.length; i += 40) { const r = await call(`/jobs?source=eq.${encodeURIComponent(source)}&source_id=in.${encodeURIComponent(inList(ids.slice(i, i + 40)))}`, { method: "DELETE", prefer: "count=exact,return=minimal", raw: true }); n += countOf(r); }
       return n;
     },
+    // Listings older than the limit go. For an employer's own feed, "older" means not seen in the feed for that long:
+    // a job still open on the employer's page is still current, however long ago it was first posted.
     async deleteOld(maxAgeDays) {
       const cut = new Date(Date.now() - maxAgeDays * 864e5).toISOString();
-      const r = await call(`/jobs?or=${encodeURIComponent(`(posted_at.lt.${cut},and(posted_at.is.null,first_seen_at.lt.${cut}))`)}`, { method: "DELETE", prefer: "count=exact,return=minimal", raw: true });
+      const f = `(and(source.not.like.employer:*,posted_at.lt.${cut}),and(source.not.like.employer:*,posted_at.is.null,first_seen_at.lt.${cut}),and(source.like.employer:*,last_seen_at.lt.${cut}))`;
+      const r = await call(`/jobs?or=${encodeURIComponent(f)}`, { method: "DELETE", prefer: "count=exact,return=minimal", raw: true });
       return countOf(r);
     },
     async deleteOldRuns(days = 90) {

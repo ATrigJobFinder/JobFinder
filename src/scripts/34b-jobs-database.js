@@ -1,13 +1,13 @@
 /* ===================== Find jobs: the weekly imported listings (Supabase) ===================== */
 // A weekly import (see docs/jobs-import.md) saves Australian jobs from Adzuna, Jooble and employers' own career feeds in a Supabase database.
 // This page only reads them, with the public (anon) key, which the database allows to read and nothing else.
-// It uses the same Supabase project as accounts (ACCOUNT_CFG in 07a). Leave that empty and Find jobs shows its examples.
-const jobsDbOn = () => !!(ACCOUNT_CFG.url && ACCOUNT_CFG.anonKey);
+// The address and public key are JOBS_CFG in 07a. Leave them empty and Find jobs shows its examples.
+const jobsDbOn = () => !!(JOBS_CFG.url && JOBS_CFG.anonKey);
 const DB_PAGE = 20;
 const dbJobs = { rows: [], total: 0, page: 0, ready: false, loading: false, error: "", updated: "", sig: "", seq: 0, timer: null };
 const DB_SOURCES = { adzuna: { name: "Adzuna", url: "https://www.adzuna.com.au", type: "aggregator" }, jooble: { name: "Jooble", url: "https://au.jooble.org", type: "aggregator" } };
-const dbHeaders = () => ({ apikey: ACCOUNT_CFG.anonKey, Authorization: "Bearer " + ACCOUNT_CFG.anonKey, "Content-Type": "application/json" });
-const dbBase = () => ACCOUNT_CFG.url.replace(/\/+$/, "") + "/rest/v1";
+const dbHeaders = () => ({ apikey: JOBS_CFG.anonKey, Authorization: "Bearer " + JOBS_CFG.anonKey, "Content-Type": "application/json" });
+const dbBase = () => JOBS_CFG.url.replace(/\/+$/, "") + "/rest/v1";
 // HTML saved by the importer → plain text (parsed without running anything)
 function dbText(html) {
   const h = String(html || "");
