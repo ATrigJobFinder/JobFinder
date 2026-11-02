@@ -34,7 +34,10 @@ async function acctFetch(path, opts = {}, auth = true) {
   if (!res.ok) { const e = new Error(acctErr(j, res.status)); e.status = res.status; throw e; }
   return j;
 }
-const acctSession = j => ({ access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, user: { id: j.user.id, email: j.user.email } });
+const acctSession = j => {
+  const md = j.user.user_metadata || {};
+  return { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, user: { id: j.user.id, email: j.user.email || md.email || md.name || "your account" } };
+};
 // Tokens last an hour: swap for a fresh one shortly before then
 async function acctFresh() {
   const s = account.session;
@@ -50,6 +53,50 @@ async function acctSignUp(email, password) {
 async function acctSignIn(email, password) { acctStore(acctSession(await acctFetch("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) }, false))); }
 async function acctSignOut() { try { await acctFetch("/auth/v1/logout", { method: "POST" }); } catch { /* signed out here anyway */ } acctStore(null); }
 async function acctResetPassword(email) { await acctFetch("/auth/v1/recover", { method: "POST", body: JSON.stringify({ email }) }, false); }
+/* --- Sign in with Google, Facebook or Apple (through Supabase). The code comes back as ?code=..., not in the # part the pages use. --- */
+const PKCE_KEY = "jobfinder.pkce.v1";
+const ACCT_PROVIDERS = { google: "Google", facebook: "Facebook", apple: "Apple" };
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+async function acctOAuthUrl(provider) {
+  if (!ACCT_PROVIDERS[provider]) throw new Error("Unknown sign-in.");
+  if (!(window.crypto && crypto.subtle)) throw new Error("This browser can't do a secure sign-in here. Use your email instead.");
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  try { sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, p: provider, hash: location.hash })); } catch { throw new Error("Your browser is blocking site storage, which a Google, Facebook or Apple sign-in needs. Use your email instead."); }
+  return acctUrl("/auth/v1/authorize?provider=" + provider + "&redirect_to=" + encodeURIComponent(location.origin + location.pathname) + "&code_challenge=" + challenge + "&code_challenge_method=s256");
+}
+async function acctOAuth(provider) { location.href = await acctOAuthUrl(provider); }
+// A notice that stays until it's dismissed (the header box is redrawn often, so it can't live there)
+function acctNotify(msg) {
+  let n = document.getElementById("acctNotice");
+  if (!n) { n = document.createElement("div"); n.id = "acctNotice"; n.className = "ai-banner"; n.setAttribute("role", "alert"); document.body.appendChild(n); }
+  n.innerHTML = `<p></p><div class="b-actions"><button class="btn" type="button" data-acct="notice-close">OK</button></div>`;
+  n.firstChild.textContent = msg; n.hidden = false;
+}
+// Back from Google, Facebook or Apple: swap the code for a session, then tidy the address
+async function acctFinishOAuth() {
+  const q = new URLSearchParams(location.search), code = q.get("code"), err = q.get("error_description") || q.get("error");
+  if (!code && !err) return;
+  let saved = null; try { saved = JSON.parse(sessionStorage.getItem(PKCE_KEY) || "null"); sessionStorage.removeItem(PKCE_KEY); } catch { saved = null; }
+  const clean = () => { for (const k of ["code", "state", "error", "error_code", "error_description"]) q.delete(k); const rest = q.toString(); history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + (saved && saved.hash ? saved.hash : location.hash)); };
+  if (err) { acctNotify("That sign-in didn't finish: " + err.replace(/\+/g, " ")); clean(); return; }
+  if (!saved || !saved.v) { clean(); return; }   // a code we didn't ask for
+  try {
+    acctStore(acctSession(await acctFetch("/auth/v1/token?grant_type=pkce", { method: "POST", body: JSON.stringify({ auth_code: code, code_verifier: saved.v }) }, false)));
+    clean();
+    try { await acctBringBrowserData(); } catch { /* the table may not exist yet: saving falls back to this browser */ }
+  } catch (e) { acctNotify("Couldn't finish signing in with " + (ACCT_PROVIDERS[saved.p] || "that account") + ": " + e.message); clean(); }
+}
+// Which providers are switched on in Supabase, and has the accounts table been created?
+let acctInfo = null;
+async function acctProviders() {
+  if (acctInfo) return acctInfo;
+  const want = ACCOUNT_CFG.providers || ["google", "facebook", "apple"];
+  const info = { providers: [], tableOk: true };
+  try { const j = await acctFetch("/auth/v1/settings", {}, false); const ext = (j && j.external) || {}; info.providers = want.filter(p => ext[p]); } catch { /* none shown */ }
+  try { await acctFetch("/rest/v1/user_docs?select=name&limit=1", {}, false); } catch (e) { if (e.status === 404) info.tableOk = false; }
+  return (acctInfo = info);
+}
 // The same shape as Claude's storage: doc(path).get() / .set(body), one row per document
 const docName = path => String(path).split("/").pop();
 const accountDb = {
@@ -89,6 +136,7 @@ async function acctDeleteData() { await acctFetch(`/rest/v1/user_docs?user_id=eq
 // Signed in on this browser (and the session is still good)?
 const accountReady = (async () => {
   if (!acctOn() || (window.claude && window.claude.use)) return null;
+  await acctFinishOAuth();
   acctLoad();
   if (!account.session) return null;
   await acctFresh();
@@ -117,14 +165,24 @@ function acctDialog(mode = "up") {
   d.innerHTML = `<form class="jf-dialog-card acct-form" novalidate><h2 id="acctH">${up ? "Sign up to keep your data" : "Sign in"}</h2>
     <div class="seg acct-tabs" role="group" aria-label="Sign up or sign in"><button type="button" data-acct="mode-up" aria-pressed="${up}">Sign up</button><button type="button" data-acct="mode-in" aria-pressed="${!up}">Sign in</button></div>
     <p class="small muted">${up ? "Everything you add (your resume, letters, applications and practice) is saved to your account, so you can pick it up on any device. What's already saved in this browser comes with you." : "Welcome back. Everything you saved will load once you're in."}</p>
+    <div class="acct-social" id="acctSocial" hidden></div>
+    <p class="acct-or small muted" id="acctOr" hidden><span>or use your email</span></p>
     <label class="field" for="acctEmail">Email<input type="email" id="acctEmail" autocomplete="email" required></label>
     <label class="field" for="acctPass">Password${up ? " (at least 8 characters)" : ""}<input type="password" id="acctPass" autocomplete="${up ? "new-password" : "current-password"}" minlength="8" required></label>
     <p class="acct-msg" id="acctMsg" role="status"></p>
     <div class="b-actions"><button class="btn primary" type="submit">${up ? "Sign up" : "Sign in"}</button><button class="btn ghost" type="button" data-acct="close">Cancel</button>${up ? "" : '<button class="linkish" type="button" data-acct="reset">Forgot your password?</button>'}</div>
-    <p class="small muted">Your AI key, if you added one, stays in this browser only and is never saved to your account.</p></form>`;
+    <p class="small muted">Your AI key, if you added one, stays in this browser only and is never saved to your account. With Google, Facebook or Apple we only receive your name and email, never your password.</p></form>`;
   if (!d.open) d.showModal();
   d.dataset.mode = mode;
   d.querySelector("#acctEmail").focus();
+  acctProviders().then(info => {
+    const soc = d.querySelector("#acctSocial");
+    if (!soc) return;
+    if (!info.tableOk) { const m = d.querySelector("#acctMsg"); m.textContent = "Accounts aren't finished being set up on this site yet (the storage table is missing), so what you add can only be kept in this browser for now."; m.className = "acct-msg err"; }
+    if (!info.providers.length) return;
+    soc.innerHTML = info.providers.map(p => `<button class="btn acct-prov acct-${p}" type="button" data-acct="oauth:${p}">Continue with ${ACCT_PROVIDERS[p]}</button>`).join("");
+    soc.hidden = false; d.querySelector("#acctOr").hidden = false;
+  });
 }
 async function acctSubmit(d) {
   const email = d.querySelector("#acctEmail").value.trim(), pass = d.querySelector("#acctPass").value, msg = d.querySelector("#acctMsg"), btn = d.querySelector('button[type="submit"]');
@@ -147,7 +205,12 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-acct]");
   if (!b) return;
   const a = b.dataset.acct, d = document.getElementById("acctDlg");
-  if (a === "open") acctDialog("up");
+  if (a === "notice-close") { const n = document.getElementById("acctNotice"); if (n) n.hidden = true; return; }
+  if (a.startsWith("oauth:")) {
+    const msg = d && d.querySelector("#acctMsg");
+    try { await acctOAuth(a.slice(6)); } catch (err) { if (msg) { msg.textContent = err.message; msg.className = "acct-msg err"; } }
+  }
+  else if (a === "open") acctDialog("up");
   else if (a === "mode-up" || a === "mode-in") acctDialog(a === "mode-up" ? "up" : "in");
   else if (a === "close" && d) d.close();
   else if (a === "reset" && d) {

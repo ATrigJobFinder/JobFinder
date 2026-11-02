@@ -16,4 +16,6 @@ window.__jfTrk = () => trk.data;
 window.__jfGeo = reset => { if (reset) geoCache.sig = ""; const g = pageGeometry(); return { cap: g.cap, chars: g.chars, sideChars: g.sideChars, head: g.head, entry: g.entry, sec: g.sec, measured: g.measured, sidebar: g.sidebar }; };
 window.__jfSample = () => replaceProfile(JSON.parse(JSON.stringify(SAMPLE_PROFILE)), "test");
 
-window.__jobFinder = { analyse, norm, example: EXAMPLE_RESUME, detectGuide };
+window.__jfAcct = { oauthUrl: acctOAuthUrl, providers: acctProviders };
+window.__jfAi = { tier: aiTier, small: keyIsSmall, smallEngine };
+window.__jobFinder = { analyse, norm, example: EXAMPLE_RESUME, exampleJd: EXAMPLE_JD, detectGuide };

@@ -50,6 +50,19 @@ async function aiJSON(task) {
   }
   return { data: null, via: null, rejected, tried, error };
 }
+// A long job done as several short prompts, for small models. Each step can use what the earlier steps wrote (done[key]),
+// so steps that belong together, like the sentences of one paragraph, build on each other. Steps run one after another and the pieces are put together at the end.
+// step: { key, label, nano, full?, examples?, prompt(done), schema, check?(data, done) → {ok, value} | {ok: false, why}, skip?(done) }
+async function aiChain(steps, { progress = () => {}, signal } = {}) {
+  const done = {}, missed = [];
+  for (const [i, s] of steps.entries()) {
+    if (signal && signal.aborted) throw aiError("cancelled");
+    if (s.skip && s.skip(done)) continue;
+    const r = await aiJSON({ nano: s.nano, full: s.full || s.nano, examples: s.examples || [], prompt: s.prompt(done), schema: s.schema, check: d => (s.check ? s.check(d, done) : { ok: true, value: d }), label: s.label, progress: m => progress(`${m} (step ${i + 1} of ${steps.length})`) });
+    if (r.data != null) done[s.key] = r.data; else missed.push({ key: s.key, why: aiMissWords(r) });
+  }
+  return { done, missed };
+}
 const viaWords = via => via === "chrome" ? SMALL() : via === "claude" ? BIG_NAME() : "built-in rules (no AI)";
 // Why there's no AI answer, in plain words
 function aiMissWords(r) {
@@ -139,19 +152,35 @@ async function nanoCover(ctx, make, progress) {
   const resumeText = ctx.resume + "\n" + ctx.letters.join("\n");
   // ask for one part; check it; retry once; otherwise use the plain version of that part
   // strict: check against this part's facts only (each job sees only its own bullets)
-  const part = async (key, ask, facts, start, sentences, strict) => {
+  // before: the letter written so far, given to each part so the paragraphs read as one letter and don't repeat each other.
+  // A two-sentence part is written a sentence at a time: the second is asked for knowing the first.
+  const part = async (key, ask, facts, start, sentences, strict, before = "") => {
     const s = await s0.clone();
     try {
-      const prompt = `Write ${sentences} about ${ask}.\n${facts}\nStart with: "${start}"`;
-      let d = await nanoJSON(s, prompt, TEXT_SCHEMA);
       const src = strict ? facts : resumeText + "\n" + facts;
-      let why = factCheck(d.text, src, { years: true });
-      if (!why && strict) { const other = ctx.roles.find(r => r.orgShort && !facts.includes(r.orgShort) && String(d.text).toLowerCase().includes(r.orgShort.toLowerCase())); if (other) why = `it mentions ${other.orgShort}, a different job`; }
-      if (!why && !String(d.text).trim().toLowerCase().startsWith(start.toLowerCase().slice(0, 12))) why = `it must start with "${start}"`;
-      if (why) { d = await nanoJSON(s, `Your answer broke a rule: ${why}. Write it again and reply with only the JSON.`, TEXT_SCHEMA); why = factCheck(d.text, src, { years: true }); }
-      return why ? null : stripMarkup(String(d.text)).replace(/\s+/g, " ").trim();
+      const sofar = before ? `\nThe letter so far (carry on from it, don't repeat it):\n${before.length > 600 ? "…" + before.slice(-600) : before}` : "";
+      const write = async (prompt, mustStart) => {
+        let d = await nanoJSON(s, prompt, TEXT_SCHEMA);
+        const bad = t => {
+          let why = factCheck(t, src, { years: true });
+          if (!why && strict) { const other = ctx.roles.find(r => r.orgShort && !facts.includes(r.orgShort) && String(t).toLowerCase().includes(r.orgShort.toLowerCase())); if (other) why = `it mentions ${other.orgShort}, a different job`; }
+          if (!why && mustStart && !String(t).trim().toLowerCase().startsWith(mustStart.toLowerCase().slice(0, 12))) why = `it must start with "${mustStart}"`;
+          return why;
+        };
+        let why = bad(d.text);
+        if (why) { d = await nanoJSON(s, `Your answer broke a rule: ${why}. Write it again and reply with only the JSON.`, TEXT_SCHEMA); why = bad(d.text); }
+        return why ? null : stripMarkup(String(d.text)).replace(/\s+/g, " ").trim();
+      };
+      if (sentences === "2 sentences") {
+        const a = await write(`Write 1 sentence about ${ask}.\n${facts}${sofar}\nStart with: "${start}"`, start);
+        if (!a) return null;
+        const b = await write(`Write the next sentence of the same paragraph. Don't repeat anything already said; add one new fact from the facts above.\nAlready written in this paragraph: ${a}`, "");
+        return b ? `${a} ${b}` : a;
+      }
+      return await write(`Write ${sentences} about ${ask}.\n${facts}${sofar}\nStart with: "${start}"`, start);
     } finally { try { s.destroy(); } catch { /* gone */ } }
   };
+  const soFar = () => paras.map(p => p.text).join(" ");
   const paras = [];
   const e = ctx.edu[0];
   progress(`Writing your opening with ${SMALL()}…`);
@@ -167,20 +196,20 @@ async function nanoCover(ctx, make, progress) {
     const top = r.bullets.slice().sort((a, b) => b.score - a.score).slice(0, 3);
     const start = i === 0 ? `As ${aOrAn(r.title)} ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}, I` : r.orgShort ? `At ${r.orgShort}, I` : `In my role as ${r.title}, I`;
     const line = await part("experience", "this ONE job, linked to what the ad asks for",
-      `Job: ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}\nFacts from the resume:\n${top.map(b => "- " + b.text).join("\n")}\nThe ad asks for: ${[...new Set(top.flatMap(b => b.skills))].join(", ") || hard.slice(0, 4).join(", ") || "(see the facts)"}`, start, "1 or 2 sentences", true);
+      `Job: ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}\nFacts from the resume:\n${top.map(b => "- " + b.text).join("\n")}\nThe ad asks for: ${[...new Set(top.flatMap(b => b.skills))].join(", ") || hard.slice(0, 4).join(", ") || "(see the facts)"}`, start, "1 or 2 sentences", true, (soFar() + " " + lines.join(" ")).trim());
     if (line) lines.push(line);
   }
   paras.push(lines.length ? { part: "experience", text: lines.join(" "), evidence: roles.map(r => r.label) } : { part: "experience", text: tPart("experience"), evidence: roles.map(r => r.label), repaired: true });
   progress(`Writing about your study and skills with ${SMALL()}…`);
   const tools = ctx.resumeHard.filter(n => hard.includes(n)).slice(0, 5);
   const edu = e ? await part("education", "the candidate's study and technical skills",
-    `Qualification: ${e.degree}${e.inst ? `, ${e.inst.split(",")[0]}` : ""}\nRelevant subjects: ${e.coursework || "(not given)"}\nSkills and tools from the resume that the ad asks for: ${tools.join(", ") || "(none)"}`, `My ${e.degree}`, "2 sentences") : null;
+    `Qualification: ${e.degree}${e.inst ? `, ${e.inst.split(",")[0]}` : ""}\nRelevant subjects: ${e.coursework || "(not given)"}\nSkills and tools from the resume that the ad asks for: ${tools.join(", ") || "(none)"}`, `My ${e.degree}`, "2 sentences", false, soFar()) : null;
   if (tPart("education")) paras.push({ part: "education", text: edu || tPart("education"), evidence: e ? [e.coursework || e.degree] : [], repaired: !edu });
   progress(`Writing why you want this job with ${SMALL()}…`);
   const softRole = ctx.roles.slice().sort((a, b) => b.bullets.filter(x => soft.some(sn => skillSet(x.text).has(sn))).length - a.bullets.filter(x => soft.some(sn => skillSet(x.text).has(sn))).length)[0];
   const mot = await part("motivation", "why the candidate wants this job, and the people skills it needs",
     `Company: ${ctx.company || "(not given)"}\nThe candidate's reason, in their words: ${ctx.why || "(not given)"}\nWhat interests them about the role: ${(ctx.interest || []).join("; ") || "(not given)"}\nWhat the role involves: ${ctx.dutyLine || "(not given)"}\nSoft skills the ad asks for: ${soft.slice(0, 3).join(", ") || "(none)"}${(ctx.values || []).length ? `\nWhat the company says it values: ${ctx.values.slice(0, 4).join(", ")}` : ""}${ctx.guide && ctx.guide.purpose ? `\nThe company's stated purpose: ${ctx.guide.purpose}` : ""}${softRole ? `\nOne job that shows them: ${softRole.title}${softRole.orgShort ? ` at ${softRole.orgShort}` : ""}: ${softRole.bullets.slice(0, 2).map(b => b.text).join("; ")}` : ""}`,
-    ctx.company ? `I am drawn to ${ctx.company}` : "I am drawn to this role", "2 sentences");
+    ctx.company ? `I am drawn to ${ctx.company}` : "I am drawn to this role", "2 sentences", false, soFar());
   paras.push({ part: "motivation", text: mot || tPart("motivation"), evidence: softRole ? [softRole.label] : [], repaired: !mot });
   // the close is the same every time: thanks, availability and contact details from the form, never placeholders
   paras.push({ part: "closing", text: tPart("closing"), evidence: [] });

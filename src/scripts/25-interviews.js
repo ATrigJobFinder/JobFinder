@@ -120,7 +120,7 @@ function renderSetup() {
 }
 async function describeIvEngine() {
   const st = await chromeAIState();
-  $("ivEngine").textContent = smallEngine() ? `Answers are rated by ${SMALL()}, on this computer.`
+  $("ivEngine").textContent = smallEngine() ? `Answers are rated by ${SMALL()}, ${smallWhere()}, in short steps.`
     : st === "available" ? "Answers are rated by Chrome's built-in AI, on this device."
     : (st === "downloadable" || st === "downloading") ? "Answers are rated by Chrome's built-in AI if it's ready, otherwise by " + (sample ? AI_NAME() : "the built-in checks") + "."
     : sample ? "Answers are rated by " + AI_LONG() + "."
@@ -488,8 +488,8 @@ async function rateAnswer() {
   try {
     const chrome = await withChromeAI(progress, async make => {
       progress(`Rating with ${SMALL()}…`);
-      const s = await make(IV_NANO, IV_EXAMPLES);
-      return mergeAI(await nanoJSON(s, ivPrompt(q, ans), ivSchema(T)), rule, T);
+      // three short steps in one conversation (see 25a): scores, then coaching points from them, then a stronger answer using those
+      return mergeAI(await ivRateInSteps(make, q, ans, T, progress), rule, T);
     });
     if (chrome) { res = chrome; via = `Rated by ${SMALL()}, held to the built-in checks.`; }
     const big = afterSmall();

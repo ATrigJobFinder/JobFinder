@@ -816,7 +816,7 @@ async function generateCover() {
 }
 async function describeCoverEngine() {
   const st = await chromeAIState();
-  $("clEngine").textContent = smallEngine() ? `Written by ${SMALL()}, on this computer, one paragraph at a time. The corner shows roughly how long is left.`
+  $("clEngine").textContent = smallEngine() ? `Written by ${SMALL()}, ${smallWhere()}, one short step at a time.${smallEngine() === "key" ? "" : " The corner shows roughly how long is left."}`
     : st === "available" ? "Written by Chrome's built-in AI, on this device."
     : (st === "downloadable" || st === "downloading") ? "Chrome's built-in AI is tried first, then " + (sample ? AI_NAME() : "the template") + "."
     : sample ? "Written by " + AI_LONG() + ". Takes about a minute."

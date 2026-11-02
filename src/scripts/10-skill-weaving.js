@@ -91,7 +91,7 @@ async function describeEngine() {
   if (!el) return;
   const st = await chromeAIState();
   if (!$("engineNote")) return;
-  if (smallEngine()) el.textContent = `Wording by ${SMALL()}, on this computer. The corner shows roughly how long it takes.`;
+  if (smallEngine()) el.textContent = `Wording by ${SMALL()}, ${smallWhere()}.${smallEngine() === "key" ? "" : " The corner shows roughly how long it takes."}`;
   else if (st === "available") el.textContent = "Wording by Chrome's built-in AI, on this device.";
   else if (st === "downloadable" || st === "downloading") el.textContent = `Chrome's built-in AI is tried first. The first time, Chrome downloads its model, which can take a few minutes${sample ? ". If it can't run, " + AI_NAME() + " words it instead." : "."}`;
   else if (sample) el.textContent = "Wording by " + AI_LONG() + ".";

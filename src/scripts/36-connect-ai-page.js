@@ -20,7 +20,7 @@ function aicDescribe() {
     : e === "claude" ? "Claude on your Claude account"
     : e === "webllm" ? `${(WEBLLM_MODELS.find(m => m.id === aiCfg.webllmModel) || {}).name || "A model"} in your browser (WebLLM)`
     : e === "tfjs" ? `${(TFJS_MODELS.find(m => m.id === aiCfg.tfjsModel) || {}).name || "A model"} in your browser (Transformers.js)`
-    : `${aiCfg.key.model || "A model"} with your ${aiProvider().short} key`;
+    : `${aiCfg.key.model || "A model"} with ${aiCfg.key.provider === "custom" ? "your AI" : "your " + aiProvider().short} key`;
   let why = "";
   if (USER_ENGINES.has(e) && !aiUsable(e)) why = "Not finished setting up, so Job Finder is using " + (claudeSample ? "Claude" : "built-in templates") + " for now.";
   else if (e === "claude" && !claudeSample) why = "Claude is only available when Job Finder is opened in Claude, so built-in templates are used here.";
@@ -69,7 +69,9 @@ function aicSetupHtml(t) {
       <label class="field" id="aicBaseWrap" hidden>Address (ends in /v1)<input type="text" id="aicKeyBase" spellcheck="false" autocomplete="off" placeholder="https://api.example.com/v1"></label>
       <label class="field">API key<span class="aic-inline"><input type="text" id="aicKey" class="secret-mask" name="ai-service-token" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" data-lpignore="true" data-1p-ignore data-bwignore="true" data-form-type="other" placeholder="Paste your key"><button class="btn" type="button" id="aicKeyShow" aria-pressed="false">Show</button></span></label>
       <label class="field">Model<span class="aic-inline"><input type="text" id="aicKeyModel" list="aicKeyList" spellcheck="false" autocomplete="off"><button class="btn" type="button" id="aicKeyLoad">Load models</button></span><datalist id="aicKeyList"></datalist></label>
+      <label class="field">Model size<select id="aicKeySize"><option value="auto">Work it out from the model name</option><option value="small">Small: short prompts, one job at a time</option><option value="large">Large: fuller prompts</option></select></label>
     </div>
+    <p class="small muted" id="aicKeySizeNote"></p>
     <label class="aic-check"><input type="checkbox" id="aicRemember"> Remember my key on this device (otherwise it's forgotten when you close the tab)</label>
     <div class="aic-act"><button class="btn primary" type="button" id="aicKeyGo">Test and use</button><button class="btn ghost" type="button" id="aicKeyForget">Remove key</button><p class="aic-msg small" id="aicKeyOut" role="status"></p></div>
     <p class="small muted">Your key is kept in this browser only and sent straight to the company you chose. Job Finder never stores it.</p>`;
@@ -159,6 +161,11 @@ async function aicSync() {
   const gpu = $("aicGpu");
   if (gpu) { gpu.textContent = navigator.gpu ? "This browser supports WebGPU, so WebLLM and Transformers.js can both run here." : "This browser doesn't have WebGPU, so choose Transformers.js (it runs more slowly without a graphics card)."; gpu.className = "aic-env" + (navigator.gpu ? " ok" : " warn"); }
   aicEta();
+  const sz = $("aicKeySize");
+  if (sz) {
+    sz.value = aiCfg.key.size || "auto";
+    $("aicKeySizeNote").textContent = `${aiCfg.key.model || "This model"} is treated as ${keyIsSmall() ? "small: Job Finder asks it for one short thing at a time, passes each answer to the next step, and asks for tight answers." : "large: Job Finder sends it the fuller instructions and long sections in one go."}`;
+  }
   const ch = $("aicChromeState");
   if (ch) { const st = await chromeAIRaw(); ch.textContent = st === "available" ? "Ready on this computer." : st === "downloadable" || st === "downloading" ? "Supported here. Chrome downloads its model the first time it's used." : "Not available in this browser or on this page."; ch.className = "aic-env" + (st === "available" ? " ok" : st === "absent" || st === "unavailable" ? " warn" : ""); }
 }
@@ -221,7 +228,8 @@ function aicWire() {
   if (!cssHides) { keyBox.type = "password"; keyBox.classList.remove("secret-mask"); keyBox.autocomplete = "new-password"; }
   const keyShown = () => cssHides ? !keyBox.classList.contains("secret-mask") : keyBox.type === "text";
   $("aicKeyShow").addEventListener("click", e => { const show = !keyShown(); if (cssHides) keyBox.classList.toggle("secret-mask", !show); else keyBox.type = show ? "text" : "password"; e.target.textContent = show ? "Hide" : "Show"; e.target.setAttribute("aria-pressed", String(show)); });
-  $("aicKeyModel").addEventListener("change", e => { aiCfg.key.model = e.target.value.trim(); saveAiCfg(); aicSync(); });
+  $("aicKeyModel").addEventListener("change", e => { aiCfg.key.model = e.target.value.trim(); saveAiCfg(); refreshSample(); aicSync(); });
+  $("aicKeySize").addEventListener("change", e => { aiCfg.key.size = e.target.value; saveAiCfg(); refreshSample(); aicSync(); });
   $("aicKeyBase").addEventListener("change", e => { aiCfg.key.base = e.target.value.trim(); saveAiCfg(); });
   $("aicKeyLoad").addEventListener("click", async () => {
     setAiSecret($("aicKey").value, $("aicRemember").checked);

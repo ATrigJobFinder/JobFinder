@@ -36,7 +36,7 @@ const AI_PROVIDERS = {
 const AI_ENGINES = ["auto", "chrome", "webllm", "tfjs", "key", "claude"];
 const USER_ENGINES = new Set(["webllm", "tfjs", "key"]);
 const BROWSER_ENGINES = new Set(["webllm", "tfjs"]);
-const aiDefaultCfg = () => ({ engine: "auto", webllmModel: WEBLLM_MODELS.find(m => m.pick).id, tfjsModel: TFJS_MODELS.find(m => m.pick).id, key: { provider: "gemini", model: AI_PROVIDERS.gemini.model, base: "", remember: true }, fallback: true, speed: {} });
+const aiDefaultCfg = () => ({ engine: "auto", webllmModel: WEBLLM_MODELS.find(m => m.pick).id, tfjsModel: TFJS_MODELS.find(m => m.pick).id, key: { provider: "gemini", model: AI_PROVIDERS.gemini.model, base: "", remember: true, size: "auto" }, fallback: true, speed: {} });
 function loadAiCfg() {
   const d = aiDefaultCfg();
   try {
@@ -71,6 +71,24 @@ function aiUsable(e = aiCfg.engine) {
   if (e === "key") return !!(aiSecret() && aiCfg.key.model && aiKeyBase());
   return false;
 }
+/* --- How big is the chosen model? Small ones get short prompts, one job at a time, and tight answers; large ones get fuller prompts. --- */
+// Words and sizes in a model name that mean "small": nano, mini, lite, instant, or 14 billion parameters and under (not 70b, 405b)
+const SMALL_MODEL_RE = /(^|[^a-z0-9])(nano|mini|micro|tiny|lite|small|instant|phi)([^a-z]|$)|(^|[^0-9.])([0-9]|1[0-4])(\.[0-9])?b([^a-z0-9]|$)/i;
+function keyIsSmall() {
+  const s = aiCfg.key.size;
+  return s === "small" ? true : s === "large" ? false : SMALL_MODEL_RE.test(String(aiCfg.key.model || ""));
+}
+// "small" | "large" for the AI that will do the writing. Chrome's built-in AI is always small (it only runs the short prompts).
+function aiTier() {
+  const e = aiCfg.engine;
+  if (BROWSER_ENGINES.has(e)) return "small";
+  if (e === "key" && aiUsable("key")) return keyIsSmall() ? "small" : "large";
+  if (e === "chrome") return "small";
+  return "large";
+}
+const TOKEN_CHARS_EST = 3.8;
+// A small model is told to stop sooner: about 1.8 times the length of the answer we expect, never more than 1,200 tokens
+const tightMax = expectChars => Math.max(120, Math.min(1200, Math.round(expectChars / TOKEN_CHARS_EST * 1.8) + 60));
 // Which name to show next to AI wording ("Written by …")
 function AI_NAME(e = aiCfg.engine) {
   if (e === "webllm") return "WebLLM in your browser";
@@ -141,21 +159,21 @@ async function aiFetch(url, init, signal) {
   return res.json();
 }
 // OpenAI-style chat (Gemini, OpenRouter, Groq, OpenAI, others)
-async function chatOpenAI(base, key, model, messages, signal) {
+async function chatOpenAI(base, key, model, messages, signal, max) {
   const headers = { "Content-Type": "application/json" };
   if (key) headers.Authorization = "Bearer " + key;
-  const d = await aiFetch(base + "/chat/completions", { method: "POST", headers, body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 2000 }) }, signal);
+  const d = await aiFetch(base + "/chat/completions", { method: "POST", headers, body: JSON.stringify({ model, messages, temperature: 0.2, max_tokens: max || 2000 }) }, signal);
   const c = d && d.choices && d.choices[0];
   return (c && c.message && c.message.content) || "";
 }
 // Claude's API, called straight from the browser with the person's own key
-async function chatAnthropic(key, model, messages, signal) {
+async function chatAnthropic(key, model, messages, signal, max) {
   const system = messages.filter(m => m.role === "system").map(m => m.content).join("\n\n");
   const msgs = messages.filter(m => m.role !== "system");
   const d = await aiFetch(AI_PROVIDERS.claude.base + "/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model, max_tokens: 2000, system: system || undefined, messages: msgs })
+    body: JSON.stringify({ model, max_tokens: max || 2000, system: system || undefined, messages: msgs })
   }, signal);
   return ((d && d.content) || []).filter(b => b.type === "text").map(b => b.text).join("");
 }
@@ -315,14 +333,14 @@ async function chatBrowser(kind, model, messages, signal, o = {}) {
 }
 // The in-browser models get the same short prompts as Chrome's: this makes them look like a Chrome AI session
 function browserSession(kind, rules, examples = [], history) {
-  const model = kind === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel;
+  const model = kind === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel;   // (kind "key" is a small model reached through the person's key: same short prompts, no download)
   const msgs = history ? history.slice() : [{ role: "system", content: rules }, ...fewShot(examples)];
   const lastEx = examples.length ? examples[examples.length - 1][1] : null;
   const expect = lastEx ? Math.max(200, (typeof lastEx === "string" ? lastEx : JSON.stringify(lastEx)).length) : 500;
   return {
     async prompt(text, o = {}) {
       msgs.push({ role: "user", content: text });
-      let out = await chatBrowser(kind, model, msgs, null, { schema: o.responseConstraint, expect, max: 1200 });
+      let out = kind === "key" ? await aiChat("key", msgs, null, { expect, max: tightMax(expect) }) : await chatBrowser(kind, model, msgs, null, { schema: o.responseConstraint, expect, max: 1200 });
       // the small models sometimes wrap JSON in fences or thinking: keep just the JSON
       try { out = JSON.stringify(extractJSON(out)); } catch { /* left as it is; the caller retries */ }
       msgs.push({ role: "assistant", content: out });
@@ -350,7 +368,7 @@ async function aiChat(engine, messages, signal, o = {}) {
     const key = aiSecret();
     if (!key) throw aiError("bad_key", "Add your API key first.");
     if (!aiCfg.key.model) throw aiError("no_model");
-    return aiProvider().kind === "anthropic" ? chatAnthropic(key, aiCfg.key.model, messages, signal) : chatOpenAI(aiKeyBase(), key, aiCfg.key.model, messages, signal);
+    return aiProvider().kind === "anthropic" ? chatAnthropic(key, aiCfg.key.model, messages, signal, o.max) : chatOpenAI(aiKeyBase(), key, aiCfg.key.model, messages, signal, o.max);
   }
   throw aiError("no_engine", "No AI is connected.");
 }
@@ -402,7 +420,9 @@ async function testAi(engine, signal) {
 
 const AI_LONG = () => AI_NAME() === "Claude" ? "Claude on your account" : AI_NAME();
 // The small model doing the short-prompt work: the one in the browser if chosen, otherwise Chrome's
-const smallEngine = () => BROWSER_ENGINES.has(aiCfg.engine) ? aiCfg.engine : null;
+// ("key" counts when the person's own model is a small one: it gets the same short prompts, one job at a time)
+const smallEngine = () => BROWSER_ENGINES.has(aiCfg.engine) ? aiCfg.engine : aiCfg.engine === "key" && aiUsable("key") && keyIsSmall() ? "key" : null;
+const smallWhere = () => smallEngine() === "key" ? "through your key" : "on this computer";
 const SMALL = () => smallEngine() ? AI_NAME() : "Chrome's built-in AI";
 // After the small-model path: the next AI to try (an in-browser model isn't asked twice; Claude steps in if allowed)
 const afterSmall = () => smallEngine() ? (aiCfg.fallback !== false && claudeSample ? claudeSample : null) : sample;

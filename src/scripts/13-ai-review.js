@@ -4,7 +4,7 @@ let sample = null, aiCtl = null;
 function resetAI() {
   if (aiCtl) aiCtl.abort();
   els.aiOut.innerHTML = "";
-  if (sample) { els.aiStatus.textContent = lastResult ? "Uses " + AI_LONG() + ". Takes about a minute." : "Scan a resume first."; els.aiStatus.classList.remove("err"); }
+  if (sample) { els.aiStatus.textContent = lastResult ? "Uses " + AI_LONG() + (aiTier() === "small" ? ", in four short steps." : ". Takes about a minute.") : "Scan a resume first."; els.aiStatus.classList.remove("err"); }
   els.aiBtn.disabled = !sample || !lastResult;
 }
 function aiPrompt() {
@@ -92,12 +92,18 @@ async function runAI() {
   aiCtl = new AbortController();
   els.aiBtn.disabled = true; els.aiStop.hidden = false;
   els.aiStatus.classList.remove("err");
-  els.aiStatus.textContent = "Thinking… this usually takes 30–60 seconds.";
+  els.aiStatus.textContent = aiTier() === "small" ? "Working through it in short steps…" : "Thinking… this usually takes 30–60 seconds.";
   els.aiOut.innerHTML = "";
   try {
-    const data = await sample.json(aiPrompt(), { signal: aiCtl.signal, cache: false });
+    let data, left = "";
+    if (aiTier() === "small") {
+      // a small model gets four short jobs instead of one long one, each using what the last one found (see 13a)
+      const r = await aiSmallSuggestions(aiCtl.signal, m => { els.aiStatus.textContent = m; });
+      data = r.data;
+      if (r.missed.length) left = ` ${r.missed.length === 1 ? "One step" : r.missed.length + " steps"} didn't give a usable answer, so that part is left out.`;
+    } else data = await sample.json(aiPrompt(), { signal: aiCtl.signal, cache: false });
     renderAI(data);
-    els.aiStatus.textContent = "Done. Check every suggestion before you use it.";
+    els.aiStatus.textContent = "Done." + left + " Check every suggestion before you use it.";
   } catch (e) {
     const code = e && e.code;
     if (code === "cancelled") els.aiStatus.textContent = "Stopped.";
