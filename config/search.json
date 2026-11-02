@@ -5,7 +5,7 @@
     "keywords": ["graduate engineer", "mechanical engineer", "civil engineer", "electrical engineer", "chemical engineer", "structural engineer", "mining engineer", "software engineer"],
     "locations": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Canberra", "Hobart", "Darwin", "Australia"],
     "max_days_old": 8,
-    "max_pages": 6
+    "max_pages": 10
   },
   "jooble": {
     "keywords": ["engineer", "graduate engineer", "mechanical engineer", "civil engineer", "electrical engineer", "chemical engineer", "structural engineer", "mining engineer", "software engineer"],
