@@ -1,0 +1,298 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4874970101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_optional",
+   "internal_job_id": 4475493101,
+   "location": {
+    "name": "Sydney,  Australia"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": "Experienced",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": "Business Operations",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": "au",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4874970101,
+   "updated_at": "2026-10-30T10:48:54-04:00",
+   "requisition_id": "REQ-04697",
+   "title": "Accounts Payable Officer",
+   "company_name": "IMC",
+   "first_published": "2026-10-06T18:24:27-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;The AP Officer will join IMC’s Finance team in Sydney, working directly with the AP Supervisor to run accounts payable, payments and settlements across multiple legal entities in various APAC jurisdictions, with multi-currency payments in AUD, USD, HKD, KRW and JPY. The role sits within a lean, two-person AP operations team and plays a critical part in ensuring supplier payments, intercompany settlements and the daily cash movements that keep a trading business running are accurate, controlled and on time.&lt;/p&gt;\n&lt;p&gt;Two near-term priorities shape the role: AP automation, where you will own the exception queue and help tune the process in Workday Financials until most invoices flow straight through; and building resilience into our operations, so payments and settlements run cleanly every day, including when a colleague is away. This is not a shared-services AP role. It is a broad and substantive role from day one in a lean, high-performing team where you will own real outcomes and work closely with the Finance Managers, the Financial Controller and Treasury.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;Your Core Responsibilities&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;Accounts Payable&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Process supplier invoices end-to-end in Workday, coding to the correct entity, cost centre and GL account, and routing for approval&lt;/li&gt;\n&lt;li&gt;Own the AP exception queue, resolving coding, matching and approval exceptions directly with budget owners rather than escalating them&lt;/li&gt;\n&lt;li&gt;Handle cross-entity invoices&lt;/li&gt;\n&lt;li&gt;Maintain supplier master data and independently verify new or changed supplier bank details before any payment is released&lt;/li&gt;\n&lt;li&gt;Respond to supplier queries with remittances; reconcile supplier statements and resolve differences&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;Payments &amp;amp; Settlements&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Prepare the weekly payment run and daily settlement runs, both EFT and manual payments, with complete supporting documentation for independent review and dual approval&lt;/li&gt;\n&lt;li&gt;Prepare intercompany settlements and funding requests across APAC entities, and work through payment differences with the Finance team&lt;/li&gt;\n&lt;li&gt;Process tax, statutory and charity payments on instruction from the Finance team, on time and to deadline&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;Treasury Operations&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Set up intra-group and onward cash transfers on Treasury’s instruction across multiple banks and currencies, and track each one through to settlement&lt;/li&gt;\n&lt;li&gt;Investigate returned, rejected or unidentified payments, including SWIFT queries, beneficiary details and correspondent bank issues, and resolve them with the bank&lt;/li&gt;\n&lt;li&gt;Support bank administration, including account forms, signatory and user changes, KYC and periodic reviews, and follow up with banks until closed&lt;/li&gt;\n&lt;li&gt;Escalate early: anything stuck with a bank or counterparty beyond agreed timeframes goes to the AP Supervisor with a clear summary and proposed next step&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;Month-End, Controls &amp;amp; Automation&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Support month-end close, including AP cut-off, accrual inputs, and AP sub-ledger and bank reconciliations&lt;/li&gt;\n&lt;li&gt;Apply correct GST and indirect tax treatment on invoices, including foreign-supplier invoices&lt;/li&gt;\n&lt;li&gt;Work with the AP Supervisor on AP automation, testing, refining coding rules and feeding back on exceptions to raise the straight-through processing rate&lt;/li&gt;\n&lt;li&gt;Document procedures as runbooks so every process can be picked up by another team member&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;Your Skills and Experience&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;2-6 years of experience across accounts payable and payments or treasury operations&lt;/li&gt;\n&lt;li&gt;Experience preparing payment runs and reconciling bank accounts in a multi-entity environment&lt;/li&gt;\n&lt;li&gt;Working knowledge of tax invoice requirements&lt;/li&gt;\n&lt;li&gt;Strong Excel skills and high attention to detail, comfortable handling large, multi-currency payment values&lt;/li&gt;\n&lt;li&gt;Confident following up with banks, suppliers and senior stakeholders until items are closed&lt;/li&gt;\n&lt;li&gt;Workday Financials experience, or another ERP such as SAP, Oracle or NetSuite, is preferred but not required&lt;/li&gt;\n&lt;li&gt;Experience with cross-border, multi-currency payments and familiarity with SWIFT messages is an advantage but not required&lt;/li&gt;\n&lt;li&gt;Exposure to banking in Hong Kong, Korea or Singapore is an advantage but not required&lt;/li&gt;\n&lt;li&gt;Exposure to AP automation, OCR or invoice-capture tools is an advantage but not required&lt;/li&gt;\n&lt;li&gt;An owner, not a router, resolving exceptions yourself and escalating only what needs a decision&lt;/li&gt;\n&lt;li&gt;Control-minded, never releasing a payment without the right approval and always checking bank details properly&lt;/li&gt;\n&lt;li&gt;Calm under time pressure, planning around value dates and bank cut-offs&lt;/li&gt;\n&lt;li&gt;Quick to escalate, raising a stuck item in days, not weeks&lt;/li&gt;\n&lt;li&gt;Curious about technology and process improvement, with an interest in automation&lt;/li&gt;\n&lt;/ul&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [
+    {
+     "id": 4069164101,
+     "name": "Finance",
+     "child_ids": [],
+     "parent_id": 4023845101
+    }
+   ],
+   "offices": [
+    {
+     "id": 4012426101,
+     "name": "Sydney",
+     "location": "Sydney,  Australia",
+     "child_ids": [],
+     "parent_id": 4012425101
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://s101.recruiting.eu.greenhouse.io/ai_opt_out_request/job_post/4874970101/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4696446101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_optional",
+   "internal_job_id": 4390751101,
+   "location": {
+    "name": "Sydney,  Australia"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": "Experienced",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": "Business Operations",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": "au",
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4696446101,
+   "updated_at": "2026-10-30T10:39:59-04:00",
+   "requisition_id": "REQ-04258",
+   "title": "Business Intelligence Analyst ",
+   "company_name": "IMC",
+   "first_published": "2026-10-14T02:53:11-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;IMC is currently looking for an energetic and team-oriented Business Intelligence Analyst to join our Business Planning &amp;amp; Analysis (BP&amp;amp;A) Team. &amp;nbsp;The BP&amp;amp;A Team is responsible for reporting and analytics across all teams at IMC including Trading, Finance, Mid Office, and HR.&amp;nbsp; You will work together to understand their needs and provide them with meaningful insights through data analysis and reporting. As a BP&amp;amp;A team member, you will create reporting and analysis that has a global impact.&amp;nbsp; Your projects will include collaboration with teammates in both our Sydney and Amsterdam offices.&amp;nbsp; Together, you will analyze big data and extract valuable information, making it readily available in the decision making process. You will also get the benefit of seeing the full data cycle from extraction to modelling, visualization and, and finally presenting the results.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;The ideal candidate acts as a true partner to the business and is both technical and business-savvy, displaying strong analytical and interpersonal skills.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;You’ll be responsible for:&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Execution and implementation of all (Global) BP&amp;amp;A aspects of strategic company projects.&lt;/li&gt;\n&lt;li&gt;Database development, maintenance, ETL process improvement and automation (ETLs mainly in python, json, qlik (bnf)).&lt;/li&gt;\n&lt;li&gt;Report development and maintenance in BI tooling in line with business requirements.&lt;/li&gt;\n&lt;li&gt;Managing the pipeline from development to production for the data and reporting layers.&lt;/li&gt;\n&lt;li&gt;You will act as a true partner to all areas of the business in our Sydney office - working across all departments in the business to identify and collect requirements to support any analysis / reporting needs.&lt;/li&gt;\n&lt;li&gt;We strive to create cohesive global teams and in addition to the local team in Sydney, you will closely collaborate with teams in Amsterdam and Chicago.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;You’ll likely bring to the table:&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Degree in Computer Science, Mathematics, Statistics, Econometrics or other quantitative backgrounds (Preferred).&lt;/li&gt;\n&lt;li&gt;5+ years of relevant work experience in data analysis / business intelligence.&lt;/li&gt;\n&lt;li&gt;Strong Python commercial experience (PyCharm experience preferred but not essential).&lt;/li&gt;\n&lt;li&gt;Experience with developing business reporting applications (e.g. Tableau, PowerBI, Qlikview / Qlik Sense).&lt;/li&gt;\n&lt;li&gt;Proficiency in SQL.&lt;/li&gt;\n&lt;li&gt;Experience with Git and JIRA preferred.&lt;/li&gt;\n&lt;li&gt;Strong analytical and problem-solving skills.&lt;/li&gt;\n&lt;li&gt;Interest in and preferably exposure to finance processes.&lt;/li&gt;\n&lt;li&gt;Strong interpersonal and communication skills.&lt;/li&gt;\n&lt;li&gt;Strong business acumen, and someone who thrives within a dynamic, quickly changing environment.&lt;/li&gt;\n&lt;/ul&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [
+    {
+     "id": 4069164101,
+     "name": "Finance",
+     "child_ids": [],
+     "parent_id": 4023845101
+    }
+   ],
+   "offices": [
+    {
+     "id": 4012426101,
+     "name": "Sydney",
+     "location": "Sydney,  Australia",
+     "child_ids": [],
+     "parent_id": 4012425101
+    }
+   ],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": "http://s101.recruiting.eu.greenhouse.io/ai_opt_out_request/job_post/4696446101/ai_opt_out"
+  },
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4940448101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_required",
+   "internal_job_id": null,
+   "location": {
+    "name": "Europe"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4940448101,
+   "updated_at": "2026-10-13T11:40:55-04:00",
+   "requisition_id": null,
+   "title": "2027 EU Campus Programme Talent Community",
+   "company_name": "IMC",
+   "first_published": "2026-07-29T04:39:58-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;strong&gt;Join Our Talent Community&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;One place to stay on our radar&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;Whether you see your future in quant research, trading, or technology - or you&#39;re still keeping an open mind - our range of insight programmes gives you the chance to experience what it&#39;s really like to work at the cutting edge of financial markets. From hands-on interactive sessions to trading simulations and coding challenges, you&#39;ll get a real taste of life at one of the world&#39;s leading trading firms.&lt;/p&gt;\n&lt;p&gt;Not sure yet which programme is the right fit for you? Tell us a bit about yourself and the areas that interest you, and we&#39;ll keep you in mind for the right opportunity down the line. The dates of the programmes are as follows:&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Women in Trading &amp;amp; Technology 23-25 March&lt;/li&gt;\n&lt;li&gt;Launchpad 20-22 April&lt;/li&gt;\n&lt;li&gt;Accelerate 11-13 May&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;We&#39;ll let you know as soon as applications open, and keep you updated with news from across our European offices.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;Joining the talent community isn&#39;t an application - it&#39;s just an easy first step, and it only takes about two minutes&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;&lt;strong&gt;Please note:&lt;/strong&gt; as these programmes only run for two days, we are unable to arrange or sponsor visas for candidates travelling to Amsterdam. If you would require a visa to attend, please be aware that we won&#39;t be able to support this.&lt;/em&gt;&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [],
+   "offices": [],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": null
+  }
+ ]
+}

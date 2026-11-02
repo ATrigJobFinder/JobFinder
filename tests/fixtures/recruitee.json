@@ -1,0 +1,31 @@
+{
+  "offers": [
+    {
+      "id": 1234567,
+      "slug": "civil-engineer",
+      "title": "Civil Engineer",
+      "department": "Engineering",
+      "location": "Melbourne, Victoria, Australia",
+      "city": "Melbourne",
+      "state_code": "VIC",
+      "country_code": "AU",
+      "employment_type_code": "fulltime_permanent",
+      "remote": false,
+      "careers_url": "https://example.recruitee.com/o/civil-engineer",
+      "created_at": "2026-10-25 02:11:09 UTC",
+      "published_at": "2026-10-25 02:11:09 UTC",
+      "description": "<h3>About the job</h3><ul><li>Design drainage</li></ul><script>steal()</script>"
+    },
+    {
+      "id": 7654321,
+      "title": "Process Engineer",
+      "department": "Engineering",
+      "location": "Auckland, New Zealand",
+      "country_code": "NZ",
+      "remote": false,
+      "careers_url": "https://example.recruitee.com/o/process-engineer",
+      "published_at": "2026-10-22 02:11:09 UTC",
+      "description": "<p>NZ role</p>"
+    }
+  ]
+}

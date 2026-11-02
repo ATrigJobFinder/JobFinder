@@ -1,0 +1,75 @@
+# Employers whose public job feeds are imported every week.
+#
+# ats: greenhouse | lever | lever_eu | ashby | workable | smartrecruiters | recruitee
+# token: the company's board name in that hiring system (see docs/jobs-import.md, "Add an employer")
+# active: false pauses an employer without deleting the line
+# all: true keeps every Australian job, not just engineering ones
+#
+# Test one before adding it:
+#   node jobs-import/import-jobs.mjs --check-employer greenhouse examplecompany
+
+# Checked on 2 Nov 2026: each of these returned real Australian engineering jobs.
+- name: IMC Trading
+  ats: greenhouse
+  token: imc
+  active: true
+
+- name: Airwallex
+  ats: ashby
+  token: airwallex
+  active: true
+
+- name: Xero
+  ats: ashby
+  token: xero
+  active: true
+
+- name: Canva
+  ats: smartrecruiters
+  token: canva
+  active: true
+
+- name: Nearmap
+  ats: smartrecruiters
+  token: nearmap
+  active: true
+
+- name: Block
+  ats: greenhouse
+  token: block
+  active: true
+
+- name: Culture Amp
+  ats: greenhouse
+  token: cultureamp
+  active: true
+
+- name: Deputy
+  ats: lever
+  token: deputy
+  active: true
+
+- name: Immutable
+  ats: lever
+  token: immutable
+  active: true
+
+- name: Q-CTRL
+  ats: lever
+  token: q-ctrl
+  active: true
+
+- name: Dovetail
+  ats: ashby
+  token: dovetail
+  active: true
+
+- name: SEEK
+  ats: smartrecruiters
+  token: seek
+  active: true
+
+- name: Zip
+  ats: ashby
+  token: zip
+  active: true

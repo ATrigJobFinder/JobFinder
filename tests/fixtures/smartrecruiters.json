@@ -1,0 +1,223 @@
+{
+ "offset": 0,
+ "limit": 100,
+ "totalFound": 40,
+ "content": [
+  {
+   "id": "744000158880979",
+   "name": "Regulatory Affairs Director (P&C Insurance)",
+   "uuid": "7a1c50a9-0ef9-400c-805c-32337ec6b74a",
+   "jobAdId": "d156d480-53f4-4ca3-9b79-821b481d983e",
+   "defaultJobAd": true,
+   "refNumber": "REF754Y",
+   "company": {
+    "identifier": "Nearmap",
+    "name": "Nearmap"
+   },
+   "releasedDate": "2026-10-31T02:14:58.541Z",
+   "location": {
+    "city": "Lehi",
+    "region": "UT",
+    "country": "us",
+    "address": "1850 West Ashton Boulevard",
+    "postalCode": "84043",
+    "remote": true,
+    "hybrid": false,
+    "latitude": "40.4195228",
+    "longitude": "-111.8813166",
+    "fullLocation": "Lehi, UT, United States"
+   },
+   "industry": {
+    "id": "it_and_services",
+    "label": "Information Technology And Services"
+   },
+   "department": {
+    "id": "11491191",
+    "label": "Product, Insurance"
+   },
+   "function": {
+    "id": "product_management",
+    "label": "Product Management"
+   },
+   "typeOfEmployment": {
+    "id": "permanent",
+    "label": "Full-time"
+   },
+   "experienceLevel": {
+    "id": "mid_senior_level",
+    "label": "Mid-Senior Level"
+   },
+   "customField": [
+    {
+     "fieldId": "COUNTRY",
+     "fieldLabel": "Country/Region",
+     "valueId": "us",
+     "valueLabel": "United States"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152e",
+     "fieldLabel": "Department",
+     "valueId": "11491191",
+     "valueLabel": "Product, Insurance"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152d",
+     "fieldLabel": "Brands",
+     "valueId": "default",
+     "valueLabel": "Nearmap"
+    }
+   ],
+   "visibility": "PUBLIC",
+   "ref": "https://api.smartrecruiters.com/v1/companies/nearmap/postings/744000158880979",
+   "language": {
+    "code": "en",
+    "label": "English",
+    "labelNative": "English (US)"
+   }
+  },
+  {
+   "id": "744000158713539",
+   "name": "QA Lead",
+   "uuid": "569c4af4-fa43-4b47-9900-ff3fd1dc1f75",
+   "jobAdId": "f25e8a69-0667-4a58-a71e-8fc961902e73",
+   "defaultJobAd": true,
+   "refNumber": "REF765S",
+   "company": {
+    "identifier": "Nearmap",
+    "name": "Nearmap"
+   },
+   "releasedDate": "2026-10-30T10:43:58.996Z",
+   "location": {
+    "city": "Warszawa",
+    "region": "Województwo mazowieckie",
+    "country": "pl",
+    "address": "Emilii Plater 53",
+    "postalCode": "00-113",
+    "remote": false,
+    "hybrid": false,
+    "latitude": "52.2334782",
+    "longitude": "21.0018504",
+    "fullLocation": "Warszawa, Województwo mazowieckie, Poland"
+   },
+   "industry": {
+    "id": "it_and_services",
+    "label": "Information Technology And Services"
+   },
+   "department": {
+    "id": "5221251",
+    "label": "Finance"
+   },
+   "function": {
+    "id": "engineering",
+    "label": "Engineering"
+   },
+   "typeOfEmployment": {
+    "id": "permanent",
+    "label": "Full-time"
+   },
+   "experienceLevel": {
+    "id": "mid_senior_level",
+    "label": "Mid-Senior Level"
+   },
+   "customField": [
+    {
+     "fieldId": "COUNTRY",
+     "fieldLabel": "Country/Region",
+     "valueId": "pl",
+     "valueLabel": "Poland"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152e",
+     "fieldLabel": "Department",
+     "valueId": "5221251",
+     "valueLabel": "Finance"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152d",
+     "fieldLabel": "Brands",
+     "valueId": "default",
+     "valueLabel": "Nearmap"
+    }
+   ],
+   "visibility": "PUBLIC",
+   "ref": "https://api.smartrecruiters.com/v1/companies/nearmap/postings/744000158713539",
+   "language": {
+    "code": "en",
+    "label": "English",
+    "labelNative": "English (US)"
+   }
+  },
+  {
+   "id": "744000158656124",
+   "name": "Payroll Officer",
+   "uuid": "c5e87b14-2ebb-406e-8d25-e723ffd844ed",
+   "jobAdId": "3011b0d7-131e-4e89-b5f3-2134541157e1",
+   "defaultJobAd": true,
+   "refNumber": "REF767B",
+   "company": {
+    "identifier": "Nearmap",
+    "name": "Nearmap"
+   },
+   "releasedDate": "2026-10-30T02:19:10.780Z",
+   "location": {
+    "city": "Barangaroo",
+    "region": "NSW",
+    "country": "au",
+    "address": "100 Barangaroo Avenue",
+    "postalCode": "2000",
+    "remote": false,
+    "hybrid": true,
+    "latitude": "-33.8635598",
+    "longitude": "151.2016153",
+    "fullLocation": "Barangaroo, NSW, Australia"
+   },
+   "industry": {
+    "id": "it_and_services",
+    "label": "Information Technology And Services"
+   },
+   "department": {
+    "id": "5221251",
+    "label": "Finance"
+   },
+   "function": {
+    "id": "finance",
+    "label": "Finance"
+   },
+   "typeOfEmployment": {
+    "id": "permanent",
+    "label": "Full-time"
+   },
+   "experienceLevel": {
+    "id": "mid_senior_level",
+    "label": "Mid-Senior Level"
+   },
+   "customField": [
+    {
+     "fieldId": "COUNTRY",
+     "fieldLabel": "Country/Region",
+     "valueId": "au",
+     "valueLabel": "Australia"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152e",
+     "fieldLabel": "Department",
+     "valueId": "5221251",
+     "valueLabel": "Finance"
+    },
+    {
+     "fieldId": "6107708aa90269505f97152d",
+     "fieldLabel": "Brands",
+     "valueId": "default",
+     "valueLabel": "Nearmap"
+    }
+   ],
+   "visibility": "PUBLIC",
+   "ref": "https://api.smartrecruiters.com/v1/companies/nearmap/postings/744000158656124",
+   "language": {
+    "code": "en",
+    "label": "English",
+    "labelNative": "English (US)"
+   }
+  }
+ ]
+}

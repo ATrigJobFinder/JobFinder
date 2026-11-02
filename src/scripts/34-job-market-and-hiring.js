@@ -72,9 +72,11 @@ function allJobs() {
   const site = market.employers.flatMap(e => (e.jobs || []).filter(j => j.status !== "closed" && j.status !== "draft").map(j => ({ ...j, company: (e.employer || {}).name || "Employer", employerUid: e.uid, key: e.uid + ":" + j.id, source: "Job Finder", sourceType: "site", url: "" })));
   const feed = market.feed.map(j => ({ ...j, url: safeUrl(j.url), sourceType: j.sourceType || "aggregator", also: (j.also || []).map(a => ({ ...a, url: safeUrl(a.url) })) }));
   const mine = T().filter(i => i.title && (i.jd || i.url)).map(i => ({ id: "t" + i.id, trackerId: i.id, title: i.title, company: i.company, location: i.location, url: safeUrl(i.url), description: i.jd, source: "Saved by you", sourceType: "user", posted: (i.created || "").slice(0, 10) }));
-  const real = [...site, ...feed];
-  const list = real.length ? [...real, ...mine] : [...EXAMPLE_JOBS, ...mine];
-  return DEDUP.cluster(list);
+  // imported listings come from the jobs database (see 34b); made-up examples only show when there's no database or nothing real yet
+  const real = [...site, ...feed], fromDb = dbFeed();
+  const list = real.length || fromDb.length || dbJobs.ready ? [...real, ...mine] : [...EXAMPLE_JOBS, ...mine];
+  // the database already shows one listing per duplicate group, so only the other sources are merged here
+  return [...DEDUP.cluster(list), ...fromDb];
 }
 function jobMatch(j) {
   const p = P();
@@ -88,10 +90,11 @@ function jobMatch(j) {
 const jobsUI = { q: "", where: "", type: "", remote: "", source: "", sort: "match", open: null, applyFor: null, limit: 40 };
 function jobFilters(list) {
   const q = jobsUI.q.toLowerCase(), w = jobsUI.where.toLowerCase();
-  return list.filter(j => (!q || [j.title, j.company, j.description].join(" ").toLowerCase().includes(q))
+  // listings from the database were already searched there (full-text, state and type), so only the other filters apply to them
+  return list.filter(j => (j.fromDb || ((!q || [j.title, j.company, j.description].join(" ").toLowerCase().includes(q))
     && (!w || [j.location, j.remote].join(" ").toLowerCase().includes(w) || (w === "remote" && /remote/i.test(j.location + " " + j.remote)))
     && (!jobsUI.type || j.workType === jobsUI.type)
-    && (!jobsUI.remote || (j.remote || "").toLowerCase() === jobsUI.remote.toLowerCase())
+    && (!jobsUI.remote || (j.remote || "").toLowerCase() === jobsUI.remote.toLowerCase())))
     && (!jobsUI.source || (jobsUI.source === "site" ? j.sourceType === "site" : jobsUI.source === "user" ? (j.sourceType === "user" || j.also.some(a => a.sourceType === "user")) : j.sourceType !== "site" && j.sourceType !== "user")));
 }
 function renderJobs() {
@@ -115,12 +118,13 @@ function renderJobs() {
     return `<article class="job${open ? " open" : ""}" data-job="${esc(j.key || j.id)}">
       <button type="button" class="job-main" data-jb="open" aria-expanded="${open}"><span class="job-title">${esc(j.title)}</span><span class="job-co">${esc(j.company || "")}${j.location ? ` · ${esc(j.location)}` : ""}</span>
         <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span></button>
-      <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
+      <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${j.srcUrl ? `<a href="${esc(j.srcUrl)}" target="_blank" rel="noopener">${esc(j.source)}</a>` : esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
       ${open ? jobDetail(j, tr, myApplied.has(j.key)) : ""}
     </article>`;
   }).join("") + (list.length > jobsUI.limit ? `<button class="btn" type="button" id="jbMore">Show more (${list.length - jobsUI.limit} left)</button>` : "") || `<p class="empty">No jobs match those filters.</p>`;
   renderTalentCard();
   renderInvites();
+  renderDbExtras(list);
 }
 function jobDetail(j, tr, applied) {
   const m = j.m;

@@ -66,3 +66,8 @@
 /* Match cover letter and resume design */
 .cv-match { margin-top: 10px; }
 .cv-match-note { margin: 4px 0 0; }
+
+/* Find jobs: imported listings, pages and attribution */
+.jb-dbfoot { display: grid; gap: 10px; margin-top: 14px; }
+.jb-pager { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.job-src a { color: inherit; text-decoration: underline; }
