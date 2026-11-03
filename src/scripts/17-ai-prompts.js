@@ -96,6 +96,14 @@ function aiMissHtml(text) {
   const m = t.replace(/\b(added|dropped)\b/, "<b class=\"ai-key\">$1</b>");
   return /ai-key/.test(m) ? `<span class="ai-red">${m}</span>` : t;
 }
+// What the AI actually wrote when its answer wasn't used, so you can see what went wrong
+function aiRawHtml(r) {
+  const raw = r && r.raw;
+  if (raw == null) return "";
+  const list = Array.isArray(raw.options) ? raw.options : raw.text != null ? [raw.text] : Array.isArray(raw) ? raw : [raw];
+  const items = list.map(x => (typeof x === "string" ? x : JSON.stringify(x)) || "").map(x => x.trim()).filter(Boolean);
+  return items.length ? `<div class="ai-raw"><b>What ${esc(r.rawVia === "claude" ? BIG_NAME() : SMALL())} wrote (not used):</b>${items.map(t => `<p>${esc(t)}</p>`).join("")}</div>` : "";
+}
 // Facts in, facts out: nothing the candidate didn't give us
 function factCheck(text, sources, o = {}) {
   const t = String(text || "").trim();

@@ -314,9 +314,13 @@ async function renderAiChip() {
   chip.dataset.ai = mode;
   txt.textContent = mode === "byo" ? `AI: ${AI_NAME()}` : mode === "chrome" ? "AI: Chrome, on this device" : mode === "chrome-dl" ? "AI: Chrome (model downloads on first use)" : mode === "claude" ? "AI: Claude on your account" : "AI: none yet. Connect one";
   chip.title = "Choose which AI does the writing";
+  // the same words in the top bar
+  const ab = $("abAi"), at = $("abAiText");
+  if (ab && at) { ab.dataset.ai = mode; at.textContent = txt.textContent; }
 }
 $("aiChip").removeAttribute("aria-haspopup");
 $("aiChip").addEventListener("click", () => openView("connect"));
+$("abAi").addEventListener("click", () => openView("connect"));
 onInit(() => {
   aiChangeListeners.add(() => {
     try { if (els.aiBtn) { if (sample) { els.aiBtn.disabled = false; resetAI(); } else { els.aiBtn.disabled = true; els.aiStatus.textContent = "AI suggestions need an AI. Choose one in Connect your AI. The keyword scan above works without it."; } } } catch { /* scanner not ready */ }

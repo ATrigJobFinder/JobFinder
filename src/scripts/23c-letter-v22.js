@@ -12,6 +12,17 @@ function ltShowStep(n) {
 }
 const stageOfLetter = () => { try { return letterStage(); } catch { return ""; } };
 function ltV22Preview() { navDots(); }
+// The letter's strength out of 100, shown above the preview like the resume's: paragraphs written, each long enough, the whole letter's length,
+// no gaps left (a template is meant to have them), and no warnings from the checks under the letter
+function letterScore(parts, r, wc, gaps, quality) {
+  const filled = parts.filter(p => p.text.trim()).length;
+  if (!filled) return 0;
+  const met = parts.filter(p => wordCount(p.text) >= partMin(p.part, r)).length;
+  const len = wc >= r[0] && wc <= r[1] ? 1 : wc < r[0] ? wc / r[0] : Math.max(0, 1 - (wc - r[1]) / r[1]);
+  const gapPart = ltTemplate() ? 1 : Math.max(0, 1 - gaps / 5);
+  const clean = Math.max(0, 1 - quality.length * 0.25);
+  return Math.round(35 * filled / parts.length + 20 * met / parts.length + 20 * len + 10 * gapPart + 15 * clean);
+}
 
 function ltModeRender() {
   const t = ltTemplate();

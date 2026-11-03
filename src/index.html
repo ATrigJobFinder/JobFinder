@@ -97,6 +97,7 @@
       <span class="ab-sep" aria-hidden="true">/</span>
       <span class="ab-view" id="abView">Home</span>
       <span class="ab-spacer"></span>
+      <button type="button" class="ai-chip ab-ai" id="abAi" title="Choose which AI does the writing"><span class="dot" aria-hidden="true"></span><span id="abAiText">Checking AI…</span></button>
       <div class="ab-tools">
         <button class="icon-btn ab-undo" id="abUndo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
         <button class="icon-btn ab-undo" id="abRedo" type="button" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
@@ -570,17 +571,20 @@
     </div>
     <div class="top-actions">
       <button class="btn primary" id="ltFromProfile" type="button">Start from my profile</button>
+      <button class="btn" id="ltPickBtn" type="button" aria-expanded="false" aria-controls="ltPick">Use a cover letter from my profile</button>
       <button class="btn" id="ltImport" type="button">Upload a letter</button>
       <input type="file" id="ltFile" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" class="visually-hidden">
     </div>
   </header>
   <p class="status-line" id="ltStatus" role="status"></p>
+  <section class="panel lt-pick" id="ltPick" hidden aria-label="Cover letters saved in your profile"></section>
   <nav class="b-steps" aria-label="Cover letter sections"><ol id="ltSteps"></ol></nav>
   <div class="lt-layout" id="ltLayout">
     <div class="lt-left">
       <section class="panel lt-designs" data-ltstep="0" aria-labelledby="ltDesignsH">
         <div class="panel-head"><h2 id="ltDesignsH">Start with a design</h2><p>Pick a cover letter template, then set its spacing and margins. Your letter takes its fonts and colour from it, and the preview, Word and PDF all follow.</p></div>
         <div id="ltDesigns"></div>
+        <div class="lt-next-row"><button class="btn primary" type="button" data-ltgo="1">Next: write your letter <span aria-hidden="true">→</span></button></div>
       </section>
       <section class="panel lt-form" data-ltstep="1" aria-labelledby="ltFormH">
         <div class="panel-head"><h2 id="ltFormH">Your letter</h2><p>Five paragraphs, each with one job to do. Saved as you type, gaps and all. <span class="lt-target" id="ltTarget"></span></p></div>
@@ -593,7 +597,7 @@
         </div>
         <div id="ltParts" class="lt-parts"></div>
         <div class="lt-signoff"><label class="field" for="lt-sign">Sign-off<input type="text" id="lt-sign" data-lt="signoff" autocomplete="off"></label>
-          <div class="lt-part-acts"><span class="small muted">Other sign-offs that suit your greeting. Click one to use it.</span></div><div class="lt-alts" id="ltSignAlts"></div></div>
+          <div class="lt-part-acts"><span class="small muted">Press More for other sign-offs that suit your greeting.</span></div><div class="lt-alts" id="ltSignAlts"></div></div>
         <div id="ltChecks"></div>
         <div class="lt-saved" id="ltSaved"></div>
         <div class="lt-download">
@@ -611,6 +615,7 @@
       </section>
     </div>
     <section class="panel lt-preview" aria-labelledby="ltDesign">
+      <div class="b-side-head"><h2>Preview of Complete Cover Letter</h2><span class="b-score" id="ltScore"></span></div>
       <div class="lt-prev-head"><h2 id="ltDesign" class="small">Design</h2><button class="linkish" id="ltDesignBtn" type="button">Change design</button></div>
       <div class="paper-frame" id="ltPaper"></div>
     </section>

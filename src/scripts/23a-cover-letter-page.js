@@ -19,21 +19,25 @@ function letterLayout(prefs) {
   return { lh: sp.lh, gap: sp.gap, mm: mg.mm };
 }
 // The letter's design: the resume's own, or (with "Match my cover letter and resume design" off) one chosen just for the letter
+function resumeDesign() {
+  const c = P().cv, k = cvState.selected || c.template;
+  return CV_TEMPLATES.some(t => t.key === k) ? tplByKey(k) : rankTemplates()[0].t;
+}
 function letterTpl() {
   const c = P().cv, ok = k => CV_TEMPLATES.some(t => t.key === k);
   if (!letterMatched() && ok(c.letterTemplate)) return tplByKey(c.letterTemplate);
-  const k = cvState.selected || c.template;
-  return ok(k) ? tplByKey(k) : rankTemplates()[0].t;
+  return resumeDesign();
 }
 function letterAccentOf(t) {
   const c = P().cv, sep = !letterMatched() && CV_TEMPLATES.some(x => x.key === c.letterTemplate);
   const tk = sep ? c.letterTemplate : c.template, a = sep ? c.letterAccent : c.accent;
   return tk === t.key && t.accents.includes(a) ? a : t.accent;
 }
+// The letter starts with the resume's design. Choosing another one changes the letter only, never the resume.
 function pickLetterTpl(key) {
   const c = P().cv;
-  if (letterMatched()) { c.template = key; c.accent = ""; if (typeof cvState !== "undefined") cvState.selected = key; }
-  else { c.letterTemplate = key; c.letterAccent = ""; }
+  if (key === resumeDesign().key) P().prefs.letterMatch = true;
+  else { P().prefs.letterMatch = false; c.letterTemplate = key; c.letterAccent = ""; }
   touchProfile("letter");
 }
 function currentLetterStyle() {
@@ -149,13 +153,13 @@ function renderLetterDesigns(boxId = "ltDesigns") {
   const box = $(boxId);
   if (!box) return;
   const sel = letterTpl().key, ranked = rankTemplates(), L = baseLetterParts();
-  const show = ranked.slice(0, 6).map(r => r.t);
-  if (!show.some(t => t.key === sel)) show.unshift(tplByKey(sel));
+  const mine = resumeDesign(), show = [mine, ...ranked.map(r => r.t).filter(t => t.key !== mine.key)].slice(0, 6);
+  if (!show.some(t => t.key === sel)) show.splice(1, 0, tplByKey(sel));
   const lay = P().prefs, cur = { sp: lay.letterSpacing || "normal", mg: lay.letterMargins || "normal" };
   const seg = (path, opts, now, label, unit) => `<div class="q"><div class="q-label" id="lts_${path}">${label}</div><div class="seg seg-fill" role="group" aria-labelledby="lts_${path}">${Object.entries(opts).map(([k, o]) => `<button type="button" data-lt-pref="${path}" data-val="${k}" aria-pressed="${now === k}"><span>${o.label}</span><small>${unit(o)}</small></button>`).join("")}</div></div>`;
-  box.innerHTML = `<div class="b-tpls lt-tpls" role="group" aria-label="Cover letter designs, best match first">${show.map(t => `<button type="button" class="tpl-card" data-lt-tpl="${t.key}" aria-pressed="${sel === t.key}" aria-label="${esc(t.name)}. ${esc(t.goodFor)}"><span class="tpl-thumb"><div>${letterHtml(L, { ...letterStyle(t, sel === t.key ? currentLetterStyle().accent : t.accent), ...letterLayout() })}</div></span><span class="tpl-name">${esc(t.name)}</span></button>`).join("")}</div>
-    <div class="b-actions"><label class="q-check"><input type="checkbox" data-lt-match${letterMatched() ? " checked" : ""}> Match my cover letter and resume design</label><button class="linkish" type="button" id="ltAllDesigns">See all ${CV_TEMPLATES.length} designs</button></div>
-    <p class="small muted">${letterMatched() ? "On: picking a design here changes your resume's design too, so the two look like a set." : "Off: this design is for the letter only. Your resume keeps its own."}</p>
+  box.innerHTML = `<div class="b-tpls lt-tpls" role="group" aria-label="Cover letter designs, best match first">${show.map(t => `<button type="button" class="tpl-card" data-lt-tpl="${t.key}" aria-pressed="${sel === t.key}" aria-label="${esc(t.name)}. ${esc(t.goodFor)}"><span class="tpl-thumb"><div>${letterHtml(L, { ...letterStyle(t, sel === t.key ? currentLetterStyle().accent : t.accent), ...letterLayout() })}</div></span><span class="tpl-name">${esc(t.name)}</span>${t.key === mine.key ? `<span class="tpl-mine">Your resume's design</span>` : ""}</button>`).join("")}</div>
+    <div class="b-actions"><button class="linkish" type="button" id="ltAllDesigns">See all ${CV_TEMPLATES.length} designs</button></div>
+    <p class="small muted lt-design-note">Your cover letter design matches your resume's default design, so it is listed first. Choosing a different design here changes the cover letter only, not your resume.</p>
     <div class="page-setup">${seg("spacing", SPACING, cur.sp, "Line spacing", o => o.unit)}${seg("margins", LETTER_MARGINS, cur.mg, "Page margins", o => o.mm + " mm")}</div>`;
   fitThumbs();
 }
@@ -194,6 +198,8 @@ function renderLetterPreview() {
     ${qualityRows}
     ${quality.length ? "" : row("pass", "Reads like you wrote it", "No clichés, long dashes or repeated openings.", "", "")}
   </ul>` : `<p class="small muted">The preview shows a sample letter. Select <b>Start from my profile</b> to write yours.</p>`;
+  const sc = letterScore(parts, r, wc, gaps, quality), se = $("ltScore");
+  if (se) se.innerHTML = `Cover letter strength: <span style="color:${sc >= 80 ? "var(--good)" : sc >= 60 ? "var(--accent)" : "var(--warn)"}">${sc}/100</span>`;
   // a letter with gaps can still be saved, copied and downloaded as a draft (Word highlights the gaps yellow)
   ["ltDocx", "ltPdf", "ltCopy"].forEach(id => { $(id).disabled = !own; });
   $("ltSave").disabled = !own;
@@ -226,14 +232,25 @@ onInit(() => {
   };
   $("view-letter").addEventListener("input", ltEdit);
   $("view-letter").addEventListener("change", e => { if (e.target.dataset.lt) ltEdit(e); });
-  $("ltFromProfile").addEventListener("click", () => {
-    const st = $("ltStatus");
+  $("ltFromProfile").addEventListener("click", async () => {
+    const st = $("ltStatus"), btn = $("ltFromProfile");
     if (!hasProfile(P())) { st.textContent = "Add your details in the resume builder first, so the letter has something to draw on."; return; }
-    if (blText().length && !confirmReplace($("ltFromProfile"))) return;
+    if (blText().length && !confirmReplace(btn)) return;
+    // say it's being written, on the Cover letter tab where the result will appear
+    btn.disabled = true; st.classList.add("busy");
+    st.innerHTML = `<span class="lt-spin" aria-hidden="true"></span> Writing your cover letter from your profile…`;
+    ltShowStep(1); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+    await new Promise(r => setTimeout(r, 900));
     BL().parts = letterFromProfile(P());
     if (!BL().role && P().target.title) BL().role = P().target.title;
     baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
+    btn.disabled = false; st.classList.remove("busy");
     st.textContent = "Written from your profile. Fill in anything in [brackets], and make each paragraph sound like you.";
+  });
+  $("ltPickBtn").addEventListener("click", async () => {
+    const box = $("ltPick"), b = $("ltPickBtn"), open = box.hidden;
+    box.hidden = !open; b.setAttribute("aria-expanded", String(open));
+    if (open) { await savedLetters.ready; renderLetterPick(); }
   });
   $("ltImport").addEventListener("click", () => $("ltFile").click());
   $("ltFile").addEventListener("change", async () => {
@@ -279,7 +296,6 @@ onInit(() => {
     const ac = e.target.closest("[data-lt-altclose]"); if (ac) { const box = $("lts-" + ac.dataset.ltAltclose); if (box) box.innerHTML = ""; return; }
     const tp = e.target.closest("[data-lt-tpl]");
     if (tp) { pickLetterTpl(tp.dataset.ltTpl); renderLetterDesigns(); renderLetterPreview(); return; }
-    if (e.target.closest("[data-lt-match]")) { const on = e.target.closest("[data-lt-match]").checked, c = P().cv; P().prefs.letterMatch = on; if (!on && !c.letterTemplate) { c.letterTemplate = letterTpl().key; c.letterAccent = c.accent; } touchProfile("letter"); renderLetterDesigns(); renderLetterPreview(); return; }
     const pf = e.target.closest("[data-lt-pref]");
     if (pf) { P().prefs[pf.dataset.ltPref === "spacing" ? "letterSpacing" : "letterMargins"] = pf.dataset.val; touchProfile("letter"); renderLetterDesigns(); renderLetterPreview(); return; }
     if (e.target.closest("#ltAllDesigns")) { openView("cv", { kind: "letter" }); return; }
@@ -290,6 +306,7 @@ onInit(() => {
       const before = JSON.parse(JSON.stringify(BL()));
       Object.assign(BL(), JSON.parse(JSON.stringify(t.letter)));
       baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
+      $("ltPick").hidden = true; $("ltPickBtn").setAttribute("aria-expanded", "false"); ltShowStep(1);
       const st = $("ltStatus"); st.innerHTML = `Started from “${esc(t.name)}”. <button class="linkish" type="button" id="ltUndoUse">Undo</button>`;
       $("ltUndoUse").onclick = () => { Object.assign(BL(), before); baseLetter.save(true); renderLetterPage(); syncBaseToTailor(); st.textContent = "Restored your letter."; };
       return;
@@ -310,8 +327,8 @@ function partCount(i) {
   w.classList.toggle("short", !!n && n < min); w.classList.toggle("good", n >= min);
   // Opening, Experience and Education and skills can be expanded with AI (or written, when empty); every paragraph can be reworded.
   // "Why this company" is your own reason, so AI only drafts it when it's empty.
-  const keepNote = ($("ltx-" + i) || {}).textContent || "";
-  if (acts && !acts.dataset.busy) acts.innerHTML = `${EXPAND_PARTS.has(p.part) ? `<button class="btn" type="button" data-lt-expand="${i}">${n ? "Expand with AI" : "Write with AI"}</button>` : !n ? `<button class="btn" type="button" data-lt-write="${i}">Write with AI</button>` : ""}${n ? `<button class="btn" type="button" data-lt-reword="${i}" title="Other ways to say it, about the same length">Reword</button><button class="btn" type="button" data-lt-reword-size="${i}" title="Reword to about ${Math.round(min * 1.2)} words, the recommended length for this paragraph">Reword to the right size</button>` : ""}<span class="small muted" id="ltx-${i}">${esc(keepNote)}</span>`;
+  const keepNote = ($("ltx-" + i) || {}).innerHTML || "";
+  if (acts && !acts.dataset.busy) acts.innerHTML = `${EXPAND_PARTS.has(p.part) ? `<button class="btn" type="button" data-lt-expand="${i}">${n ? "Expand with AI" : "Write with AI"}</button>` : !n ? `<button class="btn" type="button" data-lt-write="${i}">Write with AI</button>` : ""}${n ? `<button class="btn" type="button" data-lt-reword="${i}" title="Other ways to say it, about the same length">Reword</button><button class="btn" type="button" data-lt-reword-size="${i}" title="Reword to about ${Math.round(min * 1.2)} words, the recommended length for this paragraph">Reword to the right size</button>` : ""}<span class="small muted lt-note" id="ltx-${i}">${keepNote}</span>`;
 }
 /* --- Write a paragraph with AI, using the craft rules and the rules for your career stage --- */
 // Every AI job on this page writes one paragraph of a letter: begin with context, and use full sentences only
@@ -362,8 +379,6 @@ The candidate's details:
 ${facts}`, schema: TEXT_SCHEMA, label: "Writing", progress: m => { if (note) note.textContent = m; },
     check: x => {
       const t = stripMarkup(String(x.text || "")).replace(/\s+/g, " ").trim();
-      const why = factCheck(t.replace(TOKEN_RE, " "), src, { years: true });
-      if (why) return { ok: false, why };
       const hp = hardPhrase(t); if (hp) return { ok: false, why: `it uses "${hp}"` };
       if (/—|!/.test(t)) return { ok: false, why: "it uses a long dash or an exclamation mark" };
       if (wordCount(t) < min * 0.9) return { ok: false, why: `it needs at least ${min} words` };
@@ -377,12 +392,12 @@ ${facts}`, schema: TEXT_SCHEMA, label: "Writing", progress: m => { if (note) not
     baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor();
     const n2 = $("ltx-" + i) || (() => { const a = $("lta-" + i); if (a) a.insertAdjacentHTML("beforeend", `<span class="small muted" id="ltx-${i}"></span>`); return $("ltx-" + i); })();
     if (n2) n2.textContent = `Written by ${viaWords(res.via)} from your profile. Check every detail is true and sounds like you.`;
-  } else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Write it yourself, or start from your profile.";
+  } else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Write it yourself, or start from your profile." + aiRawHtml(res);
 }
 /* --- Reword: up to three other ways to say a paragraph --- */
 const LT_REWORD_NANO = `You write different wordings of one paragraph of a formal Australian cover letter.
 Rules:
-1. Write 3 versions. Each keeps every fact and every [bracketed gap] exactly, and adds nothing new: no new numbers, tools, results or claims.
+1. Write 3 versions. Each keeps every [bracketed gap] exactly and says what the original says, in a different way. You may add or drop detail where it reads better.
 2. Change the sentence structure and the opening words, not the meaning. Each reads as plain, warm, confident first-person writing.
 3. Each is about the same length as the original, no clichés, no em dashes, no exclamation marks.
 4. Each is ONE paragraph of full sentences, not a list. It opens with a sentence that gives context (who you are, or what the paragraph is about) before the detail.
@@ -400,9 +415,7 @@ async function rewordPart(i, btn, toSize) {
       const seen = new Set([norm(p.text)]), why = [];
       const opts = (Array.isArray(x.options) ? x.options : []).map(t => stripMarkup(String(t)).replace(/\s+/g, " ").trim()).filter(Boolean);
       const bad = t => {
-        const f = factCheck(t.replace(TOKEN_RE, " "), src, { years: true }); if (f) return f;   // brought in something that isn't in your details: "added"
         if (!toks.every(k => t.includes(k))) return "it left out a [bracketed gap]";
-        if (keepsFacts(p.text.replace(TOKEN_RE, " "), t) < 0.55) return "it left out facts from the paragraph";
         const hp = hardPhrase(t); if (hp) return `it uses "${hp}"`;
         const pr = proseOk(t); if (pr) return pr;
         if (/—|!/.test(t)) return "it uses a long dash or an exclamation mark";
@@ -412,15 +425,13 @@ async function rewordPart(i, btn, toSize) {
       };
       const ok = opts.filter(t => { const w = bad(t); if (w) { why.push(w); return false; } seen.add(norm(t)); return true; });
       if (ok.length) return { ok: true, value: ok.slice(0, 3) };
-      // name the first fact problem if there was one, so the page can say whether wording was added or dropped
-      const key = why.find(factDrift) || why[0];
-      return { ok: false, why: key || "write 3 different versions that keep every fact and add nothing" };
+      return { ok: false, why: why[0] || "write 3 different versions of the paragraph" };
     } });
   btn.disabled = false;
   if (res.data && box) {
     box.innerHTML = `<span class="small muted">Pick one to use instead (by ${esc(viaWords(res.via))}). Check every detail is true:</span>${res.data.map((t, k) => `<button type="button" class="bl-alt" data-lt-alt="${i}.${k}">${esc(t)}</button>`).join("")}<button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
     box._alts = res.data;
-  } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} Rewording needs an AI; connect one in Connect your AI.</span> <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
+  } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} ${res.rejected ? "" : " Rewording needs an AI; connect one in Connect your AI."}</span>${aiRawHtml(res)} <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
 }
 const LT_EXPAND_NANO = `You lengthen one paragraph of an Australian cover letter so it does its job fully.
 Rules:
@@ -439,27 +450,31 @@ async function expandPart(i, btn) {
   const res = await aiJSON({ nano: LT_EXPAND_NANO, prompt: `Paragraph: ${part.label} (${part.purpose})\nAim for: ${min} to ${Math.round(min * 1.6)} words\nIt says now: ${p.text}\nRole: ${d.role || P().target.title || "(not given)"}\nCompany: ${d.company || "(not given)"}\nThe candidate's details:\n${facts}`, schema: TEXT_SCHEMA, label: "Expanding", progress: m => { if (note) note.textContent = m; },
     check: x => {
       const t = stripMarkup(String(x.text || "")).replace(/\s+/g, " ").trim();
-      const why = factCheck(t.replace(TOKEN_RE, " "), src, { years: true });
-      if (why) return { ok: false, why };
       if (toks.some(k => !t.includes(k))) return { ok: false, why: "keep every [bracketed gap] exactly as it is" };
       if (wordCount(t) < min * 0.9) return { ok: false, why: `it needs at least ${min} words` };
-      if (keepsFacts(p.text.replace(TOKEN_RE, " "), t) < 0.6) return { ok: false, why: "keep everything the paragraph already says" };
       const pr = proseOk(t); if (pr) return { ok: false, why: pr };
       return { ok: true, value: t };
     } });
   if (acts) delete acts.dataset.busy;
   btn.disabled = false;
   if (res.data) { p.text = res.data; const el = $("ltp-" + i); if (el) el.value = p.text; baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor(); const n2 = $("ltx-" + i); if (n2) n2.textContent = `Expanded by ${viaWords(res.via)}. Check every detail is true.`; else { const a = $("lta-" + i); if (a) a.innerHTML = `<span class="small muted">Expanded by ${esc(viaWords(res.via))}. Check every detail is true.</span>`; } }
-  else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Add a detail or an example yourself.";
+  else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Add a detail or an example yourself." + aiRawHtml(res);
 }
 
 /* --- Saving the letter to your profile as a named template --- */
 const savedLetters = privateDoc("savedLetters", "jobfinder.savedLetters.v1", () => ({ list: [] }));
+const savedLetterRows = (list, del) => `<ul class="saved-list">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))} · ${wordCount((x.letter.parts || []).map(p => p.text).join(" "))} words</span></span><span class="b-actions"><button class="btn" type="button" data-lt-use="${k}">Use it</button>${del ? `<button class="btn ghost" type="button" data-lt-del="${k}">Delete</button>` : ""}</span></li>`).join("")}</ul>`;
 function renderSavedLetters() {
   const box = $("ltSaved");
   if (!box) return;
   const list = savedLetters.data.list || [];
-  box.innerHTML = list.length ? `<div class="b-sub">Your cover letter templates</div><ul class="saved-list">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))} · ${wordCount((x.letter.parts || []).map(p => p.text).join(" "))} words</span></span><span class="b-actions"><button class="btn" type="button" data-lt-use="${k}">Use it</button><button class="btn ghost" type="button" data-lt-del="${k}">Delete</button></span></li>`).join("")}</ul>` : "";
+  box.innerHTML = list.length ? `<div class="b-sub">Your cover letter templates</div>${savedLetterRows(list, true)}` : "";
+  const pick = $("ltPick"); if (pick && !pick.hidden) renderLetterPick();
+}
+// "Use a cover letter from my profile": the letters you've saved to your profile, to start from
+function renderLetterPick() {
+  const box = $("ltPick"), list = savedLetters.data.list || [];
+  box.innerHTML = `<div class="b-sub">Cover letters in your profile</div>` + (list.length ? savedLetterRows(list, false) : `<p class="small muted">You haven't saved a cover letter to your profile yet. Write one, then press <b>Save to my profile…</b> on the Cover letter tab, and it will be here next time.</p>`);
 }
 async function saveLetterTemplate() {
   const st = $("ltDlStatus");
@@ -519,16 +534,16 @@ function ckFix(spec) {
   if (kind === "reword") { goPart(i); return rewordPart(i, document.querySelector(`[data-lt-reword="${i}"]`) || {}); }
 }
 /* --- Sign-off: other ways to close that suit the greeting, always shown below the box --- */
-let signSeed = 0;
+let signOpen = false;
 function renderSignAlts() {
   const box = $("ltSignAlts");
-  if (box) box.innerHTML = signOptions().map(x => `<button type="button" class="bl-alt" data-lt-sign="${esc(x)}">${esc(x)}</button>`).join("") + `<button class="linkish" type="button" data-lt-signmore="1">More</button>`;
+  if (box) box.innerHTML = signOpen ? signOptions().map(x => `<button type="button" class="bl-alt" data-lt-sign="${esc(x)}">${esc(x)}</button>`).join("") : `<button class="btn" type="button" data-lt-signmore="1" aria-expanded="false">More</button>`;
 }
+// six sign-offs that suit the greeting, other than the one in use
 function signOptions() {
   const d = BL(), named = !/\b(hiring manager|sir|madam|team|to whom)\b/i.test(d.salutation || ""), cur = norm(d.signoff || "");
-  const pool = named ? ["Yours sincerely,", "Kind regards,", "Warm regards,", "Best regards,", "With thanks,"] : ["Yours faithfully,", "Kind regards,", "Yours sincerely,", "Regards,", "Many thanks,"];
-  const rest = pool.filter(x => norm(x) !== cur);
-  return [0, 1, 2].map(k => rest[(signSeed + k) % rest.length]).filter((x, k, a) => a.indexOf(x) === k);
+  const pool = named ? ["Yours sincerely,", "Kind regards,", "Warm regards,", "Best regards,", "With thanks,", "Many thanks,", "Regards,"] : ["Yours faithfully,", "Kind regards,", "Yours sincerely,", "Regards,", "Many thanks,", "Warm regards,", "Best wishes,"];
+  return pool.filter(x => norm(x) !== cur).slice(0, 6);
 }
 onInit(() => {
   $("ltChecks").addEventListener("click", e => {
@@ -540,7 +555,7 @@ onInit(() => {
   $("ltChecks").addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-ck-go]")) { e.preventDefault(); ckGo(e.target.dataset.ckGo); } });
   $("ltSignAlts").addEventListener("click", e => {
     const b = e.target.closest("[data-lt-sign]");
-    if (b) { BL().signoff = b.dataset.ltSign; $("lt-sign").value = BL().signoff; renderSignAlts(); letterEdited(); return; }
-    if (e.target.closest("[data-lt-signmore]")) { signSeed += 3; renderSignAlts(); }
+    if (b) { BL().signoff = b.dataset.ltSign; $("lt-sign").value = BL().signoff; signOpen = false; renderSignAlts(); letterEdited(); return; }
+    if (e.target.closest("[data-lt-signmore]")) { signOpen = true; renderSignAlts(); const first = $("ltSignAlts").querySelector("[data-lt-sign]"); if (first) first.focus(); }
   });
 });

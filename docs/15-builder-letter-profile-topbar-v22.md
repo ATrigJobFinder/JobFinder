@@ -17,6 +17,8 @@ Code: `src/scripts/19a-undo.js`; `touchProfile` in `19-profile.js` records each 
 
 The bar is solid with an accent line so it stands out. Undo, redo, **Contact or help**, then **Log in** and **Sign up** (with a **Profile** link while you are signed out). Once signed in, your initial and name are one button that opens a menu: Profile, Create or edit resume, Create or edit cover letter, Contact or help and **Sign out**. Create or edit profile moved from the side menu to the top bar. The two menu items **Create or edit resume** and **Create or edit cover letter** get a yellow dot while something is unfinished (hover for the reason).
 
+The top bar also shows which AI is connected (Chrome on this device, your own AI, or none yet); pressing it opens Connect your AI.
+
 ## Resume builder
 
 - **Imports:** after a resume or LinkedIn import, the "Start from what you already have" box closes and a green message says it loaded.
@@ -38,7 +40,7 @@ If an AI's reworded awards, project or volunteering lines fail the fact check, t
 
 ## Cover letter page
 
-Two sections, **Layout** and **Cover letter**, each with the designs or the letter on the left and the preview (centred in its box) on the right, like the resume builder. Downloads and the three "What next?" cards are in the Cover letter section. A choice between **A specific job** and **A template for any job** (the note on what the two choices do is an (i) beside "Who is this letter for?"; a template has no job, company or addressed-to boxes; they stay yellow placeholders such as "[Company name, e.g. Sydney Water]", and the greeting is "Dear Hiring Manager,"). **Reword** stays within about 15% of the paragraph's length; **Reword to the right size** aims for the recommended length. The 1 or 2 pages choice is gone. Sign-off suggestions are always shown under the box. Three "What next?" cards at the bottom.
+Two sections, **Layout** and **Cover letter**, each with the designs or the letter on the left and the preview (centred in its box) on the right, like the resume builder. Downloads and the three "What next?" cards are in the Cover letter section. A choice between **A specific job** and **A template for any job** (the note on what the two choices do is an (i) beside "Who is this letter for?"; a template has no job, company or addressed-to boxes; they stay yellow placeholders such as "[Company name, e.g. Sydney Water]", and the greeting is "Dear Hiring Manager,"). **Reword** stays within about 15% of the paragraph's length; **Reword to the right size** aims for the recommended length. The 1 or 2 pages choice is gone. The letter starts in your resume's default design, listed first with a tag; choosing another design changes the letter only, never the resume (the old "match" tick box is gone). **Next** at the bottom of the Layout section moves to the Cover letter section. **Cover letter strength /100** sits above the preview, like the resume's. **Start from my profile** shows "Writing your cover letter from your profile…" and moves to the Cover letter section. **Use a cover letter from my profile** lists the letters you've saved. Sign-off shows one **More** button; it opens six choices and folds away again when you pick one. The AI no longer rejects cover letter wordings for adding or dropping facts (it still keeps your [bracketed gaps], length and style rules). When an answer is still rejected, the red message says which rule and the AI's actual wording is shown under it. Three "What next?" cards at the bottom.
 
 ## Profile page
 

@@ -124,3 +124,25 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 /* An AI answer that was thrown away because it added or dropped facts */
 .ai-red { color: var(--bad); background: var(--bad-bg); border-left: 3px solid var(--bad); padding: 3px 8px; border-radius: 4px; display: inline-block; font-weight: 600; }
 .ai-red .ai-key { text-transform: uppercase; letter-spacing: 0.03em; text-decoration: underline; }
+
+/* Which AI is connected, in the top bar */
+.ab-ai { max-width: 18rem; font-size: var(--step--1); font-weight: 600; background: var(--surface); border-color: var(--line); }
+.ab-ai #abAiText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab-ai .dot { width: 9px; height: 9px; }
+@media (max-width: 900px) { .ab-ai #abAiText { display: none; } .ab-ai { padding: 8px; } }
+
+/* Cover letter: design note, Next button, writing message, sign-off, what the AI wrote */
+.tpl-mine { justify-self: start; max-width: 100%; margin-top: -2px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
+.lt-design-note { margin: 4px 0 8px; }
+.lt-next-row { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.status-line.busy { color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.lt-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); display: inline-block; animation: lt-spin 0.8s linear infinite; }
+@keyframes lt-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lt-spin { animation: none; } }
+.lt-pick { margin-top: 10px; }
+.lt-alts { justify-items: start; }
+.lt-note { flex-basis: 100%; min-width: 0; }
+.ai-raw { display: block; margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface-2); color: var(--ink); font-weight: 400; }
+.ai-raw b { display: block; font-size: var(--step--1); color: var(--muted); margin-bottom: 4px; }
+.ai-raw p { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--step--1); }
+.lt-preview .b-score { white-space: nowrap; }
