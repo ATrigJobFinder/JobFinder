@@ -175,7 +175,7 @@ function helpPopFor(b) {
     p.addEventListener("mouseleave", () => helpHideSoon());
     document.body.appendChild(p);
   }
-  p.innerHTML = `<p><b>What to add</b> ${esc(b.dataset.what)}</p><p><b>Why</b> ${esc(b.dataset.why)}</p>`;
+  p.innerHTML = `<p><b>${esc(b.dataset.l1 || "What to add")}</b> ${esc(b.dataset.what)}</p><p><b>${esc(b.dataset.l2 || "Why")}</b> ${esc(b.dataset.why)}</p>`;
   const host = b.closest("dialog[open]") || document.body;   // inside a dialog it has to live in the dialog, or the dialog would cover it
   if (p.parentNode !== host) host.appendChild(p);
   return p;

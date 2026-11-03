@@ -377,7 +377,7 @@ ${facts}`, schema: TEXT_SCHEMA, label: "Writing", progress: m => { if (note) not
     baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor();
     const n2 = $("ltx-" + i) || (() => { const a = $("lta-" + i); if (a) a.insertAdjacentHTML("beforeend", `<span class="small muted" id="ltx-${i}"></span>`); return $("ltx-" + i); })();
     if (n2) n2.textContent = `Written by ${viaWords(res.via)} from your profile. Check every detail is true and sounds like you.`;
-  } else if (note) note.textContent = aiMissWords(res) + " Write it yourself, or start from your profile.";
+  } else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Write it yourself, or start from your profile.";
 }
 /* --- Reword: up to three other ways to say a paragraph --- */
 const LT_REWORD_NANO = `You write different wordings of one paragraph of a formal Australian cover letter.
@@ -397,16 +397,30 @@ async function rewordPart(i, btn, toSize) {
   const res = await aiJSON({ nano: LT_REWORD_NANO, full: LT_REWORD_NANO + "\n\n" + CL_CRAFT, prompt: `This is the "${partOf(p.part).label}" paragraph (${partOf(p.part).purpose}) of a cover letter. Keep it one paragraph of full sentences that opens with context.\nAbout ${n} words.\nOriginal:\n${p.text}\nThe candidate's details (for checking only):\n${profileToText(P()).slice(0, 3500)}`,
     schema: { type: "object", properties: { options: { type: "array", items: { type: "string" } } }, required: ["options"] }, label: "Rewording", progress: m => { if (box) box.innerHTML = `<p class="progress">${esc(m)}</p>`; },
     check: x => {
-      const seen = new Set([norm(p.text)]);
-      const ok = (Array.isArray(x.options) ? x.options : []).map(t => stripMarkup(String(t)).replace(/\s+/g, " ").trim())
-        .filter(t => t && !proseOk(t) && !factCheck(t.replace(TOKEN_RE, " "), src, { years: true }) && toks.every(k => t.includes(k)) && !hardPhrase(t) && !/—|!/.test(t) && wordCount(t) >= n * lo - 3 && wordCount(t) <= n * hi + 5 && keepsFacts(p.text.replace(TOKEN_RE, " "), t) >= 0.55 && !seen.has(norm(t)) && seen.add(norm(t)));
-      return ok.length ? { ok: true, value: ok.slice(0, 3) } : { ok: false, why: "write 3 different versions that keep every fact and add nothing" };
+      const seen = new Set([norm(p.text)]), why = [];
+      const opts = (Array.isArray(x.options) ? x.options : []).map(t => stripMarkup(String(t)).replace(/\s+/g, " ").trim()).filter(Boolean);
+      const bad = t => {
+        const f = factCheck(t.replace(TOKEN_RE, " "), src, { years: true }); if (f) return f;   // brought in something that isn't in your details: "added"
+        if (!toks.every(k => t.includes(k))) return "it left out a [bracketed gap]";
+        if (keepsFacts(p.text.replace(TOKEN_RE, " "), t) < 0.55) return "it left out facts from the paragraph";
+        const hp = hardPhrase(t); if (hp) return `it uses "${hp}"`;
+        const pr = proseOk(t); if (pr) return pr;
+        if (/—|!/.test(t)) return "it uses a long dash or an exclamation mark";
+        if (wordCount(t) < n * lo - 3 || wordCount(t) > n * hi + 5) return "it isn't close enough to the paragraph's length";
+        if (seen.has(norm(t))) return "it repeats another version";
+        return "";
+      };
+      const ok = opts.filter(t => { const w = bad(t); if (w) { why.push(w); return false; } seen.add(norm(t)); return true; });
+      if (ok.length) return { ok: true, value: ok.slice(0, 3) };
+      // name the first fact problem if there was one, so the page can say whether wording was added or dropped
+      const key = why.find(factDrift) || why[0];
+      return { ok: false, why: key || "write 3 different versions that keep every fact and add nothing" };
     } });
   btn.disabled = false;
   if (res.data && box) {
     box.innerHTML = `<span class="small muted">Pick one to use instead (by ${esc(viaWords(res.via))}). Check every detail is true:</span>${res.data.map((t, k) => `<button type="button" class="bl-alt" data-lt-alt="${i}.${k}">${esc(t)}</button>`).join("")}<button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
     box._alts = res.data;
-  } else if (box) box.innerHTML = `<span class="small muted">${esc(aiMissWords(res) || "No other wordings this time.")} Rewording needs an AI; connect one in Connect your AI.</span> <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
+  } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} Rewording needs an AI; connect one in Connect your AI.</span> <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
 }
 const LT_EXPAND_NANO = `You lengthen one paragraph of an Australian cover letter so it does its job fully.
 Rules:
@@ -436,7 +450,7 @@ async function expandPart(i, btn) {
   if (acts) delete acts.dataset.busy;
   btn.disabled = false;
   if (res.data) { p.text = res.data; const el = $("ltp-" + i); if (el) el.value = p.text; baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor(); const n2 = $("ltx-" + i); if (n2) n2.textContent = `Expanded by ${viaWords(res.via)}. Check every detail is true.`; else { const a = $("lta-" + i); if (a) a.innerHTML = `<span class="small muted">Expanded by ${esc(viaWords(res.via))}. Check every detail is true.</span>`; } }
-  else if (note) note.textContent = aiMissWords(res) + " Add a detail or an example yourself.";
+  else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Add a detail or an example yourself.";
 }
 
 /* --- Saving the letter to your profile as a named template --- */

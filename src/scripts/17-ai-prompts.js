@@ -81,8 +81,20 @@ function aiMissWords(r) {
   const who = r.tried && r.tried.includes("claude") ? BIG_NAME() : r.tried && r.tried.length ? SMALL() : "";
   if (!who) return USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Your chosen AI isn't set up yet (see Connect your AI)." : "No AI is connected here, so this was done without it. Choose one in Connect your AI.";
   if (r.error && r.error.code !== "invalid_json") return `Couldn't get an answer from ${who}: ${aiErrWords(r.error)}`;
-  if (r.rejected) return `${who} answered, but its wording added or dropped facts, so it wasn't used.`;
+  if (r.rejected) {
+    // say which: it put something in that wasn't in your details ("added"), or left something out ("dropped")
+    const drift = factDrift(r.rawWhy), why = r.rawWhy && drift ? ` (${r.rawWhy.replace(/^it /, "")})` : "";
+    return drift ? `${who} answered, but its wording ${drift} facts${why}, so it wasn't used.` : `${who} answered, but its wording broke a rule${r.rawWhy ? ` (${r.rawWhy})` : ""}, so it wasn't used.`;
+  }
   return `${who} didn't give a usable answer this time.`;
+}
+// "added" when the wording brought in something that isn't in your details, "dropped" when it left something out, "" for other rules (length, cliché)
+const factDrift = why => /dropped|left out|leaves out|keep every|keep everything|bracketed gap|doesn't keep|missing/i.test(why || "") ? "dropped" : /isn't in the facts|placeholder|adds|new /i.test(why || "") ? "added" : "";
+// The same message for a page, in red, with the word that matters in bold
+function aiMissHtml(text) {
+  const t = esc(text || "");
+  const m = t.replace(/\b(added|dropped)\b/, "<b class=\"ai-key\">$1</b>");
+  return /ai-key/.test(m) ? `<span class="ai-red">${m}</span>` : t;
 }
 // Facts in, facts out: nothing the candidate didn't give us
 function factCheck(text, sources, o = {}) {

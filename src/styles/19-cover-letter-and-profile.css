@@ -1,6 +1,5 @@
 /* ===================== Create or edit cover letter, letter designs, profile page, LinkedIn create ===================== */
 .lt-layout { display: grid; gap: 16px; margin-top: 12px; }
-@media (min-width: 1100px) { .lt-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr); align-items: start; } .lt-preview { position: sticky; top: 72px; } }
 .lt-form { display: grid; gap: 14px; }
 .lt-parts { display: grid; gap: 14px; }
 .lt-part textarea { width: 100%; min-height: 96px; }

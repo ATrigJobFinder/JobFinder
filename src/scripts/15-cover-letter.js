@@ -18,8 +18,7 @@ function letterStage(text) {
 }
 const letterRange = text => {
   const r = LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
-  const two = typeof profile !== "undefined" && profile.data && profile.data.prefs && profile.data.prefs.letterPages === 2;
-  return two ? [Math.round(r[1] * 1.15), Math.round(r[1] * 1.8)] : r;
+  return r;
 };
 // The fewest words each paragraph should have, so none of them is thin
 const partMin = (key, range) => Math.round((range[0] - 100) * (PART_SHARE[key] || 0.2) / 5) * 5 + 20;

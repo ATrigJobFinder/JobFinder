@@ -665,7 +665,7 @@ function extraRewordHtml(list, i) {
   if (!a) return bar;
   const body = a.busy ? `<p class="progress">${esc(a.busy)}</p>` : a.items.length
     ? `<span class="small muted">Pick one to use instead${a.via ? ` (by ${viaWords(a.via)})` : ""}:</span>${a.items.map((t, k) => `<button type="button" class="bl-alt" data-act="x-use" data-list="${list}" data-i="${i}" data-k="${k}">${esc(t.join("\n")).replace(/\n/g, "<br>")}</button>`).join("")}${a.msg ? `<span class="small muted">${esc(a.msg)}</span>` : ""}`
-    : `<span class="small muted">${esc(a.msg || "No other wordings this time.")}</span>`;
+    : `<span class="small muted">${aiMissHtml(a.msg || "No other wordings this time.")}</span>`;
   return bar + `<div class="bl-alts">${body}<button class="linkish" type="button" data-act="x-close" data-list="${list}" data-i="${i}">Close</button></div>`;
 }
 async function rewordExtra(list, i) {

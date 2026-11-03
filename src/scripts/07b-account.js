@@ -153,8 +153,10 @@ function renderAccount() {
   if (inClaude) { box.innerHTML = ""; return; }
   if (account.user) {
     const u = account.user, name = u.name || (u.email ? u.email.split("@")[0] : "Your account");
-    box.innerHTML = `<span class="acct-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "?")}</span><span class="acct-who" title="${esc(u.email || name)}">${esc(name)}</span><button class="btn ghost acct-btn" type="button" data-acct="out"><span>Sign out</span></button>`;
-  } else box.innerHTML = `<button class="btn ghost acct-btn" type="button" data-acct="open-in"><span>Log in</span></button><button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up</span></button>`;
+    const item = (href, text) => `<a class="acct-item" role="menuitem" href="#${href}" data-acct="menu-close">${text}</a>`;
+    box.innerHTML = `<div class="acct-menu"><button class="acct-trigger" type="button" data-acct="menu" aria-haspopup="menu" aria-expanded="false" aria-controls="acctPop" title="Your account"><span class="acct-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "?")}</span><span class="acct-who">${esc(name)}</span><svg class="acct-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`
+      + `<div class="acct-pop" id="acctPop" role="menu" hidden><div class="acct-pop-head"><b>${esc(name)}</b>${u.email ? `<span>${esc(u.email)}</span>` : ""}</div>${item("profile", "Profile")}${item("builder", "Create or edit resume")}${item("letter", "Create or edit cover letter")}${item("support", "Contact or help")}<hr><button class="acct-item" type="button" role="menuitem" data-acct="out">Sign out</button></div></div>`;
+  } else box.innerHTML = `<a class="ab-help" href="#profile">Profile</a><button class="btn ghost acct-btn" type="button" data-acct="open-in"><span>Log in</span></button><button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up</span></button>`;
 }
 function acctDialog(mode = "up") {
   let d = document.getElementById("acctDlg");
@@ -203,10 +205,21 @@ async function acctSubmit(d) {
   } catch (e) { say(e.message || "Something went wrong. Try again.", "err"); }
   finally { btn.disabled = false; }
 }
+// The account menu under your name: opens on click, closes on a click elsewhere, Escape, or choosing something
+function acctMenu(open) {
+  const t = document.querySelector(".acct-trigger"), pop = document.getElementById("acctPop");
+  if (!t || !pop) return;
+  pop.hidden = !open; t.setAttribute("aria-expanded", String(open));
+  if (open) { const first = pop.querySelector(".acct-item"); if (first) first.focus(); }
+}
+document.addEventListener("click", e => { if (!e.target.closest(".acct-menu")) acctMenu(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { const t = document.querySelector('.acct-trigger[aria-expanded="true"]'); if (t) { acctMenu(false); t.focus(); } } });
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-acct]");
   if (!b) return;
   const a = b.dataset.acct, d = document.getElementById("acctDlg");
+  if (a === "menu") { acctMenu(b.getAttribute("aria-expanded") !== "true"); return; }
+  if (a === "menu-close") { acctMenu(false); return; }
   if (a === "notice-close") { const n = document.getElementById("acctNotice"); if (n) n.hidden = true; return; }
   if (a.startsWith("oauth:")) {
     const msg = d && d.querySelector("#acctMsg");

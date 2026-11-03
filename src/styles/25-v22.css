@@ -58,9 +58,6 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 .opt-chips[role="group"] .opt-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 /* Cover letter page: sections, pages, dots */
-.lt-layout.lt-solo { grid-template-columns: minmax(0, 1fr); }
-.lt-pages { margin: 10px 0; }
-.lt-pages .q-hint { margin-top: 6px; }
 .sn-item.has-todo { position: relative; }
 .sn-item.has-todo::after { content: ""; position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #E0A800; box-shadow: 0 0 0 2px var(--surface); }
 .app[data-nav="rail"] .sn-item.has-todo::after { top: 6px; right: 6px; }
@@ -86,3 +83,44 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 /* On a phone the top bar has no room for Profile and Help, so they're at the bottom of the menu */
 .sn-links { display: none; }
 @media (max-width: 899px) { .sn-links { display: grid; gap: 2px; margin-top: 6px; } .sn-links .sn-item { padding: 8px 10px; } }
+
+/* A more noticeable top bar: solid, with an accent line and a shadow */
+.appbar { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border-bottom: 3px solid var(--accent); box-shadow: 0 4px 14px rgba(8, 12, 20, 0.10); }
+.ab-brand { font-size: 1.3rem; }
+.ab-view { font-size: var(--step-0); font-weight: 700; }
+.ab-sep { color: var(--accent); }
+.ab-help { font-weight: 700; }
+
+/* Your name under the top bar: one button that opens a menu */
+.acct-menu { position: relative; }
+.acct-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; }
+.acct-trigger:hover, .acct-trigger[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.acct-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.acct-caret { width: 14px; height: 14px; flex: none; transition: transform 0.15s ease; }
+.acct-trigger[aria-expanded="true"] .acct-caret { transform: rotate(180deg); }
+.acct-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; min-width: 15rem; max-width: min(20rem, calc(100vw - 24px)); padding: 6px; display: grid; gap: 2px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; box-shadow: 0 14px 36px rgba(8, 12, 20, 0.22); }
+.acct-pop[hidden] { display: none; }
+.acct-pop-head { display: grid; gap: 1px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; min-width: 0; }
+.acct-pop-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-pop-head span { font-size: var(--step--1); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.acct-item { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: var(--step--1); font-weight: 600; text-decoration: none; cursor: pointer; }
+.acct-item:hover, .acct-item:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+
+/* Cover letter page: designs or the letter on the left, the preview on the right, like the resume builder */
+.lt-layout { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.lt-left { display: grid; gap: 16px; min-width: 0; }
+@container main (min-width: 900px) {
+  .lt-layout { grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr); gap: 20px; }
+  .lt-preview { position: sticky; top: calc(var(--bar-h) + 12px); max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; }
+}
+.lt-preview { justify-items: center; align-content: start; }
+.lt-preview > * { width: 100%; }
+.lt-preview .paper-frame { padding: 0; }
+.paper-frame > .paper-scale { margin-inline: auto; }
+.lt-download { display: grid; gap: 8px; padding-top: 4px; border-top: 1px solid var(--line); }
+#ltModeInfo { display: inline-block; vertical-align: middle; }
+
+/* An AI answer that was thrown away because it added or dropped facts */
+.ai-red { color: var(--bad); background: var(--bad-bg); border-left: 3px solid var(--bad); padding: 3px 8px; border-radius: 4px; display: inline-block; font-weight: 600; }
+.ai-red .ai-key { text-transform: uppercase; letter-spacing: 0.03em; text-decoration: underline; }

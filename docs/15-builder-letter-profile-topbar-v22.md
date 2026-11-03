@@ -15,7 +15,7 @@ Code: `src/scripts/19a-undo.js`; `touchProfile` in `19-profile.js` records each 
 
 ## Top bar
 
-Undo, redo, **Profile**, **Contact or help**, then **Log in** and **Sign up**. Once signed in, a circle with your initial, your name and **Sign out**. Create or edit profile moved from the side menu to the top bar. The two menu items **Create or edit resume** and **Create or edit cover letter** get a yellow dot while something is unfinished (hover for the reason).
+The bar is solid with an accent line so it stands out. Undo, redo, **Contact or help**, then **Log in** and **Sign up** (with a **Profile** link while you are signed out). Once signed in, your initial and name are one button that opens a menu: Profile, Create or edit resume, Create or edit cover letter, Contact or help and **Sign out**. Create or edit profile moved from the side menu to the top bar. The two menu items **Create or edit resume** and **Create or edit cover letter** get a yellow dot while something is unfinished (hover for the reason).
 
 ## Resume builder
 
@@ -34,11 +34,11 @@ Undo, redo, **Profile**, **Contact or help**, then **Log in** and **Sign up**. O
 
 ## AI wording
 
-If an AI's reworded awards, project or volunteering lines fail the fact check, they are now shown anyway, with a note saying exactly why (for example "the number 40% isn't in the facts"), instead of "Rewording this needs AI". It also no longer asks the AI a second time, which was doubling the wait. After 15 seconds the message says a small AI can take up to a minute.
+If an AI's reworded awards, project or volunteering lines fail the fact check, they are now shown anyway, with a note saying exactly why (for example "the number 40% isn't in the facts"), instead of "Rewording this needs AI". When a rewording is thrown away for changing facts, the message is red and says which: "added" (something not in your details came in) or "dropped" (something was left out). It also no longer asks the AI a second time, which was doubling the wait. After 15 seconds the message says a small AI can take up to a minute.
 
 ## Cover letter page
 
-Two sections, **Layout** and **Cover letter**. A choice between **A specific job** and **A template for any job** (a template has no job, company or addressed-to boxes; they stay yellow placeholders such as "[Company name, e.g. Sydney Water]", and the greeting is "Dear Hiring Manager,"). **Reword** stays within about 15% of the paragraph's length; **Reword to the right size** aims for the recommended length. **1 page / 2 pages** with the reason for the suggestion (it counts words against what fits on a page at your spacing and margins). Sign-off suggestions are always shown under the box. Three "What next?" cards at the bottom.
+Two sections, **Layout** and **Cover letter**, each with the designs or the letter on the left and the preview (centred in its box) on the right, like the resume builder. Downloads and the three "What next?" cards are in the Cover letter section. A choice between **A specific job** and **A template for any job** (the note on what the two choices do is an (i) beside "Who is this letter for?"; a template has no job, company or addressed-to boxes; they stay yellow placeholders such as "[Company name, e.g. Sydney Water]", and the greeting is "Dear Hiring Manager,"). **Reword** stays within about 15% of the paragraph's length; **Reword to the right size** aims for the recommended length. The 1 or 2 pages choice is gone. Sign-off suggestions are always shown under the box. Three "What next?" cards at the bottom.
 
 ## Profile page
 
