@@ -248,7 +248,7 @@ function finishPlan(g, plan) {
 async function withChromeAI(progress, fn) {
   const be = smallEngine();
   if (be) {
-    try { return await fn(async (rules, examples = []) => browserSession(be, rules, examples)); }
+    try { return await fn(async (rules, examples = [], expect) => browserSession(be, rules, examples, undefined, expect)); }
     catch (e) { aiLastProblem = e; return null; }
   }
   const st = await chromeAIState();

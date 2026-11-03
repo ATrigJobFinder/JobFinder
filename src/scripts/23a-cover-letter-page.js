@@ -64,8 +64,9 @@ function letterHtml(L, st) {
 /* --- The base letter: written once, reused when tailoring --- */
 // What a blank looks like in the letter: the box's name, then an example, in yellow brackets
 const PH = { who: "[Hiring manager's name, e.g. Sam Lee]", company: "[Company name, e.g. Sydney Water]", role: "[Job title, e.g. Graduate Engineer]" };
-const ltTemplate = () => { try { return BL().mode === "template"; } catch { return false; } };
-const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Yours sincerely," }));
+// a template for any job unless you've chosen "A specific job" (or already typed a job, company or recipient)
+const ltTemplate = () => { try { const d = BL(); return d.mode === "template" || (!d.mode && !d.role && !d.company && !d.recipient); } catch { return false; } };
+const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Yours sincerely,", mode: "template" }));
 const BL = () => baseLetter.data;
 const blText = () => BL().parts.map(p => p.text.trim()).filter(Boolean);
 function baseLetterParts(forSample) {
@@ -236,16 +237,9 @@ onInit(() => {
     const st = $("ltStatus"), btn = $("ltFromProfile");
     if (!hasProfile(P())) { st.textContent = "Add your details in the resume builder first, so the letter has something to draw on."; return; }
     if (blText().length && !confirmReplace(btn)) return;
-    // say it's being written, on the Cover letter tab where the result will appear
-    btn.disabled = true; st.classList.add("busy");
-    st.innerHTML = `<span class="lt-spin" aria-hidden="true"></span> Writing your cover letter from your profile…`;
-    ltShowStep(1); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
-    await new Promise(r => setTimeout(r, 900));
-    BL().parts = letterFromProfile(P());
-    if (!BL().role && P().target.title) BL().role = P().target.title;
-    baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
-    btn.disabled = false; st.classList.remove("busy");
-    st.textContent = "Written from your profile. Fill in anything in [brackets], and make each paragraph sound like you.";
+    // the AI writes each section in turn (23e-letter-writer.js); anything it can't write is filled in from the standard version
+    await lwStart(btn);
+    syncBaseToTailor();
   });
   $("ltPickBtn").addEventListener("click", async () => {
     const box = $("ltPick"), b = $("ltPickBtn"), open = box.hidden;
@@ -338,62 +332,16 @@ function proseOk(t) {
   const x = String(t || "").trim();
   if (/^\s*([-*•▪–]|\d+[.)])\s/m.test(x) || /\n/.test(x)) return "it must be one paragraph of full sentences, not a list";
   if (!/[.!?]["”']?$/.test(x)) return "it must end with a full stop";
-  const ss = x.replace(TOKEN_RE, " Xx ").split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-  if (!ss.length || ss.some(s => wordCount(s) < 3 || !/^[A-Z“"'(]/.test(s))) return "every sentence must be a full sentence that starts with a capital letter";
+  // (full sentences starting with a capital letter is a suggestion in the prompt, not a rule the answer is rejected for)
   return "";
 }
-const LT_WRITE_NANO = `You write one paragraph of a formal Australian cover letter for a real person, in the first person.
-Rules:
-1. Use only facts from the candidate's details. Never invent tasks, tools, numbers, employers, qualifications or dates.
-2. Where a helpful detail is missing, write a short gap in square brackets such as [one specific reason], and never guess.
-3. Concrete beats general: one specific example with its result beats a list of qualities.
-4. Australian spelling, no clichés, no em dashes, no exclamation marks, at most two sentences starting with "I".
-5. Reach the length you're given with real detail, not padding.
-6. This is ONE paragraph of prose in a letter, not a list. Open with a sentence that gives context (who you are, or what this paragraph is about) before the detail. Use full sentences only: no bullet points, no fragments, no headings, no lists of keywords.
-Reply with JSON only: {"text": "..."}`;
 const hardPhrase = t => { for (const re of CL_HARD) { const m = String(t).match(re); if (m) return m[0]; } return ""; };
 function partSource(i) {
   const d = BL();
   return { facts: profileToText(P()).slice(0, 5000), src: [profileToText(P()), d.role, d.company, d.recipient, BL().parts.map(p => p.text).join("\n")].join("\n") };
 }
-async function writePartAI(i, btn) {
-  const d = BL(), p = d.parts[i], part = partOf(p.part), r = letterRange(), min = partMin(p.part, r), note = $("ltx-" + i), acts = $("lta-" + i);
-  const { facts, src } = partSource(i), g = CL_GUIDE[p.part], stage = letterStage();
-  if (!hasProfile(P())) { if (note) note.textContent = "Add your details in the resume builder first, so there's something to write from."; return; }
-  const others = d.parts.filter((x, k) => k !== i && x.text.trim()).map(x => `${partOf(x.part).label}: ${x.text}`).join("\n");
-  const toks = p.text.match(TOKEN_RE) || [];
-  if (acts) acts.dataset.busy = "1";
-  btn.disabled = true;
-  const res = await aiJSON({ nano: LT_WRITE_NANO, full: LT_WRITE_NANO + "\n\n" + CL_CRAFT, prompt: `Write the "${part.label}" paragraph. Its job: ${part.purpose}
-Good looks like: ${g.good}
-At this career stage (${(STAGES.find(s => s.key === stage) || {}).label || stage}): ${clRule(p.part, stage)}
-Avoid: ${g.avoid}
-Length: ${min} to ${Math.round(min * 1.5)} words.
-Role: ${d.role || P().target.title || "(not given: use [the role])"}
-Company: ${d.company || "(not given: use [the company])"}
-${others ? `The other paragraphs so far (don't repeat them):\n${others}\n` : ""}
-A paragraph written for someone else, to show how it's built (never reuse its words, facts or numbers):
-${g.example}
-
-The candidate's details:
-${facts}`, schema: TEXT_SCHEMA, label: "Writing", progress: m => { if (note) note.textContent = m; },
-    check: x => {
-      const t = stripMarkup(String(x.text || "")).replace(/\s+/g, " ").trim();
-      const hp = hardPhrase(t); if (hp) return { ok: false, why: `it uses "${hp}"` };
-      if (/—|!/.test(t)) return { ok: false, why: "it uses a long dash or an exclamation mark" };
-      if (wordCount(t) < min * 0.9) return { ok: false, why: `it needs at least ${min} words` };
-      const pr = proseOk(t); if (pr) return { ok: false, why: pr };
-      return { ok: true, value: t };
-    } });
-  if (acts) delete acts.dataset.busy;
-  btn.disabled = false;
-  if (res.data) {
-    p.text = res.data; const el = $("ltp-" + i); if (el) el.value = p.text;
-    baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor();
-    const n2 = $("ltx-" + i) || (() => { const a = $("lta-" + i); if (a) a.insertAdjacentHTML("beforeend", `<span class="small muted" id="ltx-${i}"></span>`); return $("ltx-" + i); })();
-    if (n2) n2.textContent = `Written by ${viaWords(res.via)} from your profile. Check every detail is true and sounds like you.`;
-  } else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Write it yourself, or start from your profile." + aiRawHtml(res);
-}
+// Writing a paragraph from your profile: see 23e-letter-writer.js (one sentence per field, checked, with the standard version as a fallback)
+const writePartAI = (i, btn) => lwWriteOne(i, btn);
 /* --- Reword: up to three other ways to say a paragraph --- */
 const LT_REWORD_NANO = `You write different wordings of one paragraph of a formal Australian cover letter.
 Rules:
@@ -410,6 +358,7 @@ async function rewordPart(i, btn, toSize) {
   btn.disabled = true;
   if (box) box.innerHTML = `<p class="progress">Finding other ways to say it…</p>`;
   const res = await aiJSON({ nano: LT_REWORD_NANO, full: LT_REWORD_NANO + "\n\n" + CL_CRAFT, prompt: `This is the "${partOf(p.part).label}" paragraph (${partOf(p.part).purpose}) of a cover letter. Keep it one paragraph of full sentences that opens with context.\nAbout ${n} words.\nOriginal:\n${p.text}\nThe candidate's details (for checking only):\n${profileToText(P()).slice(0, 3500)}`,
+    expect: n * 7 * 3 + 150,   // three versions of the paragraph, in characters
     schema: { type: "object", properties: { options: { type: "array", items: { type: "string" } } }, required: ["options"] }, label: "Rewording", progress: m => { if (box) box.innerHTML = `<p class="progress">${esc(m)}</p>`; },
     check: x => {
       const seen = new Set([norm(p.text)]), why = [];
@@ -431,7 +380,7 @@ async function rewordPart(i, btn, toSize) {
   if (res.data && box) {
     box.innerHTML = `<span class="small muted">Pick one to use instead (by ${esc(viaWords(res.via))}). Check every detail is true:</span>${res.data.map((t, k) => `<button type="button" class="bl-alt" data-lt-alt="${i}.${k}">${esc(t)}</button>`).join("")}<button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
     box._alts = res.data;
-  } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} ${res.rejected ? "" : " Rewording needs an AI; connect one in Connect your AI."}</span>${aiRawHtml(res)} <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
+  } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} </span>${aiRawHtml(res)} <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
 }
 const LT_EXPAND_NANO = `You lengthen one paragraph of an Australian cover letter so it does its job fully.
 Rules:
@@ -447,7 +396,7 @@ async function expandPart(i, btn) {
   const toks = p.text.match(TOKEN_RE) || [];
   if (acts) acts.dataset.busy = "1";
   btn.disabled = true;
-  const res = await aiJSON({ nano: LT_EXPAND_NANO, prompt: `Paragraph: ${part.label} (${part.purpose})\nAim for: ${min} to ${Math.round(min * 1.6)} words\nIt says now: ${p.text}\nRole: ${d.role || P().target.title || "(not given)"}\nCompany: ${d.company || "(not given)"}\nThe candidate's details:\n${facts}`, schema: TEXT_SCHEMA, label: "Expanding", progress: m => { if (note) note.textContent = m; },
+  const res = await aiJSON({ nano: LT_EXPAND_NANO, prompt: `Paragraph: ${part.label} (${part.purpose})\nAim for: ${min} to ${Math.round(min * 1.6)} words\nIt says now: ${p.text}\nRole: ${d.role || P().target.title || "(not given)"}\nCompany: ${d.company || "(not given)"}\nThe candidate's details:\n${facts}`, expect: Math.round(min * 1.6 * 7) + 100, schema: TEXT_SCHEMA, label: "Expanding", progress: m => { if (note) note.textContent = m; },
     check: x => {
       const t = stripMarkup(String(x.text || "")).replace(/\s+/g, " ").trim();
       if (toks.some(k => !t.includes(k))) return { ok: false, why: "keep every [bracketed gap] exactly as it is" };

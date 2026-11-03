@@ -18,7 +18,7 @@ async function nanoJSON(session, text, schema) {
 // check(data) returns { ok: true, value } or { ok: false, why } so a bad answer gets one corrected retry.
 // The result says what happened, so the page can tell people honestly: tried (which AIs were asked), rejected (an answer broke a rule), error (one couldn't be reached).
 async function aiJSON(task) {
-  const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working", noRetry = false } = task;
+  const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working", noRetry = false, expect } = task;
   let rejected = false, error = null, raw = null, rawWhy = "", rawVia = null;
   const tried = [];
   aiLastProblem = null;
@@ -28,7 +28,7 @@ async function aiJSON(task) {
     progress(`${label} with ${SMALL()}…`);
     // a small AI can take a minute on longer wording: say so, so it doesn't look stuck
     slowT = setTimeout(() => progress(`${label} with ${SMALL()}: still working. This AI can take up to a minute on longer wording…`), 15000);
-    const s = await make(nano, examples);
+    const s = await make(nano, examples, expect);
     let d = await nanoJSON(s, prompt, schema), r = check(d);
     if (!r.ok) {
       rejected = true; raw = d; rawWhy = r.why; rawVia = "chrome";
@@ -80,7 +80,9 @@ function aiMissWords(r) {
   if (!r || r.data) return "";
   const who = r.tried && r.tried.includes("claude") ? BIG_NAME() : r.tried && r.tried.length ? SMALL() : "";
   if (!who) return USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Your chosen AI isn't set up yet (see Connect your AI)." : "No AI is connected here, so this was done without it. Choose one in Connect your AI.";
-  if (r.error && r.error.code !== "invalid_json") return `Couldn't get an answer from ${who}: ${aiErrWords(r.error)}`;
+  // a reply that stopped part-way (it hit the length limit) or wasn't JSON at all
+  if (r.error && (r.error instanceof SyntaxError || r.error.code === "invalid_json")) return `${who} replied, but the reply was cut off or broken, so it wasn't used. Try again.`;
+  if (r.error) return `Couldn't get an answer from ${who}: ${aiErrWords(r.error)}`;
   if (r.rejected) {
     // say which: it put something in that wasn't in your details ("added"), or left something out ("dropped")
     const drift = factDrift(r.rawWhy), why = r.rawWhy && drift ? ` (${r.rawWhy.replace(/^it /, "")})` : "";
@@ -100,7 +102,8 @@ function aiMissHtml(text) {
 function aiRawHtml(r) {
   const raw = r && r.raw;
   if (raw == null) return "";
-  const list = Array.isArray(raw.options) ? raw.options : raw.text != null ? [raw.text] : Array.isArray(raw) ? raw : [raw];
+  // one field per sentence (s1, s2, …) reads as one paragraph
+  const list = Array.isArray(raw.options) ? raw.options : raw.text != null ? [raw.text] : Array.isArray(raw) ? raw : /^s\d+$/.test(Object.keys(raw)[0] || "") ? [Object.values(raw).join(" ")] : [raw];
   const items = list.map(x => (typeof x === "string" ? x : JSON.stringify(x)) || "").map(x => x.trim()).filter(Boolean);
   return items.length ? `<div class="ai-raw"><b>What ${esc(r.rawVia === "claude" ? BIG_NAME() : SMALL())} wrote (not used):</b>${items.map(t => `<p>${esc(t)}</p>`).join("")}</div>` : "";
 }

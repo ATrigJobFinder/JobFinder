@@ -332,21 +332,26 @@ async function chatBrowser(kind, model, messages, signal, o = {}) {
   } finally { clearInterval(timer); aiWritingDone(); }
 }
 // The in-browser models get the same short prompts as Chrome's: this makes them look like a Chrome AI session
-function browserSession(kind, rules, examples = [], history) {
+// expectChars: how long the answer will be, when the caller knows (a reword of three paragraphs is far longer than its worked example)
+function browserSession(kind, rules, examples = [], history, expectChars) {
   const model = kind === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel;   // (kind "key" is a small model reached through the person's key: same short prompts, no download)
   const msgs = history ? history.slice() : [{ role: "system", content: rules }, ...fewShot(examples)];
   const lastEx = examples.length ? examples[examples.length - 1][1] : null;
-  const expect = lastEx ? Math.max(200, (typeof lastEx === "string" ? lastEx : JSON.stringify(lastEx)).length) : 500;
+  const expect = expectChars || (lastEx ? Math.max(200, (typeof lastEx === "string" ? lastEx : JSON.stringify(lastEx)).length) : 500);
   return {
     async prompt(text, o = {}) {
       msgs.push({ role: "user", content: text });
       let out = kind === "key" ? await aiChat("key", msgs, null, { expect, max: tightMax(expect) }) : await chatBrowser(kind, model, msgs, null, { schema: o.responseConstraint, expect, max: 1200 });
       // the small models sometimes wrap JSON in fences or thinking: keep just the JSON
-      try { out = JSON.stringify(extractJSON(out)); } catch { /* left as it is; the caller retries */ }
+      try { out = JSON.stringify(extractJSON(out)); }
+      catch {
+        // through a key, a reply that won't parse was most likely cut off at the length limit: ask again with twice the room
+        if (kind === "key") { try { out = JSON.stringify(extractJSON(await aiChat("key", msgs, null, { expect, max: Math.min(3000, tightMax(expect) * 2) }))); } catch { /* left as it is; the caller retries */ } }
+      }
       msgs.push({ role: "assistant", content: out });
       return out;
     },
-    async clone() { return browserSession(kind, rules, examples, msgs); },
+    async clone() { return browserSession(kind, rules, examples, msgs, expectChars); },
     destroy() {}
   };
 }

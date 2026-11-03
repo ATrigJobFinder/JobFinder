@@ -51,7 +51,7 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 .ll-list { display: grid; gap: 6px; }
 .ll-row { display: flex; gap: 6px; align-items: center; }
 .ll-row .ll-in { flex: 1; min-width: 0; }
-.b-side { max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; align-content: start; scrollbar-width: thin; }
+.b-side { max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; align-content: start; }
 @media (max-width: 960px) { .b-side { max-height: none; overflow: visible; } }
 .paper-sheet .cv-hl { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.22); border-radius: 3px; }
 .paper-sheet .cv-hl-entry { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.28); border-radius: 3px; }
@@ -146,3 +146,22 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 .ai-raw b { display: block; font-size: var(--step--1); color: var(--muted); margin-bottom: 4px; }
 .ai-raw p { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--step--1); }
 .lt-preview .b-score { white-space: nowrap; }
+
+/* The preview scrolls on its own: keep a narrow strip for its scrollbar (6px, not the usual 15 to 17) so the page doesn't shift, and the paper doesn't refit again and again, when the bar comes and goes */
+.lt-preview, .b-side { scrollbar-gutter: stable; }
+.lt-preview::-webkit-scrollbar, .b-side::-webkit-scrollbar { width: 6px; }
+.lt-preview::-webkit-scrollbar-thumb, .b-side::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.lt-preview::-webkit-scrollbar-thumb:hover, .b-side::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+@supports not selector(::-webkit-scrollbar) { .lt-preview, .b-side { scrollbar-width: thin; } }
+
+/* Zoomed in (a narrow window in CSS pixels): the top bar and menu give way instead of running off the edge */
+.acct-btn, .ab-help { white-space: nowrap; }
+.appbar > .ab-view { flex: 0 1 auto; min-width: 0; }
+.appbar > .ab-spacer { flex: 1 1 0; min-width: 0; }
+.ab-tools { flex: none; }
+.ab-ai { flex: 0 1 auto; min-width: 0; }
+#ltSteps li .t, #ltSteps li:not(.current) .t { display: inline; }
+@media (max-width: 1180px) { .ab-help { display: none; } .sn-links { display: grid; gap: 2px; margin-top: 6px; } .sn-links .sn-item { padding: 8px 10px; } }
+@media (max-width: 760px) { .ab-ai #abAiText { display: none; } .ab-ai { padding: 8px; } }
+@media (max-width: 640px) { .ab-brand, .ab-sep { display: none !important; } }
+.view-head .top-actions .btn { white-space: normal; max-width: 100%; }

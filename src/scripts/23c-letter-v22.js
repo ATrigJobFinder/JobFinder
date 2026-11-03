@@ -24,15 +24,27 @@ function letterScore(parts, r, wc, gaps, quality) {
   return Math.round(35 * filled / parts.length + 20 * met / parts.length + 20 * len + 10 * gapPart + 15 * clean);
 }
 
+// "What kind of work is this for?": the same choice as in the resume builder, shown first so the designs and the AI both know
+let ltKindOpen = false;
+function renderLetterKind() {
+  const box = $("ltJobType");
+  if (!box) return;
+  const cur = P().target.jobType, folded = !!cur && !ltKindOpen;
+  const grid = folded
+    ? `<div class="job-picked"><button type="button" class="opt-tile" aria-pressed="true" data-lt-kind-open="1" aria-label="${esc(jobLabel(cur))} is chosen. Change it">${esc(jobLabel(cur))}</button><button class="linkish" type="button" data-lt-kind-open="1">Change</button></div>`
+    : `<div class="opt-grid" role="group" aria-labelledby="ltKindL">${JOB_TYPES.map(x => `<button type="button" class="opt-tile" data-lt-kind="${esc(x.key)}" aria-pressed="${cur === x.key}">${esc(x.label)}</button>`).join("")}</div>`;
+  box.innerHTML = `<div class="q"><div class="q-label" id="ltKindL">What kind of work is this for?</div>${folded ? "" : `<p class="q-hint">Pick the closest one. It's the same choice as in your resume: designs that suit it are shown first, and the AI writes with this kind of work in mind.</p>`}${grid}</div>`;
+}
 function ltModeRender() {
   const t = ltTemplate();
   document.querySelectorAll("#ltMode [data-lt-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ltMode === (t ? "template" : "job"))));
   const f = $("ltFields"); if (f) f.hidden = t;
   const i = $("ltModeInfo");
-  if (i && !i.firstChild) i.innerHTML = `<button type="button" class="hinfo" data-l1="A specific job" data-l2="A template for any job" data-what="Fill in the job and company, and the letter uses them." data-why="A template you can reuse for any job. The job title, company and who it's addressed to stay as yellow placeholders, and the greeting is “Dear Hiring Manager,”. Fill them in when you send it. Paragraphs you've already written aren't changed: press Start from my profile to write them again with placeholders." aria-label="Who is this letter for: what the two choices do" aria-expanded="false">i</button>`;
+  if (i && !i.firstChild) i.innerHTML = `<button type="button" class="hinfo" data-l1="A template for any job" data-l2="A specific job" data-what="A letter you can reuse for any job. The job title, company and who it's addressed to stay as yellow placeholders, and the greeting is “Dear Hiring Manager,”. Fill them in when you send it. Paragraphs you've already written aren't changed: press Start from my profile to write them again with placeholders." data-why="Fill in the job and company, and the letter uses them." aria-label="Who is this letter for: what the two choices do" aria-expanded="false">i</button>`;
 }
 function ltV22Render() {
   ltModeRender();
+  renderLetterKind();
   ltShowStep(ltStep);
   ltNextCards();
   navDots();
@@ -71,6 +83,9 @@ onInit(() => {
   v.addEventListener("click", e => {
     const go = e.target.closest("[data-ltgo]");
     if (go) { ltShowStep(+go.dataset.ltgo); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" }); return; }
+    const kd = e.target.closest("[data-lt-kind]");
+    if (kd) { P().target.jobType = kd.dataset.ltKind; ltKindOpen = false; touchProfile("letter"); renderLetterPage(); return; }
+    if (e.target.closest("[data-lt-kind-open]")) { ltKindOpen = true; renderLetterKind(); return; }
     const m = e.target.closest("[data-lt-mode]");
     if (m) { BL().mode = m.dataset.ltMode === "template" ? "template" : "job"; baseLetter.save(); ltModeRender(); letterEdited(); renderLetterPage(); return; }
     const nx = e.target.closest("[data-nx]");
