@@ -134,7 +134,7 @@ function locQ(path, label, o = {}) {
   const saved = val(getPath(P(), path)), id = fid(path), x = placeOf(saved);
   const [sub, st] = x && x.kind === "au" ? [x.n, x.s] : x && x.kind === "world" ? [`${x.n}, ${x.s}`, ""] : splitLoc(saved);
   const known = !saved || !!x;
-  return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${label}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
+  return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${/suburb|town/i.test(String(label)) ? label : label + " (suburb)"}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
     <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Start typing a suburb or town")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : "off"}" spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
     <p class="pick-msg${known ? "" : " err"}" id="${id}-msg" role="status">${known ? "" : "We don't know that place. Pick it from the list as you type, so employers (and Job Finder) know where it is."}</p>${o.hint ? `<p class="q-hint">${o.hint}</p>` : ""}</div></div>`;
 }
@@ -205,7 +205,7 @@ const dateStyleQ = () => { const st = dateStyle(); const b = (v, l) => `<button 
 const gradeNoteText = () => `Left off your resume: it's below the cut-off (${GRADE_MIN_WORDS}). A lower grade doesn't help your application.`;
 function gradeQ(e, base) {
   const id = fid(base + ".grade"), type = e.gradeType || guessGradeType(e.grade, "");
-  return `<div class="q"><label class="q-label" for="${id}">Grade <span class="opt">(optional)</span></label><div class="q-body"><div class="seg-in grade"><input type="text" id="${id}" data-path="${base}.grade" value="${esc(val(e.grade))}" placeholder="e.g. 72.5 or 6.1" inputmode="decimal" autocomplete="off"><select data-path="${base}.gradeType" aria-label="Grade type">${GRADE_TYPES.map(([k, l]) => `<option value="${k}"${k === type ? " selected" : ""}>${l}</option>`).join("")}</select></div><p class="b-check warn" data-gradenote="${base}"${val(e.grade) && !gradeStrong(e) ? "" : " hidden"}>${gradeNoteText()}</p></div></div>`;
+  return `<div class="q"><label class="q-label" for="${id}">Grade <span class="opt">(optional)</span></label><div class="q-body"><div class="seg-in grade"><input type="text" id="${id}" data-path="${base}.grade" value="${esc(val(e.grade))}" placeholder="e.g. 72.5 or 6.1" inputmode="decimal" autocomplete="off"><select data-path="${base}.gradeType" aria-label="Grade type">${GRADE_TYPES.map(([k, l]) => `<option value="${k}"${k === type ? " selected" : ""}>${l}</option>`).join("")}</select></div></div></div>`;
 }
 function startQ() {
   const w = P().startWhen, isDate = /^\d{4}-\d{2}-\d{2}$/.test(w);
@@ -390,6 +390,13 @@ async function finishEntry(list, i, btn, quiet) {
   const p = P(), e = entryOf(list, i);
   if (!e) return false;
   const say2 = finSay(list, i);
+  const order = endBeforeStart(e);
+  if (order) {
+    if (quiet) return false;
+    say2(order, true);
+    const eb = $(fid(`${list === "referees" ? "referees.list" : list}.${i}.end`)); if (eb) eb.focus();
+    return false;
+  }
   const need = entryNeeds(list, e);
   if (need.length) {
     if (quiet) return false;
@@ -405,7 +412,7 @@ async function finishEntry(list, i, btn, quiet) {
   if (btn) { btn.disabled = true; btn.textContent = "Finishing…"; }
   tidyEntry(list, e);
   let r = { data: null, via: null }, already = isPolished(list, e) || (list === "experience" && e.bullets.length && e.bullets.every(b => builder.aiText.has(norm(b))));
-  if (!already && list !== "referees") {
+  if (!already && list !== "referees" && list !== "experience" && list !== "education") {
     say2("Polishing with AI…");
     try { r = await polishEntry(list, e, m => say2(m)); } catch { /* keep the tidy version */ }
     if (r.data) Object.assign(e, r.data);
@@ -416,7 +423,7 @@ async function finishEntry(list, i, btn, quiet) {
   const arr = listArr(p, list);
   const nextI = arr.findIndex((x, k) => k > i && !x.done);
   if (nextI >= 0 && !quiet) builder.open[list].add(nextI);
-  builder.finNote = { list, i, before, text: already ? (wasDone ? "Saved. It's on your resume." : "Already polished, so it went straight on your resume.") : r.via ? `Polished by ${viaWords(r.via)} and added to your resume.` : `Tidied up and added to your resume.${list === "referees" ? "" : " " + aiMissWords(r)}` };
+  builder.finNote = { list, i, before, text: list === "experience" || list === "education" ? (wasDone ? "Saved. It's on your resume." : "Added to your resume.") : already ? (wasDone ? "Saved. It's on your resume." : "Already polished, so it went straight on your resume.") : r.via ? `Polished by ${viaWords(r.via)} and added to your resume.` : `Tidied up and added to your resume.${list === "referees" ? "" : " " + aiMissWords(r)}` };
   touchProfile("builder");
   if (quiet) return true;
   renderBuilder(false);
@@ -669,22 +676,35 @@ async function rewordExtra(list, i) {
   renderBuilder(false);
   const awards = list === "awards", e = awards ? {} : P()[list][i], src = [e.title, e.org, e.name, lines.join("\n")].join("\n");
   const same = (a, b) => keepsFacts(a.join(" "), b.join(" "));
-  const r = await aiJSON({ nano: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, full: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, prompt: `Tense: ${box.current ? "present tense" : "past tense"}\nOriginal lines:\n${lines.join("\n")}\nWhere: ${[e.title || e.name, e.org].filter(Boolean).join(" at ")}`,
+  const reasonOf = v => {
+    if (!v.length) return "it was empty";
+    if (v.length > lines.length + 1) return "it has more lines than you gave";
+    for (const l of v) { const w = factCheck(l, src, awards ? { noFirstPerson: true, years: true, min: 2, max: 34 } : { noFirstPerson: true, min: 4, max: 34 }); if (w) return w; }
+    if (same(lines, v) < 0.55) return "it drops or changes details you gave";
+    return "";
+  };
+  const tidyOpts = d => (Array.isArray(d && d.options) ? d.options : []).map(x => stripMarkup(String(x)).split(/\n+/).map(l => l.replace(BULLET_RE, "").replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean)).filter(v => v.length).map(v => v.map(l => l[0].toUpperCase() + l.slice(1)));
+  const r = await aiJSON({ nano: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, full: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, noRetry: true, prompt: `Tense: ${box.current ? "present tense" : "past tense"}\nOriginal lines:\n${lines.join("\n")}\nWhere: ${[e.title || e.name, e.org].filter(Boolean).join(" at ")}`,
     schema: { type: "object", properties: { options: { type: "array", items: { type: "string" } } }, required: ["options"] }, label: "Rewording", progress: m => { builder.extraAlts[key] = { busy: m }; },
     check: d => {
-      const seen = new Set([norm(lines.join(" "))]);
-      const ok = (Array.isArray(d.options) ? d.options : []).map(x => stripMarkup(String(x)).split(/\n+/).map(l => l.replace(BULLET_RE, "").replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean))
-        .filter(v => v.length && v.length <= lines.length + 1 && v.every(l => !factCheck(l, src, awards ? { noFirstPerson: true, years: true, min: 2, max: 34 } : { noFirstPerson: true, min: 4, max: 34 })) && same(lines, v) >= 0.55 && !seen.has(norm(v.join(" "))) && seen.add(norm(v.join(" "))))
-        .map(v => v.map(l => l[0].toUpperCase() + l.slice(1)));
-      return ok.length ? { ok: true, value: ok.slice(0, 3) } : { ok: false, why: "write 3 different versions that keep every fact and add nothing" };
+      const seen = new Set([norm(lines.join(" "))]), why = [];
+      const ok = tidyOpts(d).filter(v => { const w = reasonOf(v); if (w) { why.push(w); return false; } const k = norm(v.join(" ")); if (seen.has(k)) { why.push("it repeats another wording"); return false; } seen.add(k); return true; });
+      return ok.length ? { ok: true, value: ok.slice(0, 3) } : { ok: false, why: why[0] || "it didn't give a different wording" };
     } });
-  let items = r.data || [];
+  let items = r.data || [], msg = "", via = r.data ? r.via : null;
+  if (!items.length && r.raw) {
+    // the AI answered, but a check didn't pass: still show what it wrote, and say exactly why
+    items = tidyOpts(r.raw).slice(0, 3);
+    via = r.rawVia;
+    msg = items.length ? `Check ${items.length === 1 ? "this one" : "these"} yourself. ${viaWords(r.rawVia)}'s wording didn't pass the fact check, because ${r.rawWhy || "it doesn't match what you gave"}. It's shown as it was written.` : "";
+  }
   if (!items.length && !awards) {
     // without AI: swap each line's first word for another strong verb, up to three ways
     const swaps = lines.map(l => rewordWithoutAI(l, box.current));
     for (let k = 0; k < 3; k++) { const v = lines.map((l, j) => swaps[j][k] || swaps[j][0] || l); if (v.join(" ") !== lines.join(" ") && !items.some(x => x.join(" ") === v.join(" "))) items.push(v); }
+    if (items.length) { via = null; msg = `${aiMissWords(r)} These only swap the first word of each line.`; }
   }
-  builder.extraAlts[key] = items.length ? { items, via: r.data ? r.via : null, msg: r.data ? "" : `${aiMissWords(r)} These only swap the first word of each line.` } : { items: [], msg: `${aiMissWords(r)} Rewording this needs AI.` };
+  builder.extraAlts[key] = items.length ? { items, via, msg } : { items: [], msg: `${aiMissWords(r)} Rewording this needs AI.` };
   renderBuilder(false);
 }
 
@@ -1087,7 +1107,7 @@ function pageSetupQ() {
 // Which English to write in: it sets the spelling autocorrect fixes to, and the language the browser's spell check uses
 function languageQ() {
   const cur = spellLang();
-  return `<div class="q"><div class="q-label" id="ps_lang">Spelling (language)</div><div class="seg seg-fill" role="group" aria-labelledby="ps_lang">${SPELL_LANGS.map(l => `<button type="button" data-act="pick-lang" data-val="${l.k}" aria-pressed="${cur === l.k}"><span>${l.label}</span><small>${l.eg}</small></button>`).join("")}</div><p class="q-hint">Autocorrect fixes spelling to this English as you type. Your cover letters follow it too.</p></div>`;
+  return `<div class="q"><label class="q-label" for="ps_lang_sel">Spelling (language)</label><select id="ps_lang_sel" data-v22="lang">${SPELL_LANGS.map(l => `<option value="${l.k}"${cur === l.k ? " selected" : ""}>${l.label} (${l.eg})</option>`).join("")}</select><p class="q-hint">Autocorrect fixes spelling to this English as you type. Your cover letters follow it too.</p></div>`;
 }
 
 /* --- Enter moves to the next box in the same section --- */
@@ -1167,7 +1187,14 @@ function sugShow(inp, browse) {
   if (!box) return;
   const items = sugItems(inp, browse);
   Object.assign(sugNow, { inp, items, i: -1 });
-  if (!items.length) { sugClose(inp); return; }
+  if (!items.length) {
+    // nothing in our list matches: say that what they typed will be used as it is
+    const typed = inp.value.trim();
+    if (!typed || browse) { sugClose(inp); return; }
+    box.innerHTML = `<li class="pick-none" role="presentation">Not in our list? That's fine: “${esc(typed)}” will be used as you typed it${inp.dataset.chipIn ? ". Press Enter to add it" : ""}.</li>`;
+    box.hidden = false; inp.setAttribute("aria-expanded", "true");
+    return;
+  }
   const q = inp.value.trim().toLowerCase();
   const mark = x => { const k = q ? x.toLowerCase().indexOf(q) : -1; return k >= 0 ? `${esc(x.slice(0, k))}<mark>${esc(x.slice(k, k + q.length))}</mark>${esc(x.slice(k + q.length))}` : esc(x); };
   box.innerHTML = items.map((x, k) => { const sub = sugSub(inp.dataset.suggest, x); return `<li role="option" id="${inp.id}-s${k}" data-k="${k}" aria-selected="false"><b>${mark(x)}</b>${sub ? `<span>${esc(sub)}</span>` : ""}</li>`; }).join("");

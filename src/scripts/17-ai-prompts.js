@@ -18,18 +18,26 @@ async function nanoJSON(session, text, schema) {
 // check(data) returns { ok: true, value } or { ok: false, why } so a bad answer gets one corrected retry.
 // The result says what happened, so the page can tell people honestly: tried (which AIs were asked), rejected (an answer broke a rule), error (one couldn't be reached).
 async function aiJSON(task) {
-  const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working" } = task;
-  let rejected = false, error = null;
+  const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working", noRetry = false } = task;
+  let rejected = false, error = null, raw = null, rawWhy = "", rawVia = null;
   const tried = [];
   aiLastProblem = null;
+  let slowT = 0;
   const chrome = await withChromeAI(progress, async make => {
     tried.push("chrome");
     progress(`${label} with ${SMALL()}…`);
+    // a small AI can take a minute on longer wording: say so, so it doesn't look stuck
+    slowT = setTimeout(() => progress(`${label} with ${SMALL()}: still working. This AI can take up to a minute on longer wording…`), 15000);
     const s = await make(nano, examples);
-    let r = check(await nanoJSON(s, prompt, schema));
-    if (!r.ok) { rejected = true; r = check(await nanoJSON(s, `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.`, schema)); }
+    let d = await nanoJSON(s, prompt, schema), r = check(d);
+    if (!r.ok) {
+      rejected = true; raw = d; rawWhy = r.why; rawVia = "chrome";
+      // a second try doubles the wait, so a caller that shows the first answer with a note can skip it
+      if (!noRetry) { d = await nanoJSON(s, `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.`, schema); r = check(d); if (!r.ok) { raw = d; rawWhy = r.why; } }
+    }
     return r.ok ? r.value : null;
   });
+  clearTimeout(slowT);
   if (chrome != null) return { data: chrome, via: "chrome", rejected, tried };
   if (smallEngine() && aiLastProblem && !error) error = aiLastProblem;
   const big = afterSmall();
@@ -41,14 +49,17 @@ async function aiJSON(task) {
       const d1 = await big.json(first, { cache: false });
       let r = check(d1);
       if (!r.ok) {
-        rejected = true;
-        const d2 = await big.json([{ role: "user", content: first }, { role: "assistant", content: JSON.stringify(d1) }, { role: "user", content: `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.` }], { cache: false });
-        r = check(d2);
+        rejected = true; raw = d1; rawWhy = r.why; rawVia = "claude";
+        if (!noRetry) {
+          const d2 = await big.json([{ role: "user", content: first }, { role: "assistant", content: JSON.stringify(d1) }, { role: "user", content: `Your answer broke a rule: ${r.why}. Fix it and reply again with only the JSON.` }], { cache: false });
+          r = check(d2);
+          if (!r.ok) { raw = d2; rawWhy = r.why; }
+        }
       }
       if (r.ok) return { data: r.value, via: "claude", rejected, tried };
     } catch (e) { error = e; }
   }
-  return { data: null, via: null, rejected, tried, error };
+  return { data: null, via: null, rejected, tried, error, raw, rawWhy, rawVia };
 }
 // A long job done as several short prompts, for small models. Each step can use what the earlier steps wrote (done[key]),
 // so steps that belong together, like the sentences of one paragraph, build on each other. Steps run one after another and the pieces are put together at the end.

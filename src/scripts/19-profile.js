@@ -56,7 +56,7 @@ const EXTRA_KEYS = [
 ];
 // hidden: kept in your profile but left off this resume. polished: the bullets as they were last polished.
 const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyRef = () => ({ name: "", role: "", org: "", phone: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
@@ -77,7 +77,7 @@ const emptyProfile = () => ({
   // order: the sections in the order the person arranged them. hideSections / hideLines: left off this version of the resume (kept in the profile).
   // hideWhy: "key||reason" lines saying why Job Finder hid something to fit the page.
   cv: { template: "", accent: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [] },
-  prefs: { dateStyle: "words", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true },
+  prefs: { dateStyle: "words", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
   updated: ""
 });
 
@@ -139,7 +139,18 @@ function splitQual(d) {
 // Level and subject from the full name when only that is known; the full name from them otherwise
 // A double degree is two qualifications studied together, written "Bachelor of Engineering (Honours) / Bachelor of Commerce"
 const DOUBLE_SPLIT = /\s*\/\s*(?=(?:Bachelor|Master|Diploma|Advanced Diploma|Graduate|Associate|Doctor|Certificate)\b)/i;
+// The thesis or major project is a kind and a title; "project" is the same thing as one line, which the resume prints
+function syncProject(e) {
+  if (!e.projectSplit && val(e.project)) {
+    const m = String(e.project).match(/^(Thesis|Major project|Capstone project|Research project)\s*:\s*(.*)$/i);
+    e.projectKind = m ? m[1][0].toUpperCase() + m[1].slice(1).toLowerCase() : "Thesis";
+    e.projectTitle = m ? m[2] : String(e.project);
+    e.projectSplit = true;
+  }
+  if (e.projectSplit || val(e.projectTitle)) { e.projectSplit = true; e.project = val(e.projectTitle) ? `${e.projectKind || "Thesis"}: ${val(e.projectTitle)}` : ""; }
+}
 function syncQual(e) {
+  syncProject(e);
   if (e.double && (val(e.level) || val(e.subject) || val(e.level2) || val(e.subject2))) {
     e.degree = [qualName(e.level, e.subject), qualName(e.level2, e.subject2)].filter(Boolean).join(" / ");
     return;
@@ -244,7 +255,7 @@ function profileChanged(source) {
   renderProfileWhere();
 }
 // After any edit: tell the other tabs, and save shortly after
-function touchProfile(source) { syncProfile(profile.data); profileChanged(source || "edit"); saveProfileSoon(); }
+function touchProfile(source) { syncProfile(profile.data); undoRecord(source); profileChanged(source || "edit"); saveProfileSoon(); }
 function replaceProfile(p, source) { profile.data = mergeProfile(p); touchProfile(source || "replace"); }
 const hasProfile = p => !!(p.contact.name.trim() || p.experience.some(e => e.title || e.org) || p.education.some(e => e.degree || e.inst) || p.summary.trim());
 
@@ -267,9 +278,9 @@ function fmtDate(s) {
   if (!s) return "";
   let m;
   if (/^(present|current|now|today)$/i.test(s)) return "Present";
-  if ((m = s.match(/^(\d{1,2})\s*[/.\-]\s*((?:19|20)\d{2})$/)) && +m[1] >= 1 && +m[1] <= 12) return `${MON3[+m[1] - 1]} ${m[2]}`;
-  if ((m = s.match(/^((?:19|20)\d{2})\s*[/.\-]\s*(\d{1,2})$/)) && +m[2] >= 1 && +m[2] <= 12) return `${MON3[+m[2] - 1]} ${m[1]}`;
-  if ((m = s.match(/^(\d{1,2})\s*[/.\-]\s*(\d{2})$/)) && +m[1] >= 1 && +m[1] <= 12) { const yy = +m[2], now = new Date().getFullYear() % 100; return `${MON3[+m[1] - 1]} ${yy <= now + 6 ? 2000 + yy : 1900 + yy}`; }
+  if ((m = s.match(/^(\d{1,2})\s*[/.\-\s]\s*((?:19|20)\d{2})$/)) && +m[1] >= 1 && +m[1] <= 12) return `${MON3[+m[1] - 1]} ${m[2]}`;
+  if ((m = s.match(/^((?:19|20)\d{2})\s*[/.\-\s]\s*(\d{1,2})$/)) && +m[2] >= 1 && +m[2] <= 12) return `${MON3[+m[2] - 1]} ${m[1]}`;
+  if ((m = s.match(/^(\d{1,2})\s*[/.\-\s]\s*(\d{2})$/)) && +m[1] >= 1 && +m[1] <= 12) { const yy = +m[2], now = new Date().getFullYear() % 100; return `${MON3[+m[1] - 1]} ${yy <= now + 6 ? 2000 + yy : 1900 + yy}`; }
   if ((m = s.match(/^([A-Za-z]{3,})\.?,?\s+((?:19|20)\d{2})$/))) {
     const i = MON3.findIndex(n => n.toLowerCase() === m[1].slice(0, 3).toLowerCase());
     if (i >= 0) return `${MON3[i]} ${m[2]}`;
@@ -428,7 +439,7 @@ const finished = list => list.filter(e => e.done !== false);
 // …and of those, the ones they haven't hidden from this resume
 const shown = list => finished(list).filter(e => !e.hidden);
 // Relevant subjects: everything is kept, and the ones closest to the job go on the resume
-const SUBJECTS_SHOWN = 6;
+const SUBJECTS_SHOWN = 3;
 function pickSubjects(e, p, jobText) {
   const all = listOf(val(e.coursework)).filter(x => !isBlank(x));
   if (all.length <= SUBJECTS_SHOWN) return all;

@@ -111,8 +111,8 @@ function chooseInner() {
   return `<div class="ch-meter ${over > 0 ? "over" : "fits"}" role="status">
       <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
       <span>About <b>${total} lines</b>. One page holds about <b>${cap}</b> in the ${esc(geo.tpl.name)} layout with ${geo.tpl.margin} mm margins${geo.tpl.lh && geo.tpl.lh !== 1 ? ` and ${geo.tpl.lh}× line spacing` : ""}. ${over > 0 ? `<b>${lineWord(over)} over</b>, so it runs onto a second page.` : `It fits on one page${cap - total >= 4 ? ` with about ${lineWord(cap - total)} to spare` : ""}.`}${geo.sidebar ? ` The side column uses ${sideT} of its ${cap} lines${sideOver > 0 ? ` (<b>${lineWord(sideOver)} over</b>)` : ""}.` : ""}</span></div>
-    <div class="b-actions"><button class="btn primary" type="button" data-act="ch-fit">Fit to one page</button><button class="btn" type="button" data-act="ch-all">Show everything again</button></div>
-    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page hides the least useful parts first, newest and most relevant last, and says why for each. Put anything back with one click."}</p>
+    <div class="b-actions"><button class="btn primary" type="button" data-act="ch-fit">Fit to one page</button><button class="btn" type="button" data-act="ch-fit2">Fit on two pages</button><button class="btn" type="button" data-act="ch-all">Show everything again</button></div>
+    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. If there's room later, press it again and it ticks back what it hid. A design with a side column is checked column by column."}</p>
     <ol class="ch-list">${secs.map(secHtml).join("") || '<li class="small muted">Finish a job or qualification first, and it will show here.</li>'}</ol>`;
 }
 function chooseHtml() {
@@ -128,8 +128,8 @@ function refreshChoose() {
 }
 
 /* --- Fit to one page: hide the least useful things first, each with its reason --- */
-function planOnePage(p) {
-  const secs = chooseSections(p), { cap } = pageGeometry();
+function planOnePage(p, pages = 1) {
+  const secs = chooseSections(p), geo = pageGeometry(), cap = geo.cap * pages;
   const pri = entryPriority(p), target = val(p.target.title) || "the job you're going for";
   const steps = [];
   const sec = k => secs.find(s => s.key === k && !s.off);
@@ -154,7 +154,48 @@ function planOnePage(p) {
     if (seen.has(id)) continue;
     seen.add(id); steps.push(q); total -= q.lines;
   }
-  return { steps, total, cap, fits: total <= cap };
+  // a design with a side column: that column has to fit on its own too, so the least useful side sections go if it runs over
+  let sideT = geo.sidebar ? chSideTotal(secs) : 0;
+  if (geo.sidebar && sideT > cap) {
+    const rank = k => { const i = ORDER.findIndex(o => o[0] === k); return i < 0 ? 99 : i; };
+    for (const s of secs.filter(x => x.side && !x.off && x.key !== "contact").sort((a, b) => rank(a.key) - rank(b.key) || b.lines - a.lines)) {
+      if (sideT <= cap) break;
+      const id = "sec" + s.key;
+      if (seen.has(id)) continue;
+      seen.add(id); steps.push({ type: "sec", key: s.key, why: "The side column runs past the page on its own, and this matters least in it.", lines: s.lines }); sideT -= s.lines;
+    }
+  }
+  return { steps, total, cap, fits: total <= cap && sideT <= cap, side: sideT };
+}
+// Put back one thing that was hidden (a section, a line, or a whole job or qualification)
+function restoreKey(p, key) {
+  const cv = p.cv;
+  if (key.startsWith("sec:")) cv.hideSections = cv.hideSections.filter(x => x !== key.slice(4));
+  else if (key.startsWith("line:")) cv.hideLines = cv.hideLines.filter(x => norm(x) !== norm(key.slice(5)));
+  else if (key.startsWith("entry:")) { const [l, i] = key.slice(6).split("."); const e = p[l] && p[l][+i]; if (e) { e.hidden = false; e.hideWhy = ""; } }
+  cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith(key + "||"));
+}
+const HIDE_LISTS = ["experience", "education", "projects", "volunteering"];
+const hideSnap = p => JSON.stringify({ s: p.cv.hideSections, l: p.cv.hideLines, w: p.cv.hideWhy, e: HIDE_LISTS.map(k => p[k].map(x => [x.hidden, x.hideWhy])) });
+function hideLoad(p, snap) {
+  const o = JSON.parse(snap);
+  p.cv.hideSections = o.s; p.cv.hideLines = o.l; p.cv.hideWhy = o.w;
+  HIDE_LISTS.forEach((k, n) => p[k].forEach((x, i) => { [x.hidden, x.hideWhy] = o.e[n][i]; }));
+}
+// If there's room, tick back what an earlier fit hid, the most useful first. Stops at the first one that wouldn't fit.
+function restoreFit(p, pages) {
+  const geo = pageGeometry(), cap = geo.cap * pages;
+  const entryKeys = HIDE_LISTS.flatMap(l => p[l].map((x, i) => x.hidden && x.hideWhy ? `entry:${l}.${i}` : null).filter(Boolean));
+  const keys = [...entryKeys, ...p.cv.hideWhy.map(x => x.split("||")[0]).reverse()];
+  let n = 0;
+  for (const key of keys) {
+    const before = hideSnap(p);
+    restoreKey(p, key);
+    const secs = chooseSections(p);
+    if (chTotal(secs) > cap || (geo.sidebar && chSideTotal(secs) > cap)) { hideLoad(p, before); break; }
+    n++;
+  }
+  return n;
 }
 function applyPlan(p, plan) {
   const cv = p.cv;
@@ -176,10 +217,12 @@ function chooseAct(act, b) {
     const again = document.querySelector(`#bChoose [data-act="${act}"][data-key="${b.dataset.key}"]`); if (again && !again.disabled) again.focus();
     return;
   }
-  if (act === "ch-fit") {
-    const plan = planOnePage(p);
-    if (!plan.steps.length) builder.chNote = plan.fits ? "It already fits on one page. Nothing to hide." : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.";
-    else { applyPlan(p, plan); builder.chNote = `Hid ${plan.steps.length} thing${plan.steps.length === 1 ? "" : "s"} to fit one page${plan.fits ? "" : ", but it's still about a page and a bit"}. Each has its reason below, with a button to put it back.`; }
+  if (act === "ch-fit" || act === "ch-fit2") {
+    const pages = act === "ch-fit2" ? 2 : 1, word = pages === 1 ? "one page" : "two pages";
+    const back = restoreFit(p, pages);   // anything an earlier fit hid comes back first if there's room now
+    const plan = planOnePage(p, pages), sideNote = pageGeometry().sidebar ? " The side column is counted on its own too." : "";
+    if (!plan.steps.length) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (plan.fits ? `It fits on ${word}. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote;
+    else { applyPlan(p, plan); builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${plan.steps.length} thing${plan.steps.length === 1 ? "" : "s"} to fit ${word}${plan.fits ? "" : ", but it's still a little over"}. Each has its reason below, with a button to put it back.` + sideNote; }
     refreshChoose();
     return;
   }
@@ -191,11 +234,7 @@ function chooseAct(act, b) {
     return;
   }
   if (act === "ch-restore") {
-    const key = b.dataset.key;
-    if (key.startsWith("sec:")) cv.hideSections = cv.hideSections.filter(x => x !== key.slice(4));
-    else if (key.startsWith("line:")) cv.hideLines = cv.hideLines.filter(x => norm(x) !== norm(key.slice(5)));
-    else if (key.startsWith("entry:")) { const [l, i] = key.slice(6).split("."); const e = p[l] && p[l][+i]; if (e) { e.hidden = false; e.hideWhy = ""; } }
-    cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith(key + "||"));
+    restoreKey(p, b.dataset.key);
     builder.chNote = "";
     refreshChoose();
   }

@@ -415,10 +415,19 @@ function cvHtml(model, tpl, opts = {}) {
   return `<div class="${cls}" style="${esc(style)}"><div class="cv-body">${head(true)}${model.main.map(s => sec(s)).join("")}</div></div>`;
 }
 // Put a scaled A4 preview in a frame, with dashed lines where pages break
+// A long name shrinks until no word is split across two lines
+function fitNames(root) {
+  root.querySelectorAll(".cv-name").forEach(el => {
+    el.style.fontSize = ""; el.style.overflowWrap = "normal"; el.style.wordBreak = "keep-all";
+    let fs = parseFloat(getComputedStyle(el).fontSize) || 0; const min = fs * 0.55;
+    for (let n = 0; fs > min && el.scrollWidth > el.clientWidth + 1 && n < 40; n++) { fs -= 1; el.style.fontSize = fs + "px"; }
+  });
+}
 function mountPaper(frame, html) {
   frame.innerHTML = `<div class="paper-scale"><div class="paper-sheet">${html}</div></div>`;
   const scale = frame.firstElementChild, sheet = scale.firstElementChild;
   const fit = () => {
+    fitNames(sheet);
     const w = frame.clientWidth || 794;
     const k = Math.min(1, w / 794);
     scale.style.transform = `scale(${k})`;

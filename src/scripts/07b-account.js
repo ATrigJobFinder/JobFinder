@@ -36,7 +36,7 @@ async function acctFetch(path, opts = {}, auth = true) {
 }
 const acctSession = j => {
   const md = j.user.user_metadata || {};
-  return { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, user: { id: j.user.id, email: j.user.email || md.email || md.name || "your account" } };
+  return { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, user: { id: j.user.id, email: j.user.email || md.email || "", name: md.full_name || md.name || "", provider: (j.user.app_metadata && j.user.app_metadata.provider) || "email" } };
 };
 // Tokens last an hour: swap for a fresh one shortly before then
 async function acctFresh() {
@@ -57,12 +57,12 @@ async function acctResetPassword(email) { await acctFetch("/auth/v1/recover", { 
 const PKCE_KEY = "jobfinder.pkce.v1";
 const ACCT_PROVIDERS = { google: "Google", facebook: "Facebook", apple: "Apple" };
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-async function acctOAuthUrl(provider) {
+async function acctOAuthUrl(provider, intent) {
   if (!ACCT_PROVIDERS[provider]) throw new Error("Unknown sign-in.");
   if (!(window.crypto && crypto.subtle)) throw new Error("This browser can't do a secure sign-in here. Use your email instead.");
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  try { sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, p: provider, hash: location.hash })); } catch { throw new Error("Your browser is blocking site storage, which a Google, Facebook or Apple sign-in needs. Use your email instead."); }
+  try { sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, p: provider, hash: location.hash, intent: intent || "" })); } catch { throw new Error("Your browser is blocking site storage, which a Google, Facebook or Apple sign-in needs. Use your email instead."); }
   return acctUrl("/auth/v1/authorize?provider=" + provider + "&redirect_to=" + encodeURIComponent(location.origin + location.pathname) + "&code_challenge=" + challenge + "&code_challenge_method=s256");
 }
 async function acctOAuth(provider) { location.href = await acctOAuthUrl(provider); }
@@ -84,6 +84,7 @@ async function acctFinishOAuth() {
   try {
     acctStore(acctSession(await acctFetch("/auth/v1/token?grant_type=pkce", { method: "POST", body: JSON.stringify({ auth_code: code, code_verifier: saved.v }) }, false)));
     clean();
+    if (saved.intent === "delete") account.verifiedFor = account.user.id;   // signed in again on purpose, to confirm deleting the account
     try { await acctBringBrowserData(); } catch { /* the table may not exist yet: saving falls back to this browser */ }
   } catch (e) { acctNotify("Couldn't finish signing in with " + (ACCT_PROVIDERS[saved.p] || "that account") + ": " + e.message); clean(); }
 }
@@ -150,9 +151,10 @@ function renderAccount() {
   if (!box) return;
   const inClaude = !!(window.claude && window.claude.use);
   if (inClaude) { box.innerHTML = ""; return; }
-  box.innerHTML = account.user
-    ? `<span class="acct-who" title="${esc(account.user.email)}">Signed in as ${esc(account.user.email)}</span><button class="btn ghost acct-btn" type="button" data-acct="out"><span>Sign out</span></button>`
-    : `<button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up to keep your data</span></button>`;
+  if (account.user) {
+    const u = account.user, name = u.name || (u.email ? u.email.split("@")[0] : "Your account");
+    box.innerHTML = `<span class="acct-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "?")}</span><span class="acct-who" title="${esc(u.email || name)}">${esc(name)}</span><button class="btn ghost acct-btn" type="button" data-acct="out"><span>Sign out</span></button>`;
+  } else box.innerHTML = `<button class="btn ghost acct-btn" type="button" data-acct="open-in"><span>Log in</span></button><button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up</span></button>`;
 }
 function acctDialog(mode = "up") {
   let d = document.getElementById("acctDlg");
@@ -211,6 +213,7 @@ document.addEventListener("click", async e => {
     try { await acctOAuth(a.slice(6)); } catch (err) { if (msg) { msg.textContent = err.message; msg.className = "acct-msg err"; } }
   }
   else if (a === "open") acctDialog("up");
+  else if (a === "open-in") acctDialog("in");
   else if (a === "mode-up" || a === "mode-in") acctDialog(a === "mode-up" ? "up" : "in");
   else if (a === "close" && d) d.close();
   else if (a === "reset" && d) {

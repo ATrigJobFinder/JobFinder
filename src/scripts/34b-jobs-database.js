@@ -139,3 +139,6 @@ onInit(() => {
     smoothTo($("jbCompanyHead").hidden ? $("jbList") : $("jbCompanyHead"), 90);
   });
 });
+
+// Crossing the width where a job opens beside the list (wide) or inside it (narrow): draw the list again
+matchMedia("(min-width: 900px)").addEventListener("change", () => { if (currentView === "jobs") renderJobs(); });

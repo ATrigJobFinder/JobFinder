@@ -35,7 +35,8 @@ const HELP = [
   [/suburb and state|contact\.location|clocation|^location$|ad-location|co-location|trkf:location|data-place/, "The suburb or city and state where the work is, or where you live. No street address.", "Employers filter by area, and a full address is a privacy risk with no benefit."],
   [/jbwhere|^where$/, "A city, a state or the word remote.", "It narrows the list to jobs you could actually get to."],
   [/linkedin|bliurl|li-url/, "Your public LinkedIn address, like linkedin.com/in/your-name.", "Recruiters look you up. Job Finder can also read what you paste from your profile to fill in your details."],
-  [/portfolio|github|website|contact\.website|co-website/, "A link to work you're proud of, or the company's website.", "It shows evidence, not just claims. Only add something you'd be happy for an employer to open."],
+  [/co-website/, "The company's website.", "Candidates look you up before they apply."],
+  [/portfolio|github|website|contact\.website/, "A link to your own work to show off: a portfolio, GitHub, a design or writing site. Not a company's website.", "It shows evidence, not just claims. Only add something you'd be happy for an employer to open."],
   [/work rights|workrights/, "Your Australian work rights: citizen, permanent resident or the visa you hold.", "Employers must check you can work here. Saying so up front avoids being filtered out."],
   [/driver|licence/, "Your licence class (for example C for a car), if the job could use it.", "Site, field and sales roles often require it. Leave it blank if it doesn't matter."],
   [/summaryq\.who|describe yourself professionally/, "One plain line about who you are professionally, like “final-year civil engineering student who enjoys site work”.", "The AI builds your summary from your own words, so it should sound like you."],
@@ -47,9 +48,9 @@ const HELP = [
   [/publications/, "Papers or articles, one per line, in your field's citation style.", "Only relevant for research roles. Consistent citations show care."],
   [/interests/, "A short line of real interests.", "It adds some personality and culture fit. Keep it brief and true."],
   // work and study entries
-  [/job title|data-path:.*\.title|ad-title|trkf:title/, "The job title you held or are advertising, exactly as it was.", "Titles are checked in reference calls, and tracking software matches on them."],
+  [/job title|data-path:.*\.title|ad-title|trkf:title/, "The job title you held, exactly as it was.", "Titles are checked in reference calls, and tracking software matches on them."],
   [/employer|organisation|\.org\b/, "The organisation you worked for.", "Recruiters may verify it, so use the real name."],
-  [/started|finished|\.starts|\.ends|date\b|applied|follow ?up|interview on|ad-closes|closes/, "A month and year, like Feb 2023. Tick “present” for something you still do.", "Dates show a clear timeline. Gaps and overlaps get noticed by people and tracking software."],
+  [/started|finished|\.starts|\.ends|date\b|applied|follow ?up|interview on|ad-closes|closes/, "A month and year. Any of these work: Nov 2023, 12/2023, 12 2023 or November 2023. Tick “present” for something you still do.", "Dates show a clear timeline. Gaps and overlaps get noticed by people and tracking software."],
   [/main responsibilities/, "What you did day to day, in plain words. Don't worry about the wording.", "The AI turns your plain answers into strong bullet points using only what you say."],
   [/achieve, improve|recognised for|achievements and results/, "Results: something faster, cheaper, bigger or praised, with numbers if you know them.", "Results set you apart from everyone else who had the same duties."],
   [/tools, software|equipment/, "Software, machinery and methods you used.", "Skills shown in real work are more convincing than a list, and tracking software searches for them."],
@@ -57,7 +58,7 @@ const HELP = [
   [/second degree|^level$|\.level\b/, "The level of the qualification: Bachelor, Master, Diploma, Certificate.", "It sets the layout and how the qualification is described."],
   [/relevant subjects|coursework/, "Subjects that match the kind of job you want.", "With little work history, they show you've already learned what the job needs."],
   [/thesis|major project/, "The title of your thesis or main project, with one line on what you found or built.", "It shows depth. Job Finder tidies it into “Thesis: Title”."],
-  [/\bgrade\b|\bwam\b|\bgpa\b|gradetype/, "Your average mark. Type the number and the type is picked for you.", "Include it only if it helps; many graduate employers ask for it."],
+  [/\bgrade\b|\bwam\b|\bgpa\b|gradetype/, "Your average mark. Type the number and we'll pick WAM, GPA or percentage for you.", "Marks below the cut-off are left off your resume automatically, because a lower grade doesn't help your application. Many graduate employers do ask for a strong one."],
   [/project name|for or with/, "What the project was called, and who it was for.", "A named project with a client or purpose reads as real work."],
   [/one point per line|what did you do, and what came of it|what did you do\?/, "One short point per line: what you did, how, and what changed.", "Short lines with a result are easy to skim, and the AI can polish them."],
   [/their role|referees|data-path:referees|refmode/, "Someone who has agreed to speak about your work: a supervisor or lecturer, not a friend.", "Employers call referees late in hiring. Ask first, and tell them about the job."],
@@ -65,7 +66,8 @@ const HELP = [
   [/language/, "A language you speak besides English, and how well.", "Languages can set you apart, especially in client-facing or community roles."],
   [/subject or field|field of study|\bmajor\b/, "Your main subject, like “Mechanical Engineering”. Pick from the list as you type.", "Employers match your study to the discipline a job asks for."],
   [/university, tafe|school|institution|\buniversity\b/, "Where you studied. Start typing and pick from the list.", "A recognised name is easy for employers to check and looks consistent on the page."],
-  [/software and tools/, "Programs and equipment you can use, like AutoCAD, Excel, SAP or a forklift licence.", "Tracking software matches tools word for word, and they back up your experience."],
+  [/chl_certs|chin_certs|licences and certificates/, "Licences and certificates outside your university degree: White Card, First Aid, RSA, short courses and extra-curricular courses. Your driver's licence from the Contact step is added for you.", "Many jobs need a ticket before you can start, and tracking software searches for them by name."],
+  [/software and tools|chl_software|chin_software/, "Software and skills you can use, like AutoCAD, Excel, SAP or Xero.", "Tracking software matches tools word for word, and they back up your experience."],
   [/\bstrengths\b|chl_strengths/, "Two or three things you do well, like problem solving or clear writing.", "They give your summary and cover letter true points to build on."],
   [/chip-in|chl_|skills\b|li-skills/,"Skills, one at a time or one per line. Use the names employers use, like “AutoCAD” or “stakeholder engagement”.", "Tracking software matches skills word for word, and recruiters scan for them."],
   [/data-bullet|bullet point|data-sugg-edit|bask/, "One achievement or task: start with an action verb and say what changed.", "Bullets are what recruiters actually read. Specific ones beat vague duties."],
@@ -115,7 +117,8 @@ const HELP_KIND = {
   text: ["Type your answer. Leave it blank if it doesn't apply.", "What you enter fills your resume, letters and applications, so accurate beats impressive."]
 };
 const helpSkipType = new Set(["hidden", "checkbox", "radio", "button", "submit", "reset", "range", "color", "image"]);
-const helpState = { pop: null, btn: null, pinned: false, timer: 0, n: 0 };
+const helpState = { pop: null, btn: null, pinned: false, timer: 0, hover: 0, n: 0 };
+const HELP_DELAY = 150;   // hover for this long (milliseconds) before it opens, so passing the mouse over doesn't flash it
 const helpKeyOf = (el, label) => [label, el.id, el.name, el.getAttribute("placeholder"), el.getAttribute("aria-label"), ...Object.entries(el.dataset).map(([k, v]) => `data-${k}:${v}`)].filter(Boolean).join(" ").toLowerCase();
 // The words for one box: [what to add, why]
 function helpFor(el, label = "") {
@@ -143,7 +146,7 @@ function helpLabelOf(el) {
 }
 function helpEnhance(root = document) {
   for (const el of root.querySelectorAll("input,textarea,select")) {
-    if (el.dataset.hi || helpSkipType.has(el.type) || el.disabled || el.closest("#chatPanel,.hinfo-pop,[data-nohelp]")) continue;
+    if (el.dataset.hi || helpSkipType.has(el.type) || el.disabled || el.closest("#chatPanel,.hinfo-pop,[data-nohelp]") || el.matches("[data-bullet],[data-sugg-edit]")) continue;
     if (el.type === "file" && el.hidden) continue;
     el.dataset.hi = "1";
     const group = el.closest(".q, .lt-part, label.field");
@@ -195,8 +198,8 @@ function helpInit() {
   let queued = 0;
   new MutationObserver(() => { if (queued) return; queued = setTimeout(() => { queued = 0; helpEnhance(); }, 80); }).observe(document.body, { childList: true, subtree: true });
   const hinfo = e => e.target.closest && e.target.closest(".hinfo");
-  document.addEventListener("mouseover", e => { const b = hinfo(e); if (b && !helpState.pinned) helpShow(b); });
-  document.addEventListener("mouseout", e => { if (hinfo(e) && !helpState.pinned) helpHideSoon(); });
+  document.addEventListener("mouseover", e => { const b = hinfo(e); if (b && !helpState.pinned) { clearTimeout(helpState.hover); clearTimeout(helpState.timer); helpState.hover = setTimeout(() => helpShow(b), HELP_DELAY); } });
+  document.addEventListener("mouseout", e => { if (hinfo(e)) { clearTimeout(helpState.hover); if (!helpState.pinned) helpHideSoon(); } });
   document.addEventListener("focusin", e => { const b = hinfo(e); if (b) helpShow(b); else if (!helpState.pinned) helpHide(); });
   document.addEventListener("focusout", e => { if (hinfo(e) && !helpState.pinned) helpHideSoon(); });
   document.addEventListener("click", e => {

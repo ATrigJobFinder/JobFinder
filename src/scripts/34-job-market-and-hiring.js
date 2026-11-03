@@ -106,22 +106,28 @@ function renderJobs() {
   const list = jobFilters(merged).sort((a, b) => jobsUI.sort === "new" ? String(b.posted || "").localeCompare(String(a.posted || "")) : ((b.m ? b.m.pct : -1) - (a.m ? a.m.pct : -1)));
   const examples = merged.some(j => j.example);
   $("jbSummary").innerHTML = `${list.length} job${list.length === 1 ? "" : "s"}${dupes ? `. <b>${dupes} duplicate${dupes === 1 ? "" : "s"} merged</b> from ${total} listings` : ""}.${examples ? ' <span class="tag">Examples</span> These are made-up listings to show how it works, until employers post jobs or listings are imported.' : ""}`;
-  $("jbNote").textContent = shareNote();
-  $("jbNote").hidden = !shareNote();
+  $("jbNote").textContent = ""; $("jbNote").hidden = true;   // (the note about posting and applications is for the hiring pages)
   const myApplied = new Set(((market.myApps || {}).items || []).map(i => i.jobKey));
   const tracked = key => T().find(i => DEDUP.same(DEDUP.prep({ title: i.title, company: i.company, location: i.location }), DEDUP.prep(key)));
   // keep the open job on the page even if it's past the limit
   const openIx = list.findIndex(j => (j.key || j.id) === jobsUI.open);
   if (openIx >= jobsUI.limit) jobsUI.limit = openIx + 1;
-  box.innerHTML = list.slice(0, jobsUI.limit).map(j => {
+  // on a wide screen an opened job shows beside the list, not inside it
+  const wide = matchMedia("(min-width: 900px)").matches;
+  const cardsHtml = list.slice(0, jobsUI.limit).map(j => {
     const tr = tracked(j), m = j.m, open = jobsUI.open === (j.key || j.id);
     return `<article class="job${open ? " open" : ""}" data-job="${esc(j.key || j.id)}">
       <button type="button" class="job-main" data-jb="open" aria-expanded="${open}"><span class="job-title">${esc(j.title)}</span><span class="job-co">${esc(j.company || "")}${j.location ? ` · ${esc(j.location)}` : ""}</span>
         <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span></button>
       <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${j.srcUrl ? `<a href="${esc(j.srcUrl)}" target="_blank" rel="noopener">${esc(j.source)}</a>` : esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
-      ${open ? jobDetail(j, tr, myApplied.has(j.key)) : ""}
+      ${open && !wide ? jobDetail(j, tr, myApplied.has(j.key)) : ""}
     </article>`;
-  }).join("") + (list.length > jobsUI.limit ? `<button class="btn" type="button" id="jbMore">Show more (${list.length - jobsUI.limit} left)</button>` : "") || `<p class="empty">No jobs match those filters.</p>`;
+  }).join("") + (list.length > jobsUI.limit ? `<button class="btn" type="button" id="jbMore">Show more (${list.length - jobsUI.limit} left)</button>` : "");
+  const openJ = wide ? list.find(j => (j.key || j.id) === jobsUI.open) : null;
+  if (openJ) {
+    const k = openJ.key || openJ.id;
+    box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${esc(openJ.title)}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div><button class="linkish" type="button" data-jb="open">Close</button></div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key))}</aside></div>`;
+  } else box.innerHTML = cardsHtml || `<p class="empty">No jobs match those filters.</p>`;
   renderTalentCard();
   renderInvites();
   renderDbExtras(list);

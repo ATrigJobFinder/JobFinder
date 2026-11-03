@@ -1,0 +1,142 @@
+/* ===================== Version 22: resume builder changes ===================== */
+
+/* --- A fixed (i) in the page, for headings (the boxes' own (i) are added by 36c) --- */
+const hinfoHtml = (what, why) => `<button type="button" class="hinfo" data-what="${esc(what)}" data-why="${esc(why)}" aria-label="What to add: ${esc(what.slice(0, 60))}" aria-expanded="false">i</button>`;
+
+/* --- Sort buttons at the top of the step --- */
+function sortBar(list) {
+  const n = P()[list].length;
+  if (n < 2) return "";
+  return `<div class="b-actions b-sortbar">${sortBtn(list)}${list === "education" ? `<button class="btn" type="button" data-act="sort-level">Sort by level, highest first</button>` : ""}</div>`;
+}
+function sortByLevel() {
+  const arr = P().education, rank = e => { const i = QUAL_LEVELS.findIndex(q => q.k === e.level); return i < 0 ? -1 : QUAL_LEVELS.length - i; };
+  const sorted = arr.map((e, k) => ({ e, k })).sort((a, b) => rank(b.e) - rank(a.e) || a.k - b.k).map(x => x.e);
+  if (sorted.every((e, k) => e === arr[k])) { builder.sortNote = { list: "education", text: "Already in order of level." }; renderBuilder(false); return; }
+  keepOpen();
+  const before = arr.slice(), openNow = new Set([...builder.open.education].map(i => arr[i]));
+  arr.splice(0, arr.length, ...sorted);
+  builder.open.education = new Set(sorted.map((e, k) => openNow.has(e) ? k : -1).filter(k => k >= 0));
+  builder.sugg = {}; builder.alts = {};
+  builder.sortNote = { list: "education", text: "Now in order of level, highest first.", before };
+  touchProfile("builder"); renderBuilder(false);
+}
+
+/* --- Drag a card above or below another --- */
+const dragH = (list, i) => `<span class="drag-h" draggable="true" data-drag="${list}" data-i="${i}" title="Drag to move this up or down" aria-label="Drag to move">⋮⋮</span>`;
+let dragFrom = null;
+function dragSetup() {
+  const f = $("bForm");
+  if (!f) return;
+  f.addEventListener("click", e => { if (e.target.closest(".drag-h")) e.preventDefault(); });   // the handle sits in a summary: don't open the card
+  f.addEventListener("dragstart", e => {
+    const h = e.target.closest && e.target.closest(".drag-h");
+    if (!h) return;
+    dragFrom = { list: h.dataset.drag, i: +h.dataset.i };
+    e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", "card"); } catch { /* ignore */ }
+    const card = h.closest("details"); if (card) { card.classList.add("dragging"); try { e.dataTransfer.setDragImage(card.querySelector("summary"), 20, 16); } catch { /* ignore */ } }
+  });
+  f.addEventListener("dragover", e => {
+    if (!dragFrom) return;
+    const card = e.target.closest && e.target.closest(`details[data-card="${dragFrom.list}"]`);
+    f.querySelectorAll(".drop-above,.drop-below").forEach(x => x.classList.remove("drop-above", "drop-below"));
+    if (!card) return;
+    e.preventDefault();
+    const r = card.getBoundingClientRect();
+    card.classList.add(e.clientY < r.top + r.height / 2 ? "drop-above" : "drop-below");
+  });
+  f.addEventListener("drop", e => {
+    if (!dragFrom) return;
+    const card = e.target.closest && e.target.closest(`details[data-card="${dragFrom.list}"]`);
+    if (!card) return;
+    e.preventDefault();
+    const above = card.classList.contains("drop-above"), to = +card.dataset.i, arr = listArr(P(), dragFrom.list);
+    let dest = above ? to : to + 1;
+    const [item] = arr.splice(dragFrom.i, 1);
+    if (dragFrom.i < dest) dest--;
+    arr.splice(dest, 0, item);
+    const list = dragFrom.list;
+    dragFrom = null;
+    keepOpen(); builder.open[list] = new Set(); builder.sugg = {}; builder.alts = {}; builder.genned = new Set(); builder.extraAlts = {};
+    touchProfile("builder"); renderBuilder(false);
+  });
+  f.addEventListener("dragend", () => { dragFrom = null; f.querySelectorAll(".dragging,.drop-above,.drop-below").forEach(x => x.classList.remove("dragging", "drop-above", "drop-below")); });
+}
+
+/* --- Driver's licence: pick every kind of vehicle you can drive --- */
+const LICENCE_CLASSES = [["C", "Car (C)"], ["R", "Motorcycle (R)"], ["LR", "Light rigid truck (LR)"], ["MR", "Medium rigid truck or bus (MR)"], ["HR", "Heavy rigid truck (HR)"], ["HC", "Heavy combination truck (HC)"], ["MC", "Multi-combination truck (MC)"]];
+function licenceSet() {
+  const t = String(P().contact.licence || ""), s = new Set();
+  const inside = (t.match(/\(([^)]*)\)/) || [])[1];
+  if (inside) inside.split(/[,\s]+/).forEach(k => { if (LICENCE_CLASSES.some(c => c[0] === k.toUpperCase())) s.add(k.toUpperCase()); });
+  else { if (/\bC class\b|\bcar\b/i.test(t)) s.add("C"); for (const [k] of LICENCE_CLASSES) if (k.length === 2 && new RegExp("\\b" + k + "\\b").test(t)) s.add(k); }
+  return s;
+}
+const licenceText = set => set.size ? `Driver's licence (${LICENCE_CLASSES.map(c => c[0]).filter(k => set.has(k)).join(", ")})` : "";
+function licenceQ() {
+  const cur = licenceSet(), legacy = val(P().contact.licence) && !cur.size;
+  return `<div class="q wide" data-lic="1"><div class="q-label" id="licL">Driver's licence <span class="opt">(optional)</span></div><p class="q-hint">Tick every kind of vehicle you're licensed to drive.${legacy ? ` It says “${esc(P().contact.licence)}” now: pick below to replace it.` : ""}</p>
+    <div class="opt-chips" role="group" aria-labelledby="licL">${LICENCE_CLASSES.map(([k, l]) => `<button type="button" class="opt-chip" data-v22="lic" data-k="${k}" aria-pressed="${cur.has(k)}">${l}</button>`).join("")}</div></div>`;
+}
+// The driver's licence is also a licence: it's added to Licences and certificates, and kept in step
+function licenceToCerts() {
+  const p = P(), t = licenceText(licenceSet());
+  p.skills.certs = p.skills.certs.filter(c => !/^driver'?s licen[cs]e/i.test(c));
+  if (t) p.skills.certs.unshift(t);
+}
+
+/* --- Thesis or major project: a button, then the kind and the title --- */
+const PROJECT_KINDS = ["Thesis", "Major project", "Capstone project", "Research project"];
+function projectQ(e, base) {
+  const has = e.projectOpen || val(e.projectTitle) || val(e.project);
+  if (!has) return `<div class="b-actions"><button class="btn" type="button" data-v22="proj-add" data-i="${base.split(".")[1]}">+ Add a thesis or major project</button></div>`;
+  const kind = e.projectKind || (String(e.project || "").match(/^([A-Za-z ]+?):/) || [])[1] || "Thesis";
+  const title = e.projectTitle !== undefined && e.projectTitle !== "" ? e.projectTitle : String(e.project || "").replace(/^[A-Za-z ]+?:\s*/, "");
+  return `<div class="q-grid proj-q">${q(base + ".projectKind", "Thesis or major project", { select: PROJECT_KINDS.map(k => [k, k]), opt: true })}${q(base + ".projectTitle", "Title of the thesis or project", { opt: true, ph: "e.g. Passive cooling for rooftop solar panels", prose: true })}</div>
+    <div class="b-actions"><button class="linkish" type="button" data-v22="proj-del" data-i="${base.split(".")[1]}">Remove the thesis or project</button></div>`;
+}
+
+/* --- One line per box, with an Add button (awards, publications) --- */
+function lineListQ(key, label, ph, addLabel, after = "") {
+  const lines = String(P()[key] || "").split("\n").map(l => l.replace(BULLET_RE, "")).filter((l, k, a) => l.trim() || k < a.length);
+  const filled = lines.filter(l => l.trim()), rows = filled.length && !(builder.llBlank && builder.llBlank[key]) ? filled : [...filled, ""];
+  return `<div class="q wide ll-q" data-ll="${key}"><div class="q-label" id="ll_${key}">${label}</div><div class="ll-list" role="group" aria-labelledby="ll_${key}">${rows.map((l, i) => `<div class="ll-row"><input type="text" class="ll-in" data-v22="ll" data-ll="${key}" data-i="${i}" value="${esc(l)}" placeholder="${esc(ph)}" aria-label="${esc(label)} ${i + 1}" data-prose="1" spellcheck="true"><button type="button" class="chip-x" data-v22="ll-del" data-ll="${key}" data-i="${i}" aria-label="Remove ${esc(label)} ${i + 1}">×</button></div>`).join("")}</div>
+    <div class="b-actions"><button class="btn" type="button" data-v22="ll-add" data-ll="${key}">${addLabel}</button></div>${after}</div>`;
+}
+const llRows = key => [...document.querySelectorAll(`#bForm input.ll-in[data-ll="${key}"]`)].map(i => i.value);
+function llSave(key, rows) { P()[key] = rows.map(r => r.trim()).filter(Boolean).join("\n"); if (key === "awards" || key === "publications") P().extrasDone[key] = false; touchProfile("builder"); }
+
+/* --- Dates: finishing before you started --- */
+function monthIndex(s) {
+  const f = fmtDate(s), m = f.match(/^([A-Z][a-z]{2}) ((?:19|20)\d{2})$/);
+  if (m) return +m[2] * 12 + MON3.indexOf(m[1]);
+  const y = f.match(/^((?:19|20)\d{2})$/);
+  return y ? +y[1] * 12 : null;
+}
+// "" when the order is fine, otherwise the message
+function endBeforeStart(entry) {
+  if (!entry || entry.current) return "";
+  const a = monthIndex(entry.start), b = monthIndex(entry.end);
+  return a != null && b != null && b < a ? "This finishes before it starts. Check both dates." : "";
+}
+
+/* --- One place for the clicks the new controls make --- */
+onInit(() => {
+  dragSetup();
+  document.addEventListener("click", e => {
+    const b = e.target.closest && e.target.closest("[data-v22]");
+    if (!b || !b.closest("#bForm")) return;
+    const p = P(), a = b.dataset.v22;
+    if (a === "lic") {
+      const s = licenceSet(); s.has(b.dataset.k) ? s.delete(b.dataset.k) : s.add(b.dataset.k);
+      p.contact.licence = licenceText(s); licenceToCerts(); keepOpen(); touchProfile("builder"); renderBuilder(false);
+    } else if (a === "proj-add") { const x = p.education[+b.dataset.i]; x.projectOpen = true; if (!x.projectKind) x.projectKind = "Thesis"; keepOpen(); renderBuilder(false); const t = $(fid(`education.${b.dataset.i}.projectTitle`)); if (t) t.focus(); }
+    else if (a === "proj-del") { const x = p.education[+b.dataset.i]; x.projectOpen = false; x.projectKind = ""; x.projectTitle = ""; x.project = ""; keepOpen(); touchProfile("builder"); renderBuilder(false); }
+    else if (a === "ll-add") { const k = b.dataset.ll, rows = llRows(k); const empty = [...document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`)].find(i => !i.value.trim()); if (empty) { empty.focus(); return; } builder.llBlank = { ...(builder.llBlank || {}), [k]: 1 }; keepOpen(); renderBuilder(false); const all = document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`); if (all.length) all[all.length - 1].focus(); }
+    else if (a === "ll-del") { const k = b.dataset.ll, rows = llRows(k); rows.splice(+b.dataset.i, 1); llSave(k, rows); builder.extraAlts = {}; keepOpen(); renderBuilder(false); }
+  });
+  document.addEventListener("input", e => {
+    const t = e.target;
+    if (t && t.classList && t.classList.contains("ll-in") && t.closest("#bForm")) { const k = t.dataset.ll; P()[k] = llRows(k).map(r => r.trim()).filter(Boolean).join("\n"); if (t.value.trim()) builder.llBlank = { ...(builder.llBlank || {}), [k]: 0 }; touchProfile("builder"); }
+  });
+});

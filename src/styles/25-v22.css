@@ -1,0 +1,88 @@
+/* ---- v22: top bar, toast, support page, (i) in grey, and the resume builder changes ---- */
+
+/* Top bar: undo, redo, help, account */
+.ab-spacer { flex: 1; }
+.ab-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ab-undo { width: 34px; height: 34px; }
+.ab-undo:disabled { opacity: 0.4; cursor: default; }
+.ab-undo:disabled:hover { border-color: var(--line); color: var(--ink); }
+.ab-help { font-size: var(--step--1); font-weight: 600; color: var(--ink); text-decoration: none; padding: 6px 8px; border-radius: 8px; white-space: nowrap; }
+.ab-help:hover { color: var(--accent); background: var(--accent-soft); }
+.ab-tools .acct { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.ab-tools .acct-btn { padding: 6px 12px; min-height: 0; }
+.ab-tools .acct-who { max-width: 12ch; font-size: var(--step--1); font-weight: 600; color: var(--ink); }
+.acct-avatar { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 0.85rem; flex: none; }
+@media (max-width: 720px) { .ab-help { display: none; } .ab-tools .acct-who { display: none; } .ab-tools .acct-btn[data-acct="open-in"] { display: none; } }
+.app[data-nav="rail"] .ab-tools .acct-btn span, .ab-tools .acct-btn span { position: static; width: auto; height: auto; clip: auto; overflow: visible; }
+
+/* A short message in the corner */
+.jf-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 300; max-width: min(28rem, calc(100vw - 32px)); padding: 10px 16px; border-radius: 10px; font-size: var(--step--1); font-weight: 600; box-shadow: 0 10px 30px rgba(8, 12, 20, 0.25); }
+.jf-toast.ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
+.jf-toast.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+.jf-toast[hidden] { display: none; }
+
+/* Contact or help */
+.sp-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .sp-grid { grid-template-columns: minmax(0, 1fr); } }
+.sp-form, .sp-help { display: grid; gap: 12px; }
+.sp-form .field input, .sp-form .field select, .sp-form .field textarea { width: 100%; }
+.sp-help details { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface-2); }
+.sp-help summary { font-weight: 600; cursor: pointer; }
+.sp-help p { margin: 8px 0 2px; font-size: var(--step--1); }
+
+/* The (i): grey, and a little quieter than before */
+.hinfo { border-color: var(--muted); background: transparent; color: var(--muted); }
+.hinfo:hover, .hinfo[aria-expanded="true"] { background: var(--muted); color: var(--surface); }
+.hinfo:focus-visible { outline-color: var(--muted); }
+.hinfo-pop b { color: var(--muted); }
+
+/* Resume builder */
+.card-tag.draft { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+.card-tag.ai { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.b-aiin { border: 1.5px dashed var(--accent); border-radius: var(--radius); padding: 10px 12px 12px; display: grid; gap: 10px; background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.b-aiin-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.b-aiin > .q-hint { margin: 0; }
+.drag-h { cursor: grab; color: var(--muted); padding: 0 8px 0 2px; letter-spacing: -2px; user-select: none; font-weight: 700; }
+.drag-h:active { cursor: grabbing; }
+details.b-card.dragging { opacity: 0.45; }
+details.b-card.drop-above { box-shadow: 0 -3px 0 0 var(--accent); }
+details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
+.b-sortbar { margin-bottom: 4px; }
+.ll-list { display: grid; gap: 6px; }
+.ll-row { display: flex; gap: 6px; align-items: center; }
+.ll-row .ll-in { flex: 1; min-width: 0; }
+.b-side { max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; align-content: start; scrollbar-width: thin; }
+@media (max-width: 960px) { .b-side { max-height: none; overflow: visible; } }
+.paper-sheet .cv-hl { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.22); border-radius: 3px; }
+.paper-sheet .cv-hl-entry { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.28); border-radius: 3px; }
+.opt-chips[role="group"] .opt-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* Cover letter page: sections, pages, dots */
+.lt-layout.lt-solo { grid-template-columns: minmax(0, 1fr); }
+.lt-pages { margin: 10px 0; }
+.lt-pages .q-hint { margin-top: 6px; }
+.sn-item.has-todo { position: relative; }
+.sn-item.has-todo::after { content: ""; position: absolute; top: 9px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: #E0A800; box-shadow: 0 0 0 2px var(--surface); }
+.app[data-nav="rail"] .sn-item.has-todo::after { top: 6px; right: 6px; }
+[data-ltstep][hidden] { display: none !important; }
+#ltNext { margin-top: 18px; display: grid; gap: 8px; }
+
+/* Find jobs: the opened job beside the list */
+.jb-split { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.25fr); gap: 14px; align-items: start; }
+.jb-split-list { display: grid; gap: 10px; min-width: 0; }
+.jb-split-detail { position: sticky; top: calc(var(--bar-h) + 12px); max-height: calc(100vh - var(--bar-h) - 28px); overflow-y: auto; background: var(--surface); border: 1.5px solid var(--accent); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 12px; min-width: 0; }
+.jb-dh { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.jb-dh h2 { font-size: var(--step-1); margin: 0 0 2px; }
+.jb-dh p { margin: 0; font-size: var(--step--1); }
+.jb-split-detail .job-detail { padding: 0; border: 0; }
+
+/* Cover letter steps, profile names, the delete button */
+#ltSteps { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 30rem; }
+.pf-names { list-style: none; margin: 6px 0 0; padding: 0 0 0 14px; grid-column: 1 / -1; display: grid; gap: 2px; font-size: var(--step--1); color: var(--muted); border-left: 2px solid var(--line); }
+.pf-names li::before { content: "• "; }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn.danger:disabled { opacity: 0.6; }
+
+/* On a phone the top bar has no room for Profile and Help, so they're at the bottom of the menu */
+.sn-links { display: none; }
+@media (max-width: 899px) { .sn-links { display: grid; gap: 2px; margin-top: 6px; } .sn-links .sn-item { padding: 8px 10px; } }

@@ -41,10 +41,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 10.5V17M8 7.2v.1M12 17v-6.5M12 13.2c0-1.6 1.1-2.7 2.5-2.7s2.5 1 2.5 2.7V17"/></svg>
         <span class="sn-text"><b>Create or edit LinkedIn</b><small>Build a profile or improve yours</small></span>
       </a>
-      <a class="sn-item" href="#profile" data-view="profile" data-for="seeker" title="Create or edit profile">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20c.9-3.6 3.9-5.5 7.5-5.5s6.6 1.9 7.5 5.5"/></svg>
-        <span class="sn-text"><b>Create or edit profile</b><small>Your details, used everywhere</small></span>
-      </a>
       <p class="sn-group" data-for="seeker">Find work</p>
       <a class="sn-item" href="#jobs" data-view="jobs" data-for="seeker" title="Find jobs">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8.5 7V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2V7"/><path d="M3 12.5h18"/></svg>
@@ -88,7 +84,7 @@
     <div class="sn-foot" id="snFoot">
       <button type="button" class="ai-chip" id="aiChip" aria-haspopup="dialog" aria-controls="aiHelp"><span class="dot" aria-hidden="true"></span><span id="aiChipText">Checking AI…</span></button>
       <span id="profileWhere">Loading your saved details…</span>
-      <div class="acct" id="acct"></div>
+      <div class="sn-links"><a class="sn-item" href="#profile" data-view="profile">Profile</a><a class="sn-item" href="#support" data-view="support">Contact or help</a></div>
     </div>
   </aside>
   <div class="scrim" id="scrim" hidden></div>
@@ -100,6 +96,14 @@
       <span class="ab-brand">Job <span>Finder</span></span>
       <span class="ab-sep" aria-hidden="true">/</span>
       <span class="ab-view" id="abView">Home</span>
+      <span class="ab-spacer"></span>
+      <div class="ab-tools">
+        <button class="icon-btn ab-undo" id="abUndo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+        <button class="icon-btn ab-undo" id="abRedo" type="button" title="Redo (Ctrl+Y)" aria-label="Redo" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+        <a class="ab-help" href="#profile">Profile</a>
+        <a class="ab-help" href="#support">Contact or help</a>
+        <div class="acct" id="acct"></div>
+      </div>
     </div>
     <div class="ai-help" id="aiHelp" role="dialog" aria-modal="false" aria-labelledby="aiHelpTitle" hidden></div>
 
@@ -464,6 +468,31 @@
 </div>
 </section>
 
+<section class="view" id="view-support" hidden aria-labelledby="spTitle">
+<div class="wrap">
+  <header class="view-head"><div><h1 id="spTitle">Contact or help</h1><p>Stuck, found a mistake, or have an idea? Tell us and we'll read it.</p></div></header>
+  <div class="sp-grid">
+    <form class="panel sp-form" id="spForm" novalidate>
+      <h2>Send us a message</h2>
+      <label class="field" for="spName">Your name <span class="opt">(optional)</span><input type="text" id="spName" maxlength="80" autocomplete="name"></label>
+      <label class="field" for="spEmail">Your email, so we can reply<input type="email" id="spEmail" maxlength="160" autocomplete="email"></label>
+      <label class="field" for="spKind">What's it about?<select id="spKind"><option>A question</option><option>Something isn't working</option><option>An idea or request</option><option>My account or data</option></select></label>
+      <label class="field" for="spMsg">Your message<textarea id="spMsg" rows="6" maxlength="4000" placeholder="What were you doing, and what happened?"></textarea></label>
+      <label class="visually-hidden" aria-hidden="true">Leave this empty<input type="text" id="spTrap" tabindex="-1" autocomplete="off" data-nohelp></label>
+      <div class="b-actions"><button class="btn primary" type="submit" id="spSend">Send message</button></div>
+      <p class="status-line" id="spStatus" role="status"></p>
+    </form>
+    <div class="panel sp-help">
+      <h2>Quick answers</h2>
+      <details><summary>Where is my information saved?</summary><p>In this browser, unless you sign up. With an account, your resume, letters, applications and practice are saved to it and follow you to any device. Your AI key never leaves your browser.</p></details>
+      <details><summary>The AI is slow or gave a strange answer</summary><p>Open Connect your AI. A model in your browser or Chrome's built-in AI can take a minute on some computers; a free Gemini key answers in a few seconds. Always check AI wording before you use it.</p></details>
+      <details><summary>I changed something by mistake</summary><p>Press Ctrl+Z (Cmd+Z on a Mac), or the undo arrow at the top of the page.</p></details>
+      <details><summary>How do I delete my data?</summary><p>Create or edit profile, then "Delete everything". You can download a copy first.</p></details>
+    </div>
+  </div>
+</div>
+</section>
+
 <section class="view" id="view-builder" hidden aria-labelledby="bTitle">
 <div class="wrap">
   <header class="view-head">
@@ -547,28 +576,31 @@
     </div>
   </header>
   <p class="status-line" id="ltStatus" role="status"></p>
-  <section class="panel lt-designs" aria-labelledby="ltDesignsH">
+  <nav class="b-steps" aria-label="Cover letter sections"><ol id="ltSteps"></ol></nav>
+  <section class="panel lt-designs" data-ltstep="0" aria-labelledby="ltDesignsH">
     <div class="panel-head"><h2 id="ltDesignsH">Start with a design</h2><p>Pick a cover letter template, then set its spacing and margins. Your letter takes its fonts and colour from it, and the preview, Word and PDF all follow.</p></div>
     <div id="ltDesigns"></div>
   </section>
-  <div class="lt-layout">
-    <section class="panel lt-form" aria-labelledby="ltFormH">
+  <div class="lt-layout" id="ltLayout">
+    <section class="panel lt-form" data-ltstep="1" aria-labelledby="ltFormH">
       <div class="panel-head"><h2 id="ltFormH">Your letter</h2><p>Five paragraphs, each with one job to do. Saved as you type, gaps and all. <span class="lt-target" id="ltTarget"></span></p></div>
-      <div class="q-grid">
+      <div class="q"><div class="q-label" id="ltModeL">Who is this letter for?</div><div class="seg" role="group" aria-labelledby="ltModeL" id="ltMode"><button type="button" data-lt-mode="job">A specific job</button><button type="button" data-lt-mode="template">A template for any job</button></div><p class="q-hint" id="ltModeHint"></p></div>
+      <div class="q-grid" id="ltFields">
         <label class="field" for="lt-role">Role you're applying for<input type="text" id="lt-role" data-lt="role" autocomplete="off"></label>
-        <label class="field" for="lt-company">Company<input type="text" id="lt-company" data-lt="company" autocomplete="off" placeholder="[XXX] until you add it"></label>
-        <label class="field" for="lt-recipient">Addressed to<input type="text" id="lt-recipient" data-lt="recipient" autocomplete="off" placeholder="[XXX] until you add it"></label>
+        <label class="field" for="lt-company">Company<input type="text" id="lt-company" data-lt="company" autocomplete="off" placeholder="A yellow placeholder shows until you add it"></label>
+        <label class="field" for="lt-recipient">Addressed to<input type="text" id="lt-recipient" data-lt="recipient" autocomplete="off" placeholder="A yellow placeholder shows until you add it"></label>
         <label class="field" for="lt-sal">Greeting<input type="text" id="lt-sal" data-lt="salutation" autocomplete="off"></label>
       </div>
       <div id="ltParts" class="lt-parts"></div>
       <div class="lt-signoff"><label class="field" for="lt-sign">Sign-off<input type="text" id="lt-sign" data-lt="signoff" autocomplete="off"></label>
-        <div class="lt-part-acts"><button class="btn" type="button" id="ltSignReword">Reword</button><span class="small muted">Other sign-offs that suit your greeting.</span></div><div class="lt-alts" id="ltSignAlts"></div></div>
+        <div class="lt-part-acts"><span class="small muted">Other sign-offs that suit your greeting. Click one to use it.</span></div><div class="lt-alts" id="ltSignAlts"></div></div>
       <div id="ltChecks"></div>
       <div class="lt-saved" id="ltSaved"></div>
     </section>
     <section class="panel lt-preview" aria-labelledby="ltDesign">
       <div class="lt-prev-head"><h2 id="ltDesign" class="small">Design</h2><button class="linkish" id="ltDesignBtn" type="button">Change design</button></div>
       <div class="paper-frame" id="ltPaper"></div>
+      <div class="lt-pages" id="ltPages"></div>
       <div class="dl-row">
         <button class="btn primary" id="ltDocx" type="button">Download as Word</button>
         <button class="btn primary" id="ltPdf" type="button">Download as PDF</button>

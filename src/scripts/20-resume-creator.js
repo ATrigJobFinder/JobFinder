@@ -23,7 +23,8 @@ function q(path, label, o = {}) {
   const id = fid(path);
   const lab = `<label class="q-label" for="${id}">${label}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label>`;
   const hint = o.hint ? `<p class="q-hint" id="${id}_h">${o.hint}</p>` : "";
-  const badDate = o.date && val(raw) && !dateOk(raw);
+  const order = o.date && /\.end$/.test(path) ? endBeforeStart(getPath(P(), path.replace(/\.end$/, ""))) : "";
+  const badDate = o.date && ((val(raw) && !dateOk(raw)) || !!order);
   const descIds = [o.hint ? id + "_h" : "", o.date ? id + "-msg" : ""].filter(Boolean).join(" ");
   const desc = descIds ? ` aria-describedby="${descIds}"` : "";
   const words = ["name", "surname", "title", "jobtitle"].includes(o.cap);
@@ -33,7 +34,7 @@ function q(path, label, o = {}) {
   else if (o.select) input = `<select id="${id}" data-path="${path}"${desc}${o.rerender ? ' data-rerender="1"' : ""}>${o.select.map(x => { const [k, l] = Array.isArray(x) ? x : [x, x]; return `<option value="${esc(k)}"${k === (v || "") ? " selected" : ""}>${esc(l || "Choose…")}</option>`; }).join("")}</select>`;
   else input = `<input type="${o.type || "text"}" id="${id}" data-path="${path}" value="${esc(v || "")}" placeholder="${esc(o.ph || "")}" autocomplete="${o.ac || "off"}"${extra}${desc}${o.suggest ? ` data-suggest="${o.suggest}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl"` : ""}>`;
   if (o.suggest) input = `<div class="pick sugg">${input}<ul class="pick-list" id="${id}-sl" role="listbox" aria-label="${esc(String(label).replace(/<[^>]+>/g, ""))} suggestions" hidden></ul></div>`;
-  const msg = o.date ? `<p class="pick-msg${badDate ? " err" : ""}" id="${id}-msg" role="status">${badDate ? esc(DATE_HELP) : ""}</p>` : "";
+  const msg = o.date ? `<p class="pick-msg${badDate ? " err" : ""}" id="${id}-msg" role="status">${badDate ? esc(order || DATE_HELP) : ""}</p>` : "";
   return `<div class="q${o.wide ? " wide" : ""}">${lab}<div class="q-body">${input}${msg}${o.after || ""}${hint}</div></div>`;
 }
 const DATE_HELP = "We can't read that date. Try a month and year like “Feb 2023”, “02/2023” or “February 2023”, or just the year.";
@@ -91,7 +92,7 @@ const STEP_RENDER = {
   },
   contact() {
     return stepHead(kicker("contact"), "How can employers reach you?", "Recruiters call more often than they email, so check your number.")
-      + `<div class="q-grid">${q("contact.first", "First name", { ph: "e.g. Alex", ac: "given-name", cap: "name" })}${q("contact.last", "Last name", { ph: "e.g. Nguyen", ac: "family-name", cap: "surname" })}${phoneQ()}${q("contact.email", "Email", { type: "email", ph: "e.g. alex.nguyen@email.com", ac: "email", hint: "Use a plain, professional address." })}${locQ("contact.location", "Suburb and state", { ac: true, hint: "Enough to show you're local. Not your street address." })}${q("contact.linkedin", "LinkedIn", { opt: true, ph: "linkedin.com/in/your-name", ac: "url" })}${q("contact.website", "Portfolio, GitHub or website", { opt: true, ph: "e.g. github.com/your-name", ac: "url" })}${q("contact.workRights", "Work rights", { opt: true, select: WORK_RIGHTS, hint: "Worth stating if your name or study history might make employers wonder." })}${q("contact.licence", "Driver's licence", { opt: true, ph: "e.g. Full C class licence, own car", hint: "Include it for field, trade, sales or travel roles.", suggest: "licence" })}</div>`
+      + `<div class="q-grid">${q("contact.first", "First name", { ph: "e.g. Alex", ac: "given-name", cap: "name" })}${q("contact.last", "Last name", { ph: "e.g. Nguyen", ac: "family-name", cap: "surname" })}${phoneQ()}${q("contact.email", "Email", { type: "email", ph: "e.g. alex.nguyen@email.com", ac: "email" })}${locQ("contact.location", "Suburb and state", { ac: true, hint: "Enough to show you're local. Not your street address." })}${q("contact.linkedin", "LinkedIn", { opt: true, ph: "linkedin.com/in/your-name", ac: "url" })}${q("contact.website", "Portfolio, GitHub or website", { opt: true, ph: "e.g. github.com/your-name", ac: "url" })}${q("contact.workRights", "Work rights", { opt: true, select: WORK_RIGHTS, hint: "Worth stating if your name or study history might make employers wonder." })}${licenceQ()}</div>`
       + `<p class="tip">Leave out your date of birth, photo, marital status and full street address. Australian employers don't need them, and they can invite bias.</p>`
       + `<p class="b-check" id="bContactCheck"></p>`;
   },
@@ -110,17 +111,18 @@ const STEP_RENDER = {
   experience() {
     const p = P();
     return stepHead(kicker("experience"), "Your work experience", "Newest first. Paid work, internships and substantial unpaid roles all count. For each job, answer the questions, turn them into bullet points, then finish the job to add it to your resume.")
+      + sortBar("experience")
       + p.experience.map((e, i) => expCard(e, i)).join("")
-      + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="experience">+ Add a job</button>${sortBtn("experience")}</div>`
-      + verbsHelp();
+      + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="experience">+ Add a job</button></div>`;
   },
   education() {
     const p = P();
     const tip = stageOf(p) === "student" ? "Your education goes first on your resume while you're studying or recently graduated." : "After a few years of work, education sits below experience. You can drop high school and ATAR.";
     return stepHead(kicker("education"), "Your education", "Degrees, diplomas, TAFE, school and certificates. Newest first. Finish each one to add it to your resume.")
       + `<p class="tip">${tip}</p>`
+      + sortBar("education")
       + p.education.map((e, i) => eduCard(e, i)).join("")
-      + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="education">+ Add a qualification</button>${sortBtn("education")}</div>`;
+      + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="education">+ Add a qualification</button></div>`;
   },
   skills() {
     return stepHead(kicker("skills"), "Your skills and licences", "Applicant tracking systems match these against the job ad, so use the same words employers use. Start typing to pick from the list, or press Enter to add your own. Only add what you can talk about in an interview.")
@@ -137,8 +139,8 @@ const STEP_RENDER = {
       + box("availability", "Availability", `<div class="q-grid">${startQ()}${q("availability", "Days and hours you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights; full time over summer", prose: true })}</div>`)
       + box("projects", "Projects", p.projects.map((x, i) => projCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="projects">+ Add a project</button></div><p class="q-hint">University, personal or work projects. Say what you built and what came of it.</p>`)
       + box("volunteering", "Volunteering", p.volunteering.map((x, i) => volCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="volunteering">+ Add a role</button></div>`)
-      + box("awards", "Awards and achievements", q("awards", "One per line", { area: true, multi: true, rows: 3, ph: "e.g. Dean's List, 2024\nEmployee of the Month, Kmart Chadstone, March 2023", after: `<div class="x-wrap" data-xr="awards.0">${extraRewordHtml("awards", 0)}</div>` }) + textFoot("awards"))
-      + box("publications", "Publications", q("publications", "One per line, in your field's citation style", { area: true, multi: true, rows: 3 }) + textFoot("publications"))
+      + box("awards", "Awards and achievements", lineListQ("awards", "Awards and achievements", "e.g. Dean's List, 2024", "+ Add an award", `<div class="x-wrap" data-xr="awards.0">${extraRewordHtml("awards", 0)}</div>`) + textFoot("awards"))
+      + box("publications", "Publications", lineListQ("publications", "Publications, in your field's citation style", "e.g. Nguyen, A. (2025). Title. Journal, 12(3), 45-60", "+ Add a publication") + textFoot("publications"))
       + box("interests", "Interests", q("interests", "A short line", { hint: "Only if they say something useful about you: a team sport, a club you run, a relevant hobby.", ph: "e.g. Club cricket, building mechanical keyboards", prose: true }) + textFoot("interests"))
       + box("referees", "Referees", refereesBlock());
   },
@@ -151,7 +153,6 @@ const STEP_RENDER = {
     return stepHead(kicker("review"), "Check and download", "A quick check of what recruiters and applicant tracking systems look for, an AI read-through of the whole resume, then choose what goes on this version.")
       + `<div class="health"><div class="health-num" style="border-color:${col}"><div><b>${h.score}</b><span>out of 100</span></div></div><div><p><b>${h.score >= 80 ? "Strong. Ready to send." : h.score >= 60 ? "Good. A few fixes will make it stronger." : "Getting there. Fix the items marked below."}</b></p><p class="small muted">${h.items.filter(i => i.status !== "pass").length} thing${h.items.filter(i => i.status !== "pass").length === 1 ? "" : "s"} to improve.</p></div></div>`
       + `<ul class="health-list">${sorted.map(i => `<li>${icon(i.status)}<span>${esc(i.text)}</span>${i.status !== "pass" && i.step != null ? `<button class="linkish" type="button" data-act="goto" data-step="${i.step}">Fix</button>` : "<span></span>"}</li>`).join("")}</ul>`
-      + reviewCheckHtml()
       + chooseHtml()
       + colourQ()
       + `<div class="b-sub">Page setup</div>` + pageSetupQ()
@@ -183,7 +184,7 @@ function summaryActions() {
 }
 const hasContent = e => !!(e.title || e.org || e.degree || e.inst || e.name || e.subject);
 // Small badges on each card: finished (on the resume), a draft, or hidden from this resume
-const cardState = e => !hasContent(e) ? "" : (e.hidden ? '<span class="card-tag off">Hidden</span>' : "") + (e.done ? '<span class="card-tag done">On your resume</span>' : '<span class="card-tag">Draft</span>');
+const cardState = e => !hasContent(e) ? "" : (e.hidden ? '<span class="card-tag off">Hidden</span>' : "") + (e.done ? '<span class="card-tag done">On your resume</span>' : '<span class="card-tag draft">Draft</span>');
 function expCard(e, i) {
   const open = builder.open.experience.has(i);
   const title = [e.title, e.org].filter(Boolean).join(" at ") || "New job";
@@ -191,27 +192,28 @@ function expCard(e, i) {
   const genned = builder.genned.has(i) || !!builder.sugg[i];
   // once there are bullet points, the questions fold away so the bullets are easy to read; click to open them again
   const hasBullets = e.bullets.some(b => b.trim()), foldOpen = builder.foldOpen[i] === undefined ? !hasBullets : builder.foldOpen[i];
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="experience" data-i="${i}"${open ? " open" : ""}><summary><span>${esc(title)}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="experience" data-i="${i}"${open ? " open" : ""}><summary>${dragH("experience", i)}<span>${esc(title)}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".title", "Job title", { ph: "e.g. Engineering Intern", suggest: "titles", cap: "jobtitle" })}${q(base + ".org", "Employer", { ph: "e.g. Brightwater Solar", suggest: "employers", cap: "title" })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("Feb 2023"), date: true })}${e.current ? presentBox() : q(base + ".end", "Finished", { ph: datePh("Nov 2024"), date: true })}${endCheck(base + ".current", "I work here now")}</div>
     ${locQ(base + ".location", "Location", { opt: true })}
-    <details class="b-fold" data-fold="${i}"${foldOpen ? " open" : ""}><summary><span class="b-sub">Tell us about this job</span><span class="small muted">${foldOpen ? "" : "Your answers are saved. Click to see or change them."}</span></summary>
+    <div class="b-aiin"><div class="b-aiin-head"><span class="b-sub">Tell us about this job</span><span class="card-tag ai">For the AI only: not on your resume</span></div><p class="q-hint">Answer in plain words. The AI uses these to write your bullet points below, and they never appear on the resume themselves.</p>
     ${q(base + ".answers.duties", "What were your main responsibilities?", { area: true, rows: 2, ph: "e.g. Served customers, ran the register, opened and closed the store", after: `<p class="b-check warn" data-vague="${i}">${esc(vagueNote(e))}</p>` })}
     ${q(base + ".answers.wins", "What did you achieve, improve or get recognised for?", { area: true, rows: 3, hint: "Numbers help a lot: how many customers, how much money, how much time saved, how many people trained.", ph: "e.g. Trained 5 new staff. Cut weekly stock-count time from 4 hours to 2 by reorganising the storeroom." })}
     <div class="q-grid">${q(base + ".answers.tools", "Which tools, software or equipment did you use?", { area: true, rows: 2, ph: "e.g. Excel, SolidWorks, POS system, forklift" })}${q(base + ".answers.people", "Who did you work with or for?", { area: true, rows: 2, ph: "e.g. A team of 6; senior engineers; up to 200 customers a day" })}</div>
-    </details>
-    <div class="b-sub">Bullet points</div>
-    <p class="q-hint">Three to six for recent jobs. Each one a full sentence: an action word, what you did, how, and what came of it. Suggestions are written and polished in one go.</p>
+    </div>
+    <div class="b-sub">Bullet points <span class="card-tag done">This is what your resume shows, word for word</span>${hinfoHtml("One achievement or task per box: start with an action word and say what changed.", "Bullets are what recruiters actually read, and these are the exact words that appear on your resume.")}</div>
+    <p class="q-hint">Three to six for recent jobs. Each one a full sentence: an action word, what you did, how, and what came of it.</p>
     <div class="bl-list">${e.bullets.map((b, j) => bulletRow(`${base}.bullets.${j}`, b, i, j, e.current)).join("")}</div>
-    <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button><button class="btn${genned ? "" : " primary"}" type="button" data-act="ai-bullets" data-i="${i}" data-mode="${genned ? "more" : "new"}">${genned ? "Suggest more" : "Turn my answers into bullet points"}</button>${genned ? `<button class="btn ghost" type="button" data-act="ai-bullets" data-i="${i}" data-mode="redo">Try again</button>` : ""}</div>
+    <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button>${genned ? "" : `<button class="btn primary" type="button" data-act="ai-bullets" data-i="${i}" data-mode="new">Turn my answers into bullet points</button>`}${genned ? `<button class="btn ghost" type="button" data-act="ai-bullets" data-i="${i}" data-mode="redo">Try again</button>` : ""}</div>
+    ${verbsHelp()}
     <div class="b-sugg" id="bSugg${i}">${suggHtml(i)}</div>
     ${cardFoot("experience", i, e)}
   </div></details>${finNoteHtml("experience", i)}`;
 }
 const NOUN = { experience: "job", education: "qualification", projects: "project", volunteering: "role", referees: "referee" };
 const FIN_HINT = {
-  experience: "Finish checks this job has a title, employer, start date and a bullet point, tidies the wording of anything you've changed, and adds it to your resume. Only finished jobs show in the preview and downloads.",
-  education: "Polish tidies the subjects, project and awards. Finish checks this has a name, place and dates, tidies capitals and spelling, and adds it to your resume. Only finished entries show in the preview and downloads.",
+  experience: "Finish checks this job has a title, employer, start date and a bullet point, and adds it to your resume. Only finished jobs show in the preview and downloads.",
+  education: "Finish checks this has a name, place and dates, tidies capitals and spelling, and adds it to your resume. Only finished entries show in the preview and downloads.",
   projects: "Finish tidies your notes into clear resume lines and adds the project to your resume.",
   volunteering: "Finish tidies your notes into clear resume lines and adds the role to your resume.",
   referees: "Finish tidies the capitals, phone number and email and adds them to your resume."
@@ -222,7 +224,7 @@ function cardFoot(list, i, e) {
   const polished = e.polished && e.polished === polishSig(list, e);
   return `${e.done ? "" : `<p class="q-hint fin-hint">${FIN_HINT[list]}</p>`}<p class="status-line" id="bFin-${list}-${i}" role="status"></p>
     <div class="b-card-foot">${i > 0 ? `<button class="btn ghost" type="button" data-act="move" data-list="${list}" data-i="${i}" data-d="-1">Move up</button>` : ""}${i < len - 1 ? `<button class="btn ghost" type="button" data-act="move" data-list="${list}" data-i="${i}" data-d="1">Move down</button>` : ""}<button class="btn ghost" type="button" data-act="del" data-list="${list}" data-i="${i}">Remove</button>${list === "referees" ? "" : `<button class="btn ghost" type="button" data-act="hide" data-list="${list}" data-i="${i}" aria-pressed="${!!e.hidden}">${e.hidden ? "Show on resume" : "Hide from resume"}</button>`}
-    <span class="foot-gap"></span>${list === "education" ? `<button class="btn" type="button" data-act="polish" data-list="${list}" data-i="${i}">${polished || e.done ? "Polish again" : "Polish"}</button>` : ""}<button class="btn primary" type="button" data-act="finish" data-list="${list}" data-i="${i}">${e.done ? "Finish" : `Finish this ${NOUN[list]}`}</button></div>`;
+    <span class="foot-gap"></span><button class="btn primary" type="button" data-act="finish" data-list="${list}" data-i="${i}">${e.done ? "Finish" : `Finish this ${NOUN[list]}`}</button></div>`;
 }
 function bulletRow(path, text, i, j, current) {
   const alts = builder.alts[`${i}.${j}`], ask = builder.fixAsk === `${i}.${j}`;
@@ -237,23 +239,23 @@ function eduCard(e, i) {
   const base = `education.${i}`, lv = qualLevel(e.level);
   const subjects = listOf(val(e.coursework)).filter(x => !isBlank(x)), picked = pickSubjects(e, P());
   const levels = [["", "Choose the level…"], ...QUAL_LEVELS.map(x => [x.k, x.label])];
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="education" data-i="${i}"${open ? " open" : ""}><summary><span>${esc([e.degree, e.inst].filter(Boolean).join(", ") || "New qualification")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e, true))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="education" data-i="${i}"${open ? " open" : ""}><summary>${dragH("education", i)}<span>${esc([e.degree, e.inst].filter(Boolean).join(", ") || "New qualification")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e, true))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".level", "Level", { select: levels, rerender: true })}${q(base + ".subject", lv && lv.school ? "Certificate" : lv && (lv.k === "other" || lv.k === "short") ? "Name of the qualification" : "Subject or field", { ph: (lv && lv.ph) || "e.g. Engineering (Mechanical), Commerce or Hospitality", suggest: "subject", cap: "title", opt: !!(lv && lv.school) })}
-      <div class="q wide q-solo"><div class="q-body"><label class="q-check"><input type="checkbox" data-path="${base}.double" data-rerender="1"${e.double ? " checked" : ""}> This is a double degree (two qualifications studied together)</label></div></div>
       ${e.double ? q(base + ".level2", "Second degree: level", { select: levels, rerender: true }) + q(base + ".subject2", qualLevel(e.level2) && qualLevel(e.level2).school ? "Certificate" : "Second degree: subject or field", { ph: (qualLevel(e.level2) && qualLevel(e.level2).ph) || "e.g. Commerce or Laws", suggest: "subject", cap: "title" }) : ""}
+      <div class="q wide q-solo"><div class="q-body"><label class="q-check"><input type="checkbox" data-path="${base}.double" data-rerender="1"${e.double ? " checked" : ""}> This is a double degree (two qualifications studied together)</label></div></div>
       <div class="q wide q-merged"><span class="q-label">On your resume</span><div class="q-body"><p class="q-merge" id="${fid(base)}_name">${e.degree ? esc(e.degree) : '<span class="muted">Choose a level and type the subject</span>'}</p></div></div>
       ${q(base + ".inst", lv && lv.school ? "School" : "University, TAFE or school", { ph: lv && lv.school ? "Start typing your school's name" : "e.g. Queensland University of Technology", suggest: "inst", cap: "title", hint: lv && lv.school && !SCHOOLS_LOADED() ? "Type your school's full name." : "" })}${locQ(base + ".location", "Location", { opt: true })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("Feb 2022"), date: true })}${q(base + ".end", e.current ? "Expected to finish" : "Finished", { ph: datePh("Nov 2025"), date: true })}${endCheck(base + ".current", "I'm still studying")}</div>
     ${builder.autoStudy === base + ".end" && e.current ? `<p class="b-check ok" role="status">That's after today, so “I'm still studying” is ticked${studyStage(e) && studyStage(e).label ? ` and you'll be described as ${aOrAn(studyStage(e).label)} ${studyStage(e).label} student` : ""}.</p>` : ""}
     <div class="q-grid">${gradeQ(e, base)}${q(base + ".awards", "Scholarships or awards", { opt: true, ph: "e.g. Dean's List 2024", prose: true })}</div>
-    ${q(base + ".coursework", "Relevant subjects", { opt: true, area: true, rows: 2, ph: "e.g. Thermodynamics, Fluid Mechanics, Engineering Design, Statics, Materials Science", hint: `List all your subjects, separated by commas. Your profile keeps every one, and each resume shows the ${SUBJECTS_SHOWN} closest to the job you're going for${P().target.specific && val(P().target.ad) ? " (picked from the job ad in Goal)" : ""}.`, after: subjects.length > SUBJECTS_SHOWN ? `<p class="b-check ok" data-subjects="${i}">Showing ${picked.length} of ${subjects.length} on this resume: ${esc(picked.join(", "))}.</p>` : `<p class="b-check" data-subjects="${i}"></p>` })}
-    ${q(base + ".project", "Thesis or major project", { opt: true, ph: "e.g. Thesis: Passive cooling for rooftop solar panels", prose: true })}
+    ${q(base + ".coursework", "Relevant subjects", { opt: true, area: true, rows: 2, ph: "e.g. Thermodynamics, Fluid Mechanics, Engineering Design, Statics, Materials Science", hint: `Add every subject, separated by commas. Each resume shows the ${SUBJECTS_SHOWN} closest to the job you're going for${P().target.specific && val(P().target.ad) ? " (picked from the job ad in Goal)" : ""}.`, after: subjects.length > SUBJECTS_SHOWN ? `<p class="b-check ok" data-subjects="${i}">Showing ${picked.length} of ${subjects.length} on this resume: ${esc(picked.join(", "))}.</p>` : `<p class="b-check" data-subjects="${i}"></p>` })}
+    ${projectQ(e, base)}
     ${cardFoot("education", i, e)}
   </div></details>${finNoteHtml("education", i)}`;
 }
 function projCard(x, i) {
   const base = `projects.${i}`;
-  return `<details class="b-card${x.done ? " done" : ""}${x.hidden ? " is-hidden" : ""}" data-card="projects" data-i="${i}"${builder.open.projects.has(i) ? " open" : ""}><summary><span>${esc(x.name || "New project")}</span>${cardState(x)}<span class="meta">${esc(rangeOf(x))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${x.done ? " done" : ""}${x.hidden ? " is-hidden" : ""}" data-card="projects" data-i="${i}"${builder.open.projects.has(i) ? " open" : ""}><summary>${dragH("projects", i)}<span>${esc(x.name || "New project")}</span>${cardState(x)}<span class="meta">${esc(rangeOf(x))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".name", "Project name", { ph: "e.g. Solar-powered irrigation controller", cap: "title" })}${q(base + ".org", "For or with", { opt: true, ph: "e.g. RMIT capstone, team of 4" })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { opt: true, ph: datePh("Mar 2024"), date: true })}${x.current ? presentBox() : q(base + ".end", "Finished", { opt: true, ph: datePh("Jun 2024"), date: true })}${endCheck(base + ".current", "It's ongoing")}</div>
     ${q(base + ".details", "What did you do, and what came of it? One point per line.", { area: true, rows: 3, multi: true, after: `<div class="x-wrap" data-xr="projects.${i}">${extraRewordHtml("projects", i)}</div>` })}
@@ -261,9 +263,9 @@ function projCard(x, i) {
 }
 function volCard(e, i) {
   const base = `volunteering.${i}`;
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="volunteering" data-i="${i}"${builder.open.volunteering.has(i) ? " open" : ""}><summary><span>${esc([e.title, e.org].filter(Boolean).join(" at ") || "New role")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="volunteering" data-i="${i}"${builder.open.volunteering.has(i) ? " open" : ""}><summary>${dragH("volunteering", i)}<span>${esc([e.title, e.org].filter(Boolean).join(" at ") || "New role")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".title", "Role", { ph: "e.g. Volunteer Coach", cap: "jobtitle", suggest: "titles" })}${q(base + ".org", "Organisation", { ph: "e.g. Northside Junior Football Club", cap: "title", suggest: "employers" })}</div>
-    <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("2022"), date: true })}${e.current ? presentBox() : q(base + ".end", "Finished", { ph: datePh("2024"), date: true })}${endCheck(base + ".current", "I still do this")}</div>
+    <div class="q-dates">${q(base + ".start", "Started", { opt: true, ph: datePh("2022"), date: true })}${e.current ? presentBox() : q(base + ".end", "Finished", { opt: true, ph: datePh("2024"), date: true })}${endCheck(base + ".current", "I still do this")}</div>
     ${q(base + ".bullets", "What did you do? One point per line.", { area: true, rows: 3, lines: true, after: `<div class="x-wrap" data-xr="volunteering.${i}">${extraRewordHtml("volunteering", i)}</div>` })}
     ${cardFoot("volunteering", i, e)}</div></details>${finNoteHtml("volunteering", i)}`;
 }
@@ -291,10 +293,10 @@ function textFoot(key) {
 }
 const CHIP_LABELS = {
   software: ["Software and tools", "Programs, systems and equipment, like Excel, Xero, AutoCAD or a forklift.", "Start typing a tool, or press Enter to add your own"],
-  certs: ["Licences and certificates", "White Card, RSA, First Aid, Working with Children Check, driver's licence…", "Start typing a licence or certificate"],
+  certs: ["Licences and certificates", "White Card, RSA, First Aid, Working with Children Check… Your driver's licence from the Contact step is added here for you.", "Start typing a licence or certificate"],
   hard: ["Technical and job skills", "Things you can do, like “Financial reporting”, “Food safety” or “Engineering drawings”.", "Start typing a skill, or press Enter to add your own"],
   languages: ["Languages", "Include your level, like “Mandarin (fluent)”.", "e.g. Vietnamese (conversational)"],
-  soft: ["Strengths", "Pick up to six. Your bullet points should back them up.", "e.g. Communication"]
+  soft: ["Strengths", "Pick up to 12. Every one you pick shows on your resume, and your bullet points should back them up.", "e.g. Communication"]
 };
 function chipEditor(key, label, hint, ph) {
   const items = P().skills[key], id = "chin_" + key;
@@ -488,6 +490,7 @@ function renderPreview() {
   const example = !hasProfile(p) && !finished(p.experience).length && !finished(p.education).length;
   const pages = mountPaper(frame, cvHtml(cvModel(example ? SAMPLE_PROFILE : p, tpl), tpl, { accent: builderAccent(base) }));
   builder.pages = pages;
+  paperHighlight();
   const drafts = draftsIn(p).length, hidden = ["experience", "education", "projects", "volunteering"].reduce((a, l) => a + p[l].filter(e => e.hidden && e.done !== false && hasContent(e)).length, 0);
   $("bPages").textContent = `${pages} page${pages === 1 ? "" : "s"} in the ${tpl.name} layout.${example ? " This is an example with made-up details. Yours replace it as you finish each part." : ""}${pages > 2 && !example ? " Aim for two at most." : ""}${drafts ? ` ${drafts} ${drafts === 1 ? "entry isn't" : "entries aren't"} finished yet, so ${drafts === 1 ? "it's" : "they're"} not shown.` : ""}${hidden ? ` ${hidden} hidden from this resume.` : ""}`;
   const h = resumeHealth(p);
@@ -530,11 +533,18 @@ function updateChecks() {
   }
 }
 // A date box: tidied when you leave it, red if it can't be read
-function dateMark(t, bad) {
+function dateMark(t, bad, msg) {
   t.classList.toggle("bad", bad);
   t.setAttribute("aria-invalid", bad ? "true" : "false");
   const m = $(t.id + "-msg");
-  if (m) { m.textContent = bad ? DATE_HELP : ""; m.classList.toggle("err", bad); }
+  if (m) { m.textContent = bad ? (msg || DATE_HELP) : ""; m.classList.toggle("err", bad); }
+}
+// After a start or finish date changes: is the finish before the start?
+function dateOrderCheck(path) {
+  const base = path.replace(/\.(start|end)$/, ""), entry = getPath(P(), base), endBox = $(fid(base + ".end"));
+  if (!entry || !endBox) return;
+  const msg = endBeforeStart(entry);
+  dateMark(endBox, !!msg || (!!val(endBox.value) && !dateOk(endBox.value)), msg);
 }
 
 /* --- Editing --- */
@@ -586,7 +596,7 @@ function onBuilderInput(e) {
   if (path === "summary") { if (p.summaryOk) { p.summaryOk = false; const a = document.querySelector('[data-act="sum-accept"]'); if (a) { a.disabled = false; a.textContent = "Accept"; a.classList.add("primary"); } const ok = $("bSumOk"); if (ok) ok.textContent = ""; } }
   if (/^(awards|publications|interests)$/.test(path)) p.extrasDone[path] = false;
   if (t.dataset.date) {
-    if (change) { const f = fmtDate(v); setPath(p, path, f); t.value = showDate(f); dateMark(t, !!val(f) && !dateOk(f)); }
+    if (change) { const f = fmtDate(v); setPath(p, path, f); t.value = showDate(f); dateMark(t, !!val(f) && !dateOk(f)); dateOrderCheck(path); }
     else if (t.classList.contains("bad") && (!val(v) || dateOk(v))) dateMark(t, false);
   }
   // a qualification that finishes after today is still being studied
@@ -661,7 +671,7 @@ function addChip(key, raw, o = {}) {
   if (!vals.length) return;
   const arr = P().skills[key];
   for (const v of vals) if (!arr.some(x => x.toLowerCase() === v.toLowerCase())) arr.push(v);
-  if (key === "soft" && arr.length > 6) arr.splice(6);
+  if (key === "soft" && arr.length > 12) { arr.splice(12); toast("Twelve strengths is the most. Remove one to add another.", "warn"); }
   touchProfile("builder");
   rerenderChips(key, o);
 }
@@ -779,7 +789,7 @@ async function onBuilderClick(e) {
       touchProfile("builder"); renderBuilder(false); return;
     }
     case "add-bullet": return addOneBullet(i, b);
-    case "del-bullet": keepOpen(); p.experience[i].bullets.splice(+b.dataset.j, 1); touchProfile("builder"); renderBuilder(false); return;
+    case "del-bullet": { keepOpen(); const dj = +b.dataset.j; p.experience[i].bullets.splice(dj, 1); const moved = {}; for (const [k, v] of Object.entries(builder.alts)) { const [ki, kj] = k.split(".").map(Number); if (ki !== i) moved[k] = v; else if (kj < dj) moved[k] = v; else if (kj > dj) moved[ki + "." + (kj - 1)] = v; } builder.alts = moved; if (builder.fixAsk && builder.fixAsk.startsWith(i + ".")) builder.fixAsk = null; } touchProfile("builder"); renderBuilder(false); return;
     case "chip-del": P().skills[b.dataset.key].splice(i, 1); touchProfile("builder"); rerenderChips(b.dataset.key); return;
     case "chip-sugg": addChip(b.dataset.key, b.dataset.val); return;
     case "sugg-more": builder.moreSugg[b.dataset.key] = (+builder.moreSugg[b.dataset.key] || 0) + 1; rerenderChips(b.dataset.key); return;
@@ -808,7 +818,7 @@ async function onBuilderClick(e) {
       if (!s.items.length) delete builder.sugg[i];
       touchProfile("builder"); renderBuilder(false); return;
     }
-    case "ch-up": case "ch-down": case "ch-fit": case "ch-all": case "ch-restore": return chooseAct(act, b);
+    case "ch-up": case "ch-down": case "ch-fit": case "ch-fit2": case "ch-all": case "ch-restore": return chooseAct(act, b);
     case "alt-more": keepOpen(); builder.altSeed = (builder.altSeed || 0) + 1; renderBuilder(false); return;
     case "x-reword": return rewordExtra(list, i);
     case "x-use": {
@@ -840,6 +850,7 @@ async function onBuilderClick(e) {
     case "to-letter": openView("letter"); return;
     case "to-linkedin": openView("linkedin"); return;
     case "sort-date": return sortByDate(list);
+    case "sort-level": return sortByLevel();
     case "to-scanner": sendToScanner(); return;
     case "to-interview": openView("interview"); return;
   }
@@ -1426,6 +1437,10 @@ async function importInto(kind, input, statusEl, sourceName) {
   statusEl.innerHTML = `${esc(`Read ${sourceName}${via ? ` (checked by ${via})` : ""}: ${what.length ? "added " + listJoin(what) : "nothing new to add, but blanks were filled in"}. Each job and qualification is a draft until you finish it, so check each step and answer the questions to strengthen it.`)}${builder.undo ? ' <button class="linkish" type="button" id="bUndoImport">Undo</button>' : ""}`;
   const u = $("bUndoImport");
   if (u) u.onclick = () => { replaceProfile(builder.undo, "import"); builder.undo = null; statusEl.textContent = "Restored your previous answers."; };
+  // the import box has done its job: put it away and say so
+  const box = $("bImport");
+  if (box && !box.hidden && statusEl === $("bImportStatus")) { box.hidden = true; const ib = $("bImportBtn"); if (ib) ib.setAttribute("aria-expanded", "false"); }
+  toast(kind === "linkedin" ? "LinkedIn profile successfully loaded" : "Resume successfully loaded", "ok");
   return true;
 }
 // Older callers: a resume's text

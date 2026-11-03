@@ -144,8 +144,8 @@ function nextStepsHtml() {
   const p = P(), ad = p.target.specific && val(p.target.ad);
   const card = (act, tag, head, text, go) => `<button type="button" class="nx-card" data-act="${act}"><span class="nx-tag">${tag}</span><b>${head}</b><span class="nx-text">${text}</span><span class="nx-go">${go} <i aria-hidden="true">→</i></span></button>`;
   return `<div class="b-sub">What next?</div><p class="q-hint">Your resume is done. These three make it work harder for you.</p><div class="b-next nx">`
-    + card("to-scanner", "Most useful", ad ? "Tailor this resume to your job ad" : "Tailor it to a real job ad", "Paste an ad to see your match score, the skills it asks for that you haven't shown, and get your resume and a cover letter shaped around that job.", "Tailor to a job")
-    + card("to-letter", "Do this next", "Write a cover letter that sounds like you", "Five short paragraphs, drafted from this resume. Every gap is highlighted in yellow so nothing is sent unfinished.", "Create a cover letter")
-    + card("to-linkedin", "Quick win", "Make your LinkedIn match your resume", "Get a headline, About section and skills list written from this resume, so recruiters see the same strong story everywhere.", "Improve my LinkedIn")
+    + card("to-letter", "Most useful", "Write a cover letter that sounds like you", "Five short paragraphs, drafted from this resume. Every gap is highlighted in yellow so nothing is sent unfinished.", "Create a cover letter")
+    + card("to-linkedin", "Do this next", "Make your LinkedIn match your resume", "Get a headline, About section and skills list written from this resume, so recruiters see the same strong story everywhere.", "Improve my LinkedIn")
+    + card("to-scanner", "Quick win", ad ? "Tailor this resume to your job ad" : "Tailor it to a real job ad", "Paste an ad to see your match score, the skills it asks for that you haven't shown, and get your resume and a cover letter shaped around that job.", "Tailor to a job")
     + `</div>`;
 }

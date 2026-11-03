@@ -16,7 +16,11 @@ function letterStage(text) {
   if (hasProfile(P())) return stageOf(P());
   return /expected|currently (studying|completing)|penultimate|final[- ]year/i.test(text || "") ? "student" : "early";
 }
-const letterRange = text => LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
+const letterRange = text => {
+  const r = LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
+  const two = typeof profile !== "undefined" && profile.data && profile.data.prefs && profile.data.prefs.letterPages === 2;
+  return two ? [Math.round(r[1] * 1.15), Math.round(r[1] * 1.8)] : r;
+};
 // The fewest words each paragraph should have, so none of them is thin
 const partMin = (key, range) => Math.round((range[0] - 100) * (PART_SHARE[key] || 0.2) / 5) * 5 + 20;
 const COVER_CLICHES = ["to whom it may concern", "i am writing to express my interest", "i am writing to apply", "team player", "hard-working", "hardworking", "hard working", "passionate", "perfect fit", "great fit", "ideal candidate", "think outside the box", "go-getter", "results-driven", "dynamic", "synergy", "i believe i would be", "dear sir/madam", "dear sir or madam"];

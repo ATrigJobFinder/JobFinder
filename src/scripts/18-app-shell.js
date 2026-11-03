@@ -1,5 +1,5 @@
 /* ===================== App shell: sidebar and tabs ===================== */
-const VIEWS = { home: "Home", connect: "Connect your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
+const VIEWS = { support: "Contact or help", home: "Home", connect: "Connect your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
 const NAV_KEY = "jobfinder.nav.v1", VIEW_KEY = "jobfinder.view.v1", MODE_KEY = "jobfinder.mode.v1";
 const EMPLOYER_VIEWS = new Set(["employer", "jobs", "connect"]);
 const appEl = $("app");
@@ -71,6 +71,13 @@ $("sidenav").addEventListener("click", e => { if (e.target.closest(".sn-item")) 
 document.addEventListener("keydown", e => { if (e.key === "Escape" && appEl.dataset.drawer === "open") closeDrawer(true); });
 matchMedia("(max-width: 899px)").addEventListener("change", applyNav);
 
+// A short message in the corner: kind "ok" is green, "warn" is yellow
+function toast(msg, kind = "ok") {
+  let t = document.getElementById("jfToast");
+  if (!t) { t = document.createElement("div"); t.id = "jfToast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.className = "jf-toast " + kind; t.textContent = msg; t.hidden = false;
+  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 3400);
+}
 function showView(name, opts = {}) {
   if (!VIEWS[name]) name = appMode === "employer" ? "employer" : "home";
   if (appMode === "employer" && !EMPLOYER_VIEWS.has(name)) setMode("seeker");
@@ -100,6 +107,11 @@ document.querySelectorAll(".sn-item").forEach(a => a.addEventListener("click", e
 // Make a file and hand it to the viewer, with plain-English status messages
 async function downloadMade(name, make, statusEl, btn) {
   const say = m => { if (statusEl) { statusEl.classList.remove("err"); statusEl.textContent = m; } };
+  // ask what to call the file (the ending stays as it is)
+  const dot = name.lastIndexOf("."), stem = dot > 0 ? name.slice(0, dot) : name, ext = dot > 0 ? name.slice(dot) : "";
+  const chosen = typeof askName === "function" ? await askName({ title: "Name your file", text: ext ? `It will be saved as a ${ext.slice(1).toUpperCase()} file.` : "", label: "File name", value: stem, ok: "Download" }) : stem;
+  if (!chosen) { if (statusEl) { statusEl.classList.remove("err"); statusEl.textContent = "Download cancelled."; } return false; }
+  name = chosen.replace(/[\\/:*?"<>|]+/g, "").trim().replace(new RegExp(ext.replace(".", "\\.") + "$", "i"), "") + ext;
   if (btn) btn.disabled = true;
   say("Preparing your file…");
   try {
