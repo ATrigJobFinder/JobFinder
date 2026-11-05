@@ -22,7 +22,18 @@ function paperHighlight() {
     const hit = [...sheet.querySelectorAll(".cv-entry")].find(en => names.some(n => (en.querySelector(".cv-et") || {}).textContent && en.querySelector(".cv-et").textContent.trim().toLowerCase() === n));
     if (hit) { hit.classList.add("cv-hl-entry"); const sec = hit.closest(".cv-sec"); if (sec) sec.classList.remove("cv-hl"); }
   }
+  if (any) scrollPreviewToHighlight();
   return any;
+}
+// Keep the highlighted part of the preview in view (the preview scrolls inside its own column; the page itself doesn't jump)
+function scrollPreviewToHighlight() {
+  const sheet = document.querySelector("#bPaper .paper-sheet"), box = sheet && sheet.closest(".b-side");
+  const el = sheet && (sheet.querySelector(".cv-hl-entry") || sheet.querySelector(".cv-hl"));
+  if (!el || !box) return;
+  const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+  if (r.top >= b.top + 24 && r.bottom <= b.bottom - 24) return;
+  const to = box.scrollTop + (r.top - b.top) - 70;
+  box.scrollTo({ top: Math.max(0, to), behavior: reduceMotion() ? "auto" : "smooth" });
 }
 onInit(() => {
   const f = $("bForm");

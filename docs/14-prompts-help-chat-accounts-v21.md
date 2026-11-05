@@ -39,7 +39,7 @@ It only advises: it can't see or change your resume, and the chat isn't saved. I
 
 Where it lives: `src/scripts/36b-ai-chat.js`.
 
-## 4. Accounts: Google, Facebook, Apple, or email
+## 4. Accounts: Google, LinkedIn, Facebook, Apple, or email
 
 Accounts were already in the code (email and password, saved in your Supabase database). This update switches them on for your Supabase project and adds the three sign-in buttons. A button only appears once you switch that provider on in Supabase, so you can add them one at a time with no code change.
 
@@ -55,6 +55,13 @@ Accounts were already in the code (email and password, saved in your Supabase da
 2. Under **Authorized redirect URIs** add `https://ghyjrhbgxkwvogpdomcg.supabase.co/auth/v1/callback`.
 3. Copy the **Client ID** and **Client secret**.
 4. Supabase > **Authentication** > **Sign In / Providers** > **Google** > turn it on, paste both, save.
+
+### Add LinkedIn (free)
+
+1. linkedin.com/developers > **Create app** (it needs a LinkedIn Page to attach to). On the **Products** tab add **Sign In with LinkedIn using OpenID Connect**.
+2. On the **Auth** tab, add `https://ghyjrhbgxkwvogpdomcg.supabase.co/auth/v1/callback` under **Authorized redirect URLs for your app**. Copy the **Client ID** and **Primary Client Secret**.
+3. Supabase > **Authentication** > **Sign In / Providers** > **LinkedIn (OIDC)** > turn it on, paste both, save. (Pick the OIDC one, not the older "LinkedIn" entry.)
+4. Reload Job Finder: a **Continue with LinkedIn** button appears in the sign-up box. It only shows once the provider is on in Supabase, like the others. We only receive your name and email.
 
 ### Add Facebook (free)
 

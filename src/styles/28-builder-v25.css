@@ -1,0 +1,87 @@
+/* ===================== Version 25: resume builder ===================== */
+
+/* Step ticks: green when the whole step is complete, yellow while it is only a draft */
+.b-steps li.draft button { color: var(--ink); }
+.b-steps li.draft .n { background: var(--warn-bg); border-color: transparent; color: var(--warn); font-size: 0; }
+.b-steps li.draft .n::after { content: "✓"; font-size: 0.75rem; }
+.b-steps li.current .n { font-size: 0.7rem; }
+.b-steps li.current .n::after { content: none; }
+
+/* The driver's licence question sat in a two-row grid, so its hint was drawn over the bubbles */
+#bForm .q-grid > .q.wide { grid-row: auto; grid-template-rows: none; display: grid; }
+
+/* Anything that needs an AI when none is connected: greyed out and crossed through, and it takes you to Choose your AI */
+.ai-off, .ai-off:hover { opacity: 0.6; color: var(--muted); text-decoration: line-through; cursor: pointer; border-color: var(--line); background: var(--surface-2); }
+.ai-off::after { content: " · Connect an AI"; display: inline-block; text-decoration: underline; font-weight: 600; color: var(--accent); }
+
+/* Sort by: one drop-down, and the re-order help */
+.b-sortbar { align-items: center; }
+.sort-pick select { min-width: 13rem; }
+.sort-help { border: 1.5px solid var(--accent); border-radius: var(--radius); padding: 10px 14px; background: var(--accent-soft); display: grid; gap: 8px; margin-top: 8px; }
+.sort-help ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 4px; font-size: var(--step--1); }
+.sort-grip { display: inline-block; vertical-align: middle; color: var(--muted); }
+.sort-demo { display: grid; gap: 4px; max-width: 14rem; position: relative; }
+.sort-demo i { display: block; height: 14px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); }
+.sort-demo i.mv { border-color: var(--accent); background: var(--surface); }
+@media (prefers-reduced-motion: no-preference) { .sort-demo i.mv { animation: sort-demo 2.6s ease-in-out infinite; } }
+@keyframes sort-demo { 0%, 20% { transform: translateY(0); } 50%, 70% { transform: translateY(-18px); box-shadow: 0 4px 10px rgba(8, 12, 20, 0.2); } 100% { transform: translateY(0); } }
+
+/* Education title, the number of subjects to show, and the Hide note */
+.q-merged input[data-degree-title] { width: 100%; }
+.q-merged .card-tag { margin-left: 6px; vertical-align: middle; }
+.subj-n { display: inline-flex; align-items: center; gap: 6px; font-size: var(--step--1); }
+.subj-n input { width: 4.2rem; }
+.hide-why { margin: 6px 0 0; }
+
+/* Summary: the AI questions are in the blue box, and the structure help matches it */
+.b-aiin-foot { margin-top: 2px; }
+.sum-struct { border: 0; }
+.sum-struct > summary { cursor: pointer; font-weight: 600; color: var(--accent); list-style: none; display: flex; align-items: center; gap: 8px; }
+.sum-struct > summary::-webkit-details-marker { display: none; }
+.sum-struct > summary::before { content: ""; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--accent); transition: transform 0.15s ease; transform: rotate(-90deg); }
+.sum-struct[open] > summary::before { transform: none; }
+.sum-struct > :not(summary) { margin: 8px 0 0 18px; }
+.struct-list { padding-left: 1.2rem; display: grid; gap: 4px; }
+#bSumActs .b-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#bSumActs .b-actions [data-act="sum-accept"] { margin-left: auto; }
+.verbs-nai { color: var(--ink); background: var(--warn-bg); border-radius: 8px; padding: 6px 10px; }
+
+/* Awards and publications: a handle on each line */
+.ll-row { align-items: center; gap: 6px; }
+.ll-row .ll-grip { flex: none; }
+.ll-row.dragging { opacity: 0.45; }
+.ll-row.drop-above { box-shadow: 0 -2px 0 var(--accent); }
+.ll-row.drop-below { box-shadow: 0 2px 0 var(--accent); }
+
+/* Skills and licences: one tidy card for each box, the ideas tucked under it */
+.skill-card { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; background: var(--surface); gap: 8px; margin-bottom: 12px; }
+.skill-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.skill-head h3 { margin: 0; font-size: var(--step-0); }
+.skill-count { font-size: 0.75rem; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+.skill-ideas { border-top: 1px dashed var(--line); padding-top: 8px; }
+.skill-ideas > summary { cursor: pointer; font-size: var(--step--1); font-weight: 600; color: var(--accent); }
+.skill-ideas .sugg-row { margin-top: 8px; }
+
+/* Choose what goes on this resume */
+.ch-info { display: flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: var(--radius); border: 1.5px solid var(--accent); background: var(--accent-soft); margin-bottom: 8px; }
+.ch-info p { margin: 0; font-size: var(--step--1); }
+.ch-i { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 700 0.75rem/1 var(--font-mono); }
+.ch-grip { flex: none; cursor: grab; color: var(--muted); display: inline-grid; place-items: center; padding: 4px 3px; }
+.ch-grip:active { cursor: grabbing; }
+.ch-row { display: flex; align-items: center; gap: 6px; }
+.ch-col-head { list-style: none; display: flex; align-items: baseline; gap: 8px; padding: 8px 4px 4px; margin-top: 10px; border-bottom: 2px solid var(--accent); }
+.ch-col-head:first-child { margin-top: 0; }
+.ch-col-head .ch-count { margin-left: auto; }
+.ch-col-head .ch-count.over { color: var(--bad); font-weight: 600; }
+.ch-dragging { opacity: 0.45; }
+.ch-drop-above { box-shadow: 0 -2px 0 var(--accent); }
+.ch-drop-below { box-shadow: 0 2px 0 var(--accent); }
+.ch-skill-note { margin: 4px 0 0; }
+.ch-skill-note.warnflash { color: var(--bad); }
+
+/* Sections for the AI only, with no AI connected: greyed, crossed through, slightly blurred, with a way to connect one */
+.b-aiin[data-ai-what] { position: relative; }
+.b-aiin.ai-none > :not(.ai-none-prompt) { filter: blur(1.4px) grayscale(1); opacity: 0.55; pointer-events: none; user-select: none; }
+.b-aiin.ai-none .b-aiin-head .b-sub { text-decoration: line-through; }
+.b-aiin.ai-none { border-color: var(--line); background: var(--surface-2); }
+.ai-none-prompt { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; text-align: center; padding: 12px; font-weight: 700; color: var(--accent); text-decoration: underline; cursor: pointer; background: transparent; border: 0; font: inherit; }

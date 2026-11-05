@@ -7,11 +7,7 @@
   "scripts": {
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
-    "collect": "node collector/collect.mjs",
-    "sync-dedup": "node scripts/sync-dedup.mjs",
-    "import-jobs": "node jobs-import/import-jobs.mjs",
-    "test": "node --test",
-    "check-employer": "node jobs-import/import-jobs.mjs --check-employer"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

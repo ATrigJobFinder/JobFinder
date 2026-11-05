@@ -1,7 +1,7 @@
 /* ===================== One list of jobs, no duplicates ===================== */
 // The same job is often on the company's site, an aggregator and a job board, with slightly different wording.
 // Jobs match when they're at the same company and place with nearly the same title, or share an ad
-// reference or link, or have near-identical descriptions. Shared with the collector script.
+// reference or link, or have near-identical descriptions.
 const DEDUP = (() => {
   const LEGAL = /\b(pty|ltd|limited|inc|incorporated|llc|plc|group|holdings|australia|aust|aus|co|company|corporation|corp|the)\b/g;
   const ABBR = { sr: "senior", snr: "senior", jr: "junior", jnr: "junior", eng: "engineer", engr: "engineer", mgr: "manager", mngr: "manager", asst: "assistant", assoc: "associate", coord: "coordinator", admin: "administrator", dev: "developer", ops: "operations", hr: "human resources", it: "it", grad: "graduate", tech: "technician", rep: "representative", exec: "executive", acct: "accountant", ft: "full time", pt: "part time" };

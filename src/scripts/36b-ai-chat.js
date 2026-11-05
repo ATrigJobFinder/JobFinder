@@ -1,10 +1,10 @@
-/* ===================== Ask AI: a help chat on every page, using the AI chosen in Connect your AI ===================== */
+/* ===================== Ask AI: a help chat on every page, using the AI chosen in Choose your AI ===================== */
 // A button in the corner opens a small chat. It talks to whichever AI is chosen: the one in the browser, Chrome's, the person's own key,
 // or Claude. A small model gets a shorter brief, a few turns of memory and a short-answer limit; a larger one gets the fuller brief.
 // The chat only advises. It never changes anything in the person's resume or letters, and nothing typed here is saved.
 const CHAT_PAGE_NOTES = {
   home: "the Home page, where they choose what to do next",
-  connect: "Connect your AI, where they choose which AI writes for them",
+  connect: "Choose your AI, where they choose which AI writes for them",
   builder: "Create or edit resume, which builds a resume step by step",
   letter: "Create or edit cover letter, which writes a letter from their profile and a job ad",
   cv: "Resume and cover letter templates, where they choose a design",
@@ -58,7 +58,7 @@ function chatMessages() {
 }
 async function chatAsk(signal) {
   const small = aiTier() === "small", msgs = chatMessages(), max = small ? tightMax(450) : 900, e = aiCfg.engine;
-  // 1. the AI chosen in Connect your AI: a model in the browser, or the person's own key
+  // 1. the AI chosen in Choose your AI: a model in the browser, or the person's own key
   if (USER_ENGINES.has(e) && aiUsable(e)) {
     try { return { text: await aiChat(e, msgs, signal, { expect: small ? 450 : 900, max }), via: AI_NAME(e) }; }
     catch (err) { if (err.code === "cancelled" || !claudeSample || !aiCfg.fallback) throw err; }
@@ -70,7 +70,7 @@ async function chatAsk(signal) {
       const sys = msgs[0], rest = msgs.slice(1), last = rest.pop();
       s = await self.LanguageModel.create({ ...LM_OPTS, initialPrompts: [sys, ...rest] });
       const text = await s.prompt(last.content, signal ? { signal } : undefined);
-      if (text) return { text: String(text), via: "Chrome's built-in AI" };
+      if (text) return { text: String(text), via: BROWSER_AI() };
     } catch (err) { if (signal && signal.aborted) throw aiError("cancelled"); /* try Claude next */ }
     finally { try { s && s.destroy(); } catch { /* gone */ } }
   }
@@ -99,7 +99,7 @@ function chatDraw() {
   if (!log) return;
   const noAi = !chat.turns.length && !chat.busy;
   log.innerHTML = (chat.turns.length ? "" : `<div class="chat-msg bot"><p>Hi! I'm here to help with Job Finder and your job search. Ask me anything, or try one of these.</p></div>`)
-    + chat.turns.map(t => `<div class="chat-msg ${t.role === "user" ? "me" : "bot"}${t.err ? " err" : ""}">${t.role === "user" ? `<p>${esc(t.text)}</p>` : chatHtml(t.text)}${t.via ? `<small>${esc(t.via)}</small>` : ""}${t.fix ? `<button class="linkish" type="button" data-chat="connect">Open Connect your AI</button>` : ""}</div>`).join("")
+    + chat.turns.map(t => `<div class="chat-msg ${t.role === "user" ? "me" : "bot"}${t.err ? " err" : ""}">${t.role === "user" ? `<p>${esc(t.text)}</p>` : chatHtml(t.text)}${t.via ? `<small>${esc(t.via)}</small>` : ""}${t.fix ? `<button class="linkish" type="button" data-chat="connect">Open Choose your AI</button>` : ""}</div>`).join("")
     + (chat.busy ? `<div class="chat-msg bot busy" aria-label="Thinking"><span></span><span></span><span></span></div>` : "");
   const chips = $("chatChips");
   if (chips) { const list = CHAT_CHIPS[currentView] || CHAT_CHIPS._; chips.hidden = !noAi && chat.turns.length > 0; chips.innerHTML = list.map(c => `<button type="button" class="chat-chip" data-chat-ask="${esc(c)}">${esc(c)}</button>`).join(""); }
@@ -109,7 +109,7 @@ function chatWho() {
   const w = $("chatWho");
   if (!w) return;
   const e = aiCfg.engine;
-  w.textContent = USER_ENGINES.has(e) && aiUsable(e) ? `Using ${AI_NAME(e)}${aiTier() === "small" ? " (short answers)" : ""}` : claudeSample ? "Using Claude" : "Using Chrome's AI, if it's ready";
+  w.textContent = USER_ENGINES.has(e) && aiUsable(e) ? `Using ${AI_NAME(e)}${aiTier() === "small" ? " (short answers)" : ""}` : claudeSample ? "Using Claude" : `Using ${BROWSER_AI()}, if it's ready`;
 }
 async function chatSend(text) {
   text = String(text || "").trim();
@@ -121,7 +121,7 @@ async function chatSend(text) {
     chat.turns.push({ role: "assistant", text: r.text.trim(), via: r.via });
   } catch (e) {
     if (e.code === "cancelled") chat.turns.pop();   // stopped: forget the unanswered question so it can be asked again
-    else if (e.code === "no_engine") chat.turns.push({ role: "assistant", text: "No AI is connected yet, so I can't answer. Choose one in Connect your AI (a free key takes a couple of minutes).", err: true, fix: true });
+    else if (e.code === "no_engine") chat.turns.push({ role: "assistant", text: "No AI is connected yet, so I can't answer. Pick one under Choose your AI (a free key takes a couple of minutes).", err: true, fix: true });
     else chat.turns.push({ role: "assistant", text: aiErrWords(e), err: true, fix: e.code === "bad_key" || e.code === "bad_request" });
   } finally { chat.busy = false; chat.ctl = null; $("chatSend").hidden = false; $("chatStop").hidden = true; chatDraw(); $("chatIn").focus(); }
 }

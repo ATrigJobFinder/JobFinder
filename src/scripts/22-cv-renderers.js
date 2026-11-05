@@ -322,13 +322,15 @@ function cvModel(p, tpl, opts = {}) {
   const keep = a => a.filter(s => !hideSet.has(norm(String(s))));
   const clean = a => keep(a.map(s => val(s)).filter(Boolean));
   if (p.summary.trim()) sec.summary = { kind: "text", text: p.summary.trim() };
+  else if (opts.ghostSummary) sec.summary = { kind: "text", text: "Your profile goes here: two or three sentences on who you are and what you're after. You write it in the Summary step.", ghost: true };
   const exp = shown(p.experience).filter(e => e.title || e.org).map(e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }));
   if (exp.length) sec.experience = { kind: "entries", items: exp };
   const edu = shown(p.education).filter(e => e.degree || e.inst).map(e => ({ title: e.degree, org: e.inst, loc: val(e.location), dates: rangeOf(e, true), bullets: keep(eduLines(e, p)) }));
   if (edu.length) sec.education = { kind: "entries", items: edu };
-  const groups = [["Technical", p.skills.hard], ["Software & tools", p.skills.software], ["Languages", p.skills.languages], ["Strengths", p.skills.soft]].filter(([label]) => !hideSet.has(norm("skills:" + label))).map(([label, items]) => ({ label, items: clean(items) })).filter(g => g.items.length);
+  const groups = [["Technical", p.skills.hard], ["Software & tools", p.skills.software], ["Languages", p.skills.languages], ["Strengths", p.skills.soft]].filter(([label]) => !hideSet.has(norm("skills:" + label))).map(([label, items]) => ({ label, items: clean(items).filter(s => !hideSet.has(norm(`skill:${label}:${s}`))) })).filter(g => g.items.length);
   if (groups.length) sec.skills = { kind: "groups", groups };
-  if (p.skills.certs.length && clean(p.skills.certs).length) sec.certs = { kind: "list", items: clean(p.skills.certs) };
+  const noLic = !opts.all && cvp.hideLicence, certs = clean(p.skills.certs).filter(x => !(noLic && /^driver'?s licen[cs]e/i.test(x)));
+  if (certs.length) sec.certs = { kind: "list", items: certs };
   if (p.extras.projects) { const items = shown(p.projects).filter(x => x.name).map(x => ({ title: x.name, org: x.org, loc: "", dates: rangeOf(x), bullets: keep(linesOf(x.details)) })); if (items.length) sec.projects = { kind: "entries", items }; }
   if (p.extras.volunteering) { const items = shown(p.volunteering).filter(e => e.title || e.org).map(e => ({ title: e.title, org: e.org, loc: e.location, dates: rangeOf(e), bullets: clean(e.bullets) })); if (items.length) sec.volunteering = { kind: "entries", items }; }
   if (p.extras.awards && keep(linesOf(p.awards)).length) sec.awards = { kind: "list", items: keep(linesOf(p.awards)) };
@@ -340,7 +342,7 @@ function cvModel(p, tpl, opts = {}) {
     sec.referees = list.length ? { kind: "referees", items: list.map(r => ({ name: r.name, line: [r.role, r.org].filter(Boolean).join(", "), contact: [r.phone, r.email].filter(Boolean).join("  |  ") })) } : { kind: "text", text: "Available on request" };
   }
   const contact = [c.location, c.phone, c.email, shortUrl(c.linkedin), shortUrl(c.website)].map(s => val(s)).filter(Boolean);
-  const details = [c.workRights, c.licence].map(s => String(s || "").trim()).filter(Boolean);
+  const details = [c.workRights, !opts.all && cvp.hideLicence ? "" : c.licence].map(s => String(s || "").trim()).filter(Boolean);
   if (!opts.all) for (const k of cvp.hideSections || []) delete sec[k];
   const order = orderedSections(tpl, p).filter(k => sec[k]);
   const mk = k => ({ key: k, title: T[k], ...sec[k] });
@@ -356,13 +358,17 @@ function cvModel(p, tpl, opts = {}) {
 function hexRgb(h) { const m = String(h).replace("#", ""); const n = parseInt(m.length === 3 ? m.split("").map(x => x + x).join("") : m, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 const rgbHex = rgb => "#" + rgb.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase();
 const mixHex = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return rgbHex(A.map((v, i) => v + (B[i] - v) * t)); };
+// A second colour for designs that have two (a side column and headings): the person's pick for the chosen design only
+function tplAccent2(tpl) {
+  try { const cv = P().cv; return tpl.layout === "sidebar" && cv.template === tpl.key ? cv.accent2 || "" : ""; } catch { return ""; }
+}
 function tplColours(tpl, accent) {
-  const a = accent || tpl.accent;
+  const a = accent || tpl.accent, a2 = tplAccent2(tpl);
   const dark = tpl.layout === "sidebar" && tpl.tone === "dark";
   return {
     accent: a, ink: "#1E2533", muted: "#5B6474", rule: a,
     tint: mixHex(a, "#FFFFFF", 0.9), tint2: mixHex(a, "#FFFFFF", 0.82),
-    sideBg: dark ? "#1F2430" : mixHex(a, "#FFFFFF", 0.92), sideInk: dark ? "#FFFFFF" : "#1E2533", sideMuted: dark ? "#C3C9D4" : "#5B6474",
+    sideBg: a2 ? (dark ? a2 : mixHex(a2, "#FFFFFF", 0.92)) : dark ? "#1F2430" : mixHex(a, "#FFFFFF", 0.92), sideInk: dark ? "#FFFFFF" : "#1E2533", sideMuted: dark ? "#C3C9D4" : "#5B6474",
     sideHead: dark ? mixHex(a, "#FFFFFF", 0.25) : a
   };
 }
@@ -397,7 +403,7 @@ function cvHtml(model, tpl, opts = {}) {
   };
   const body = (s, side) => {
     switch (s.kind) {
-      case "text": return `<p class="cv-p">${e(s.text)}</p>`;
+      case "text": return `<p class="cv-p${s.ghost ? " cv-ghost" : ""}">${e(s.text)}</p>`;
       case "list": return side ? `<ul class="cv-plain">${s.items.map(i => `<li>${e(i)}</li>`).join("")}</ul>` : ul(s.items);
       case "contact": return `<ul class="cv-plain cv-clist">${s.items.map(i => `<li>${e(i)}</li>`).join("")}</ul>`;
       case "entries": return s.items.map(entry).join("");
@@ -423,6 +429,53 @@ function fitNames(root) {
     for (let n = 0; fs > min && el.scrollWidth > el.clientWidth + 1 && n < 40; n++) { fs -= 1; el.style.fontSize = fs + "px"; }
   });
 }
+// Share the content out over A4 pages: anything that would straddle a page edge is pushed down onto the next page
+// (a heading goes with the line after it), then a grey gap marks where one sheet ends and the next begins
+const PG_H = 1123;
+const PG_BOX = ".cv, .cv-body, .cv-cols, .cv-side, .cv-mainc, .cv-sec, .cv-entry, .cv-eb, .cv-ul, .cv-plain, .cv-groups, .lt-sheet, ul, ol";
+const PG_KEEP = ".cv-h, .cv-gl, .cv-eh, .cv-et, .cv-org, .lt-date, .lt-to, .lt-re, .lt-sign";
+function paperAtoms(el, out = []) {
+  for (const c of el.children) {
+    if (c.classList.contains("page-gap")) continue;
+    if (c.matches(PG_BOX) && c.children.length) paperAtoms(c, out); else out.push(c);
+  }
+  return out;
+}
+function paperTop(el, sheet) { let y = 0; for (let n = el; n && n !== sheet; n = n.offsetParent) y += n.offsetTop; return y; }
+function paginateSheet(sheet) {
+  sheet.querySelectorAll("[data-pg]").forEach(n => { n.style.marginTop = ""; n.removeAttribute("data-pg"); });
+  sheet.querySelectorAll(".page-gap").forEach(n => n.remove());
+  sheet.style.minHeight = ""; sheet.querySelectorAll(".cv-cols").forEach(c => { c.style.minHeight = ""; });
+  const root = sheet.firstElementChild; if (!root) return 1;
+  const cs = getComputedStyle(root);
+  const M = Math.min(90, Math.max(34, parseFloat(cs.getPropertyValue("--cv-margin")) || parseFloat(cs.paddingTop) || 48));
+  const col = a => a.closest(".cv-side, .cv-mainc") || root;
+  const shift = (a, by) => {
+    const cur = parseFloat(getComputedStyle(a).marginTop) || 0;
+    a.style.marginTop = (cur + by) + "px"; a.dataset.pg = "1";
+    if (a.matches(".cv-et")) { const d = a.parentElement.previousElementSibling; if (d && d.matches(".cv-ed")) { d.style.marginTop = ((parseFloat(getComputedStyle(d).marginTop) || 0) + by) + "px"; d.dataset.pg = "1"; } }
+  };
+  for (let pass = 0; pass < 3; pass++) {
+    const atoms = paperAtoms(root); let moved = false;
+    for (let i = 0; i < atoms.length; i++) {
+      const a = atoms[i], top = paperTop(a, sheet), h = a.offsetHeight;
+      if (h < 1 || h > PG_H - 2 * M) continue;
+      const pg = Math.floor((top + 1) / PG_H), limit = (pg + 1) * PG_H - M;
+      if (top + h <= limit) continue;
+      let j = i;
+      while (j > 0 && atoms[j - 1].matches(PG_KEEP) && col(atoms[j - 1]) === col(a) && paperTop(atoms[j - 1], sheet) >= pg * PG_H) j--;
+      const t = atoms[j], tt = paperTop(t, sheet);
+      shift(t, (pg + 1) * PG_H + M - tt); moved = true;
+    }
+    if (!moved) break;
+  }
+  const last = paperAtoms(root).reduce((m, a) => Math.max(m, paperTop(a, sheet) + a.offsetHeight), 0);
+  const pages = Math.max(1, Math.floor((Math.max(last, sheet.offsetHeight - M - 4) - 1) / PG_H) + 1);
+  sheet.dataset.last = Math.round(last); sheet.dataset.margin = Math.round(M);
+  sheet.style.minHeight = pages * PG_H + "px"; sheet.querySelectorAll(".cv-cols").forEach(c => { c.style.minHeight = pages * PG_H + "px"; });
+  for (let i = 1; i < pages; i++) { const g = document.createElement("div"); g.className = "page-gap"; g.style.top = i * PG_H - 15 + "px"; g.innerHTML = `<span>Page ${i + 1}</span>`; sheet.appendChild(g); }
+  return pages;
+}
 function mountPaper(frame, html) {
   frame.innerHTML = `<div class="paper-scale"><div class="paper-sheet">${html}</div></div>`;
   const scale = frame.firstElementChild, sheet = scale.firstElementChild;
@@ -431,11 +484,8 @@ function mountPaper(frame, html) {
     const w = frame.clientWidth || 794;
     const k = Math.min(1, w / 794);
     scale.style.transform = `scale(${k})`;
-    const h = sheet.offsetHeight;
-    frame.style.height = Math.ceil(h * k) + "px";
-    sheet.querySelectorAll(".page-mark").forEach(m => m.remove());
-    const pages = Math.max(1, Math.ceil((h - 4) / 1123));
-    for (let i = 1; i < pages; i++) { const m = document.createElement("div"); m.className = "page-mark"; m.style.top = i * 1123 + "px"; m.innerHTML = `<span>Page ${i + 1}</span>`; sheet.appendChild(m); }
+    const pages = paginateSheet(sheet);
+    frame.style.height = Math.ceil(sheet.offsetHeight * k) + "px";
     frame.dataset.pages = pages;
     return pages;
   };

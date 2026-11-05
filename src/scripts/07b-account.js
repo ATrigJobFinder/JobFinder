@@ -53,16 +53,16 @@ async function acctSignUp(email, password) {
 async function acctSignIn(email, password) { acctStore(acctSession(await acctFetch("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) }, false))); }
 async function acctSignOut() { try { await acctFetch("/auth/v1/logout", { method: "POST" }); } catch { /* signed out here anyway */ } acctStore(null); }
 async function acctResetPassword(email) { await acctFetch("/auth/v1/recover", { method: "POST", body: JSON.stringify({ email }) }, false); }
-/* --- Sign in with Google, Facebook or Apple (through Supabase). The code comes back as ?code=..., not in the # part the pages use. --- */
+/* --- Sign in with Google, LinkedIn, Facebook or Apple (through Supabase). The code comes back as ?code=..., not in the # part the pages use. --- */
 const PKCE_KEY = "jobfinder.pkce.v1";
-const ACCT_PROVIDERS = { google: "Google", facebook: "Facebook", apple: "Apple" };
+const ACCT_PROVIDERS = { google: "Google", linkedin_oidc: "LinkedIn", linkedin: "LinkedIn", facebook: "Facebook", apple: "Apple" };
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 async function acctOAuthUrl(provider, intent) {
   if (!ACCT_PROVIDERS[provider]) throw new Error("Unknown sign-in.");
   if (!(window.crypto && crypto.subtle)) throw new Error("This browser can't do a secure sign-in here. Use your email instead.");
   const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
-  try { sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, p: provider, hash: location.hash, intent: intent || "" })); } catch { throw new Error("Your browser is blocking site storage, which a Google, Facebook or Apple sign-in needs. Use your email instead."); }
+  try { sessionStorage.setItem(PKCE_KEY, JSON.stringify({ v: verifier, p: provider, hash: location.hash, intent: intent || "" })); } catch { throw new Error("Your browser is blocking site storage, which signing in with Google, LinkedIn, Facebook or Apple needs. Use your email instead."); }
   return acctUrl("/auth/v1/authorize?provider=" + provider + "&redirect_to=" + encodeURIComponent(location.origin + location.pathname) + "&code_challenge=" + challenge + "&code_challenge_method=s256");
 }
 async function acctOAuth(provider) { location.href = await acctOAuthUrl(provider); }
@@ -73,7 +73,7 @@ function acctNotify(msg) {
   n.innerHTML = `<p></p><div class="b-actions"><button class="btn" type="button" data-acct="notice-close">OK</button></div>`;
   n.firstChild.textContent = msg; n.hidden = false;
 }
-// Back from Google, Facebook or Apple: swap the code for a session, then tidy the address
+// Back from Google, LinkedIn, Facebook or Apple: swap the code for a session, then tidy the address
 async function acctFinishOAuth() {
   const q = new URLSearchParams(location.search), code = q.get("code"), err = q.get("error_description") || q.get("error");
   if (!code && !err) return;
@@ -92,9 +92,9 @@ async function acctFinishOAuth() {
 let acctInfo = null;
 async function acctProviders() {
   if (acctInfo) return acctInfo;
-  const want = ACCOUNT_CFG.providers || ["google", "facebook", "apple"];
+  const want = ACCOUNT_CFG.providers || ["google", "linkedin_oidc", "facebook", "apple"];
   const info = { providers: [], tableOk: true };
-  try { const j = await acctFetch("/auth/v1/settings", {}, false); const ext = (j && j.external) || {}; info.providers = want.filter(p => ext[p]); } catch { /* none shown */ }
+  try { const j = await acctFetch("/auth/v1/settings", {}, false); const ext = (j && j.external) || {}; info.providers = want.filter(p => ext[p]).filter(p => !(p === "linkedin" && ext.linkedin_oidc)); } catch { /* none shown */ }
   try { await acctFetch("/rest/v1/user_docs?select=name&limit=1", {}, false); } catch (e) { if (e.status === 404) info.tableOk = false; }
   return (acctInfo = info);
 }
@@ -175,7 +175,7 @@ function acctDialog(mode = "up") {
     <label class="field" for="acctPass">Password${up ? " (at least 8 characters)" : ""}<input type="password" id="acctPass" autocomplete="${up ? "new-password" : "current-password"}" minlength="8" required></label>
     <p class="acct-msg" id="acctMsg" role="status"></p>
     <div class="b-actions"><button class="btn primary" type="submit">${up ? "Sign up" : "Sign in"}</button><button class="btn ghost" type="button" data-acct="close">Cancel</button>${up ? "" : '<button class="linkish" type="button" data-acct="reset">Forgot your password?</button>'}</div>
-    <p class="small muted">Your AI key, if you added one, stays in this browser only and is never saved to your account. With Google, Facebook or Apple we only receive your name and email, never your password.</p></form>`;
+    <p class="small muted">Your AI key, if you added one, stays in this browser only and is never saved to your account. With Google, LinkedIn, Facebook or Apple we only receive your name and email, never your password.</p></form>`;
   if (!d.open) d.showModal();
   d.dataset.mode = mode;
   d.querySelector("#acctEmail").focus();

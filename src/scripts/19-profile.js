@@ -43,6 +43,7 @@ const jobLabel = k => (jobTypeOf(k) || {}).label || "";
 const jobFam = k => { const j = jobTypeOf(k); return j ? [j.key, ...j.fam] : k ? [k] : []; };
 const fitsJob = (t, k) => jobFam(k).some(f => t.jobTypes.includes(f));
 const STAGES = [
+  { key: "none", label: "Starting out, no experience yet" },
   { key: "student", label: "Student or recent graduate" },
   { key: "early", label: "Early career (1 to 5 years)" },
   { key: "experienced", label: "Experienced (5+ years)" },
@@ -56,7 +57,7 @@ const EXTRA_KEYS = [
 ];
 // hidden: kept in your profile but left off this resume. polished: the bullets as they were last polished.
 const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyRef = () => ({ name: "", role: "", org: "", phone: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
@@ -69,14 +70,14 @@ const emptyProfile = () => ({
   experience: [],
   education: [],
   skills: { hard: [], software: [], soft: [], languages: [], certs: [] },
-  projects: [], volunteering: [], awards: "", publications: "", interests: "", availability: "", startWhen: "",
+  projects: [], volunteering: [], awards: "", publications: "", interests: "", availability: "", availDays: "", availHours: "", startWhen: "",
   referees: { mode: "request", list: [] },
   extras: { projects: false, volunteering: false, awards: false, publications: false, interests: false, availability: false, referees: true },
   // the short text sections that have been finished (awards, publications, interests)
   extrasDone: { awards: false, publications: false, interests: false },
   // order: the sections in the order the person arranged them. hideSections / hideLines: left off this version of the resume (kept in the profile).
   // hideWhy: "key||reason" lines saying why Job Finder hid something to fit the page.
-  cv: { template: "", accent: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [] },
+  cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false },
   prefs: { dateStyle: "words", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
   updated: ""
 });
@@ -151,6 +152,7 @@ function syncProject(e) {
 }
 function syncQual(e) {
   syncProject(e);
+  if (e.degreeCustom && val(e.degree)) return;   // the person wrote the title themselves
   if (e.double && (val(e.level) || val(e.subject) || val(e.level2) || val(e.subject2))) {
     e.degree = [qualName(e.level, e.subject), qualName(e.level2, e.subject2)].filter(Boolean).join(" / ");
     return;
@@ -191,7 +193,7 @@ function mergeProfile(raw) {
   mergeObj(base.skills, raw.skills || {});
   base.projects = arr(raw.projects, emptyProj);
   base.volunteering = arr(raw.volunteering, emptyExp);
-  for (const k of ["awards", "publications", "interests", "availability", "startWhen"]) base[k] = str(raw[k]);
+  for (const k of ["awards", "publications", "interests", "availability", "availDays", "availHours", "startWhen"]) base[k] = str(raw[k]);
   base.summaryOk = !!raw.summaryOk;
   if (raw.referees && typeof raw.referees === "object") { base.referees.mode = raw.referees.mode === "list" ? "list" : "request"; base.referees.list = arr(raw.referees.list, emptyRef).slice(0, 5); }
   mergeObj(base.extras, raw.extras || {});
@@ -433,21 +435,18 @@ function startText(p) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(w)) { const d = new Date(w + "T00:00:00"); return isNaN(d) ? "" : `Available to start from ${d.getDate()} ${MON3[d.getMonth()]} ${d.getFullYear()}`; }
   return w;
 }
-const availabilityText = p => [startText(p), val(p.availability)].filter(Boolean).join(". ");
+// Days and hours per week are kept apart; an older single "days and hours" line still shows if the new boxes are empty
+const availabilityText = p => [startText(p), val(p.availDays) || val(p.availHours) ? [val(p.availDays), val(p.availHours) ? `${val(p.availHours).replace(/\s*(hours?|hrs?)?\s*(a|per)?\s*(week)?\s*$/i, "").trim()} hours per week` : ""].filter(Boolean).join(", ") : val(p.availability)].filter(Boolean).join(". ");
 // Only entries the person has finished go on the resume
 const finished = list => list.filter(e => e.done !== false);
 // …and of those, the ones they haven't hidden from this resume
 const shown = list => finished(list).filter(e => !e.hidden);
 // Relevant subjects: everything is kept, and the ones closest to the job go on the resume
 const SUBJECTS_SHOWN = 3;
-function pickSubjects(e, p, jobText) {
-  const all = listOf(val(e.coursework)).filter(x => !isBlank(x));
-  if (all.length <= SUBJECTS_SHOWN) return all;
-  const pr = p || profile.data;
-  const want = contentWords([pr.target.title, pr.target.ad, jobText || "", ...(COMMON_SKILLS[pr.target.jobType] || { hard: [] }).hard].join(" "));
-  const score = s => { let n = 0; for (const w of contentWords(s)) if (want.has(w)) n++; return n; };
-  const keep = new Set(all.map((s, i) => [s, i, score(s)]).sort((a, b) => b[2] - a[2] || a[1] - b[1]).slice(0, SUBJECTS_SHOWN).map(x => x[1]));
-  return all.filter((_, i) => keep.has(i));
+// How many of the subjects show: the person's own number for this qualification, 1 to 8
+const subjN = e => Math.max(1, Math.min(8, Math.round(+(e && e.subjectsShown) || SUBJECTS_SHOWN)));
+function pickSubjects(e) {
+  return listOf(val(e.coursework)).filter(x => !isBlank(x)).slice(0, subjN(e));
 }
 
 /* --- An existing resume (uploaded or pasted) turned into a profile --- */

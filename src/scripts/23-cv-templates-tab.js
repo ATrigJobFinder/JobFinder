@@ -113,14 +113,14 @@ function renderCvEditor() {
       <li>Keep it to one page: about ${letterRange()[0]} to ${letterRange()[1]} words at your stage, in five paragraphs.</li></ul>`;
     $("cvPages").textContent = !own ? "Write your cover letter to download it in this design." : gaps ? `Fill in the ${gaps} gap${gaps === 1 ? "" : "s"} in [brackets] first.` : `${pages} page${pages === 1 ? "" : "s"}.${pages > 1 ? " Trim it to fit on one page." : ""}`;
     $("cvPages").classList.toggle("warn", own && (pages > 1 || gaps > 0));
-    $("cvDocx").disabled = $("cvPdf").disabled = !own || gaps > 0;
+    $("cvDl").disabled = !own || gaps > 0;
     return;
   }
   const own = hasProfile(P());
   const academic = (t.family || t.key) === "academic";
   $("cvPages").textContent = !own ? "Add your details to download your own version." : `${pages} page${pages === 1 ? "" : "s"}.${pages > 2 && !academic ? " Most recruiters read two pages at most, so trim older roles or bullet points." : ""}`;
   $("cvPages").classList.toggle("warn", own && pages > 2 && !academic);
-  $("cvDocx").disabled = $("cvPdf").disabled = !own;
+  $("cvDl").disabled = !own;
 }
 function renderCv() {
   if (currentView !== "cv") { cvState.rendered = false; return; }
@@ -140,9 +140,11 @@ async function cvDownload(kind, btn) {
   if (cvLetters()) {
     const L = baseLetterParts(), st = letterStyle(tpl, accent);
     const name = `${(L.signName || "Cover").replace(/[\\/:*?"<>|]+/g, "")} - Cover Letter${BL().role ? ` - ${BL().role.replace(/[\\/:*?"<>|]+/g, "")}` : ""}`.slice(0, 150) + "." + kind;
+    if (kind === "txt") return downloadTextFile(name, letterPlainText(L), $("cvStatus"), btn);
     await downloadMade(name, () => kind === "pdf" ? buildCoverPdf(L, st) : buildCoverDocx(L, st), $("cvStatus"), btn);
     return;
   }
+  if (kind === "txt") return downloadTextFile(cvFileName(model, kind, (tpl.family || tpl.key) === "academic" ? "CV" : "Resume"), profileToText(P()), $("cvStatus"), btn);
   await downloadMade(cvFileName(model, kind, (tpl.family || tpl.key) === "academic" ? "CV" : "Resume"), async () => kind === "pdf" ? (await cvPdf(model, tpl, { accent })).blob : cvDocx(model, tpl, { accent }), $("cvStatus"), btn);
 }
 onInit(() => {
@@ -187,8 +189,7 @@ onInit(() => {
     cvState.selectedLetter = "";
     touchProfile("cv"); renderCv();
   });
-  $("cvDocx").addEventListener("click", () => cvDownload("docx", $("cvDocx")));
-  $("cvPdf").addEventListener("click", () => cvDownload("pdf", $("cvPdf")));
+  dlMenu("cvDl", { docx: b => cvDownload("docx", b), pdf: b => cvDownload("pdf", b), txt: b => cvDownload("txt", b) });
   $("cvEditBtn").addEventListener("click", () => openView(cvLetters() ? "letter" : "builder"));
   $("cvKind").addEventListener("click", e => { const b = e.target.closest("[data-kind]"); if (!b || b.dataset.kind === cvState.kind) return; cvState.kind = b.dataset.kind; baseLetter.ready.then(renderCv); });
   $("cvSource").addEventListener("click", async e => {

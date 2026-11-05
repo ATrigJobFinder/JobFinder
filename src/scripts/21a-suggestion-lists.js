@@ -157,3 +157,43 @@ const COMMON_CERTS = {
 const COMMON_SOFT = ["Communication", "Teamwork", "Problem solving", "Attention to detail", "Time management", "Customer service", "Leadership", "Adaptability", "Organisation", "Initiative", "Reliability", "Working under pressure"];
 // The ideas for a kind of work, falling back to the broader group it belongs to
 const commonFor = (table, jt, fallback) => { for (const k of jobFam(jt)) if (table[k]) return table[k]; return fallback; };
+
+/* --- Tools and skills that usually go together: what you've already picked shapes what's suggested next --- */
+const RELATED_CLUSTERS = {
+  software: [
+    ["Microsoft Word", "Microsoft Excel", "PowerPoint", "Microsoft Outlook", "Microsoft Teams", "SharePoint", "Google Workspace"],
+    ["Microsoft Excel", "SQL", "Power BI", "Tableau", "Python", "R", "Google Analytics", "Looker Studio"],
+    ["Xero", "MYOB", "QuickBooks", "SAP", "Microsoft Excel", "Power BI", "Dynamics 365"],
+    ["AutoCAD", "Revit", "SolidWorks", "Civil 3D", "Autodesk Inventor", "MATLAB", "Navisworks", "Bluebeam", "ArcGIS"],
+    ["Photoshop", "Illustrator", "InDesign", "Figma", "Canva", "Premiere Pro", "After Effects"],
+    ["JavaScript", "TypeScript", "React", "Node.js", "HTML and CSS", "Git", "GitHub", "Docker", "AWS", "SQL", "Python"],
+    ["Google Analytics", "Meta Business Suite", "Mailchimp", "Canva", "HubSpot", "Hootsuite", "Semrush", "Google Ads"],
+    ["Salesforce", "HubSpot", "Microsoft Dynamics", "Zendesk", "Microsoft Excel", "Outreach"],
+    ["Jira", "Confluence", "Trello", "Asana", "Microsoft Project", "Monday.com", "Slack", "Microsoft Teams"],
+    ["Lightspeed", "Square", "Deputy", "Xero", "Kounta", "Micros", "EFTPOS terminals"],
+    ["Best Practice", "Medical Director", "Cerner", "Epic", "Microsoft Outlook"],
+    ["Procore", "Bluebeam", "Primavera P6", "Microsoft Project", "Revit", "AutoCAD", "Aconex"],
+    ["Google Classroom", "Canvas", "Moodle", "Microsoft Teams", "Seesaw", "Kahoot"],
+    ["Workday", "SuccessFactors", "Employment Hero", "SEEK Talent Search", "Microsoft Excel"],
+    ["SAP", "Oracle", "Microsoft Excel", "Power BI", "Warehouse management systems"]
+  ],
+  hard: [
+    ["Project management", "Risk management", "Stakeholder engagement", "Scheduling", "Budgeting", "Contract administration", "Reporting"],
+    ["Data analysis", "Reporting", "Forecasting", "Budgeting", "Financial modelling", "Presentations"],
+    ["Customer service", "Complaint handling", "Cash handling", "Upselling", "Product knowledge", "Merchandising"],
+    ["Social media marketing", "Content creation", "Copywriting", "SEO", "Email marketing", "Campaign management", "Event management"],
+    ["Bookkeeping", "Accounts payable", "Accounts receivable", "Account reconciliations", "Payroll", "BAS and GST", "Month-end close"],
+    ["Food safety", "Food preparation", "Menu planning", "Stock control", "Inventory management", "Rostering"],
+    ["Report writing", "Research", "Technical writing", "Presentations", "Stakeholder communication", "Data analysis"],
+    ["Programming", "Software testing", "Version control", "Database design", "API development", "Debugging"],
+    ["Site safety", "Reading plans", "Estimating", "Quantity take-offs", "Scheduling", "Workplace health and safety"],
+    ["Patient care", "Medication administration", "Clinical documentation", "Infection control", "Manual handling", "First aid"]
+  ]
+};
+// The ideas that share a group with what's already picked, the best-matching group first
+function relatedIdeas(key, picked, have, max = 8) {
+  const groups = RELATED_CLUSTERS[key] || [], pk = new Set(picked.map(s => String(s).toLowerCase())), out = [];
+  const ranked = groups.map((g, k) => ({ g, k, n: g.filter(s => pk.has(s.toLowerCase())).length })).filter(x => x.n).sort((a, b) => b.n - a.n || a.k - b.k);
+  for (const { g } of ranked) for (const s of g) if (!have.has(s.toLowerCase()) && !out.includes(s)) out.push(s);
+  return out.slice(0, max);
+}

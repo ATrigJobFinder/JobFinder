@@ -1,8 +1,8 @@
 /* ===================== Tailor to a job: fit the job's criteria (its own step, before the cover letter) ===================== */
-// Each selection criterion and must-have from the ad, matched to the best line in your resume, with a sentence
-// you can use in the letter. Then a few quick questions with answers to click, so the letter is easier to write.
+// Each selection criterion from the ad is matched to the best line in your resume, with a sentence the letter can use (nothing to pick: they all
+// go to the letter). This page shows the must-haves (green, yellow or red) and a few quick questions with answers to click, so the letter is easier to write.
 // var, not const: the page flow (06) checks it before this file has run
-var fit = { items: [], key: "", done: false, chips: { why: [], interest: [], bring: [], avail: "", source: "" }, own: { why: "", interest: "" }, availDate: "" };
+var fit = { items: [], key: "", jd: "", done: false, text: { why: "", interest: "", bring: "", avail: "", source: "" }, dateOn: false, availDate: "" };
 const FIT_AVAIL = [["immediately", "Immediately"], ["after two weeks' notice", "After two weeks' notice"], ["after four weeks' notice", "After four weeks' notice"], ["full time over the summer break", "Full time over summer"], ["part time while I complete my studies", "Part time while I study"], ["date", "From a date…"]];
 const FIT_SOURCE = ["SEEK", "LinkedIn", "Indeed", "Jora", "GradConnection", "Prosple", "your careers page", "my university's careers portal"];
 // Reasons to choose this company, from the ad's own words and the company's careers pages
@@ -105,113 +105,87 @@ function buildFit() {
   }
   if (!n.criteria.length) for (const x of [...lastResult.hard, ...lastResult.soft].filter(x => x.priority === "Required").slice(0, 6)) { const ev = fitEvidence(x.name, [x.name], bullets, used); items.push({ kind: "Asked for", text: x.name, skills: [x.name], ev, gap: x.found ? null : { name: x.name } }); }
   for (const m of n.must) items.push({ kind: "Must-have", text: m.label, quote: m.quote, you: m.you, note: m.note, skills: [], ev: null });
-  return items.map((it, k) => ({ ...it, id: k, say: fitSentence(it.ev, it.names), state: "" }));
+  return items.map((it, k) => { const say = fitSentence(it.ev, it.names); return { ...it, id: k, say, state: say && it.kind !== "Must-have" ? "yes" : "" }; });
 }
+// The answers are kept in their boxes. A chip adds its words to the box (and takes them out again); the box is what the letter uses.
+const FIT_MULTI = new Set(["why", "interest", "bring"]);
+const fitSep = k => k === "bring" ? ", " : "; ";
+const fitList = k => String(fit.text[k] || "").split(k === "bring" ? /\s*[,;]\s*/ : /\s*;\s*|\n+/).map(s => s.trim()).filter(Boolean);
+const fitOn = (k, v) => FIT_MULTI.has(k) ? fitList(k).includes(v) : k === "avail" && v === "date" ? fit.dateOn : fit.text[k] === v;
+// show the answer in its box and the chips pressed or not, without redrawing the page (a redraw would blink every (i) on it)
+function fitSync(k) {
+  const box = $("fitBox-" + k);
+  if (box && box.value !== fit.text[k]) box.value = fit.text[k];
+  document.querySelectorAll(`#fitBody [data-fitq="${k}"]`).forEach(c => c.setAttribute("aria-pressed", String(fitOn(k, c.dataset.v))));
+}
+function fitChip(k, v) {
+  if (FIT_MULTI.has(k)) { const l = fitList(k), i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v); fit.text[k] = l.join(fitSep(k)); }
+  else if (k === "avail" && v === "date") { fit.dateOn = !fit.dateOn; fit.text.avail = fit.dateOn ? fitDateWords() : ""; const d = $("fitAvailDate"); if (d) { d.hidden = !fit.dateOn; if (fit.dateOn) d.focus(); } }
+  else { fit.dateOn = k === "avail" ? false : fit.dateOn; fit.text[k] = fit.text[k] === v ? "" : v; if (k === "avail") { const d = $("fitAvailDate"); if (d) d.hidden = true; } }
+  fitSync(k);
+}
+function fitDateWords() {
+  if (!fit.availDate) return "";
+  const d = new Date(fit.availDate + "T00:00:00");
+  return isNaN(d) ? "" : `from ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+const MH_WORDS = { yes: "You meet this", check: "Check this", no: "Probably not" };
 function renderFit() {
   const box = $("fitBody");
   if (!box || !lastResult) return;
-  const key = lastScan.jd + "\n" + finalText().slice(0, 300);
-  if (fit.key !== key) { fit.key = key; fit.items = buildFit(); fit.done = false; fit.chips = { why: [], interest: [], bring: [], avail: fit.chips.avail, source: fit.chips.source }; }
+  const key = lastScan.jd + "\n" + finalText();
+  const ad = $("fitAd"); if (ad && ad.dataset.jd !== lastScan.jd) { ad.textContent = lastScan.jd; ad.dataset.jd = lastScan.jd; }
+  if (fit.key === key && box.dataset.built === key) return;
+  if (fit.jd !== lastScan.jd) { fit.jd = lastScan.jd; fit.text = { why: "", interest: "", bring: "", avail: "", source: "" }; fit.dateOn = false; fit.availDate = ""; }
+  if (fit.key !== key) { fit.key = key; fit.items = buildFit(); fit.done = false; }
   const crit = fit.items.filter(x => x.kind !== "Must-have"), must = fit.items.filter(x => x.kind === "Must-have");
-  const withEv = crit.filter(x => x.say).length, used = crit.filter(x => x.state === "yes").length;
-  const item = x => `<li class="fit-item${x.state ? " " + x.state : ""}" data-fit-id="${x.id}">
-    <div class="fit-head"><span class="chk-act">${esc(x.kind)}</span><span class="fit-crit">${esc(x.text)}</span></div>
-    ${x.say ? `<p class="fit-ev">${x.ev.kind === "edu" ? "Your qualification" : "Your best evidence"}: <q>${esc(x.ev.text)}</q>${x.ev.where ? ` <span class="muted">(${esc(x.ev.where.replace(/\s+·\s+/, ", "))})</span>` : ""}</p>
-      <p class="fit-say" contenteditable="true" spellcheck="true" data-fit-say="${x.id}" aria-label="Sentence for your letter about: ${esc(x.text)}">${esc(x.say)}</p>
-      <div class="b-actions">${x.state === "yes" ? '<span class="chip found">In your letter</span><button class="linkish" type="button" data-fit-act="undo">Take it out</button>' : x.state === "no" ? '<span class="small muted">Skipped</span><button class="linkish" type="button" data-fit-act="undo">Undo</button>' : '<button class="btn primary" type="button" data-fit-act="yes">Use in my letter</button><button class="btn" type="button" data-fit-act="no">Skip</button>'}${x.via ? `<span class="small muted">Written by ${esc(viaWords(x.via))}</span>` : ""}</div>`
-      : `<p class="fit-gap"><b>Not shown in your resume yet.</b> ${esc(x.gap && GAP_Q[x.gap.name] ? GAP_Q[x.gap.name] : `Think of a time you showed this at work, study or volunteering. Add it as a bullet point in your resume, or mention it in the letter in your own words.`)}</p>`}
-  </li>`;
-  const mustItem = m => `<li class="fit-item${m.you === "yes" ? " yes" : ""}"><div class="fit-head"><span class="chk-act">${esc(m.kind)}</span><span class="fit-crit">${esc(m.text)}</span><span class="small muted">${esc(YOU_WORDS[m.you] || "")}</span></div>${m.quote ? `<p class="fit-ev"><q>${esc(m.quote)}</q></p>` : ""}${m.note ? `<p class="small">${esc(m.note)}</p>` : ""}</li>`;
-  const chips = (q, opts, multi) => `<div class="opt-chips" role="group">${opts.map(o => { const on = multi ? fit.chips[q].includes(o.v) : fit.chips[q] === o.v; return `<button type="button" class="opt-chip" data-fitq="${q}" data-v="${esc(o.v)}" aria-pressed="${on}">${esc(o.label)}</button>`; }).join("")}</div>`;
+  const withEv = crit.filter(x => x.say).length;
+  const bubble = m => `<li class="mh-bubble you-${m.you}"><span class="mh-dot" aria-hidden="true"></span><div><div class="mh-top"><b>${esc(m.text)}</b><span class="mh-state">${esc(MH_WORDS[m.you] || "Check this")}</span></div>${m.quote ? `<q>${esc(m.quote)}</q>` : ""}${m.note ? `<p class="small">${esc(m.note)}</p>` : ""}</div></li>`;
+  const chips = (q, opts) => `<div class="opt-chips" role="group">${opts.map(o => `<button type="button" class="opt-chip" data-fitq="${q}" data-v="${esc(o.v)}" aria-pressed="${fitOn(q, o.v)}">${esc(o.label)}</button>`).join("")}</div>`;
   const why = whyOptions(), interest = interestOptions(), bring = bringOptions(), co = $("clCompany").value.trim() || companyFrom(lastScan.jd) || "this company";
-  box.innerHTML = `<div class="fit-summary"><span><b>${crit.length}</b> ${crit.length === 1 ? "thing" : "things"} the ad asks for</span><span><b>${withEv}</b> backed up by your resume</span><span><b>${used}</b> in your letter</span>${withEv > used ? '<button class="btn" type="button" data-fit-act="all">Use all of them</button>' : ""}</div>
-    ${crit.length ? `<ul class="fit-list">${crit.map(item).join("")}</ul>` : `<p class="small muted">This ad doesn't list its criteria, so your letter will follow the skills it asks for.</p>`}
-    ${withEv ? `<div class="b-actions"><button class="btn" type="button" id="fitAi">Make these sentences stronger with AI</button><span class="engine-note" id="fitAiNote" role="status"></span></div>` : ""}
-    ${must.length ? `<div class="b-sub">Must-haves to apply</div><ul class="fit-list">${must.map(mustItem).join("")}</ul>` : ""}
-    <div class="b-sub">A few quick questions</div><p class="q-hint">Click the answers that are true for you. They go straight into your letter, so it sounds like you chose this job on purpose.</p>
+  const area = (k, ph) => `<textarea id="fitBox-${k}" data-fitbox="${k}" rows="2" spellcheck="true" placeholder="${esc(ph)}">${esc(fit.text[k])}</textarea>`;
+  box.dataset.built = key;
+  box.innerHTML = `<div class="fit-crit-note"><b>${crit.length}</b> ${crit.length === 1 ? "criterion" : "criteria"} from the ad, <b>${withEv}</b> backed up by your resume. They are used when your cover letter is written, so you don't need to do anything here.</div>
+    ${must.length ? `<div class="b-sub">Must-haves to apply</div><p class="q-hint">Green: you meet it. Yellow: check it yourself. Red: you probably don't.</p><ul class="mh-list">${must.map(bubble).join("")}</ul>` : `<p class="small muted">This ad doesn't list any must-haves to apply.</p>`}
+    <div class="b-sub">A few quick questions</div><p class="q-hint">Select the answers that are true for you. Each one is written into the box below it, which you can edit. They go straight into your letter, so it sounds like you chose this job on purpose.</p>
     <div class="fit-qs">
-      <div class="fit-q"><b>Why ${esc(co)}?</b>${chips("why", why, true)}<textarea id="fitWhyOwn" rows="2" spellcheck="true" placeholder="Or say it in your own words, e.g. I've used their app for years and want to help build it">${esc(fit.own.why)}</textarea></div>
-      ${interest.length ? `<div class="fit-q"><b>What interests you most about the role?</b>${chips("interest", interest, true)}<textarea id="fitInterestOwn" rows="2" spellcheck="true" placeholder="Or in your own words">${esc(fit.own.interest)}</textarea></div>` : ""}
-      ${bring.length ? `<div class="fit-q"><b>What will you bring that they asked for?</b><p class="q-hint">Pick two or three. They lead your opening paragraph.</p>${chips("bring", bring, true)}</div>` : ""}
-      <div class="fit-q"><b>When can you start?</b>${chips("avail", FIT_AVAIL.map(([v, l]) => ({ v, label: l })), false)}${fit.chips.avail === "date" ? `<input type="date" id="fitAvailDate" value="${esc(fit.availDate)}" min="${todayISO()}" aria-label="Start date">` : ""}</div>
-      <div class="fit-q"><b>Where did you see the ad?</b>${chips("source", FIT_SOURCE.map(v => ({ v, label: v[0].toUpperCase() + v.slice(1) })), false)}</div>
+      <div class="fit-q"><b>Why ${esc(co)}?</b>${chips("why", why)}${area("why", "Or say it in your own words, e.g. I've used their app for years and want to help build it")}</div>
+      ${interest.length ? `<div class="fit-q"><b>What interests you most about the role?</b>${chips("interest", interest)}${area("interest", "Or in your own words")}</div>` : ""}
+      ${bring.length ? `<div class="fit-q"><b>What will you bring that they asked for?</b><p class="q-hint">Pick two or three. They lead your opening paragraph.</p>${chips("bring", bring)}${area("bring", "Or name them yourself, separated by commas")}</div>` : ""}
+      <div class="fit-q"><b>When can you start?</b>${chips("avail", FIT_AVAIL.map(([v, l]) => ({ v, label: l })))}<input type="date" id="fitAvailDate" value="${esc(fit.availDate)}" min="${todayISO()}" aria-label="Start date" ${fit.dateOn ? "" : "hidden"}><input type="text" id="fitBox-avail" data-fitbox="avail" value="${esc(fit.text.avail)}" placeholder="Or type it, e.g. from 1 December" autocomplete="off"></div>
+      <div class="fit-q"><b>Where did you see the ad?</b>${chips("source", FIT_SOURCE.map(v => ({ v, label: v[0].toUpperCase() + v.slice(1) })))}<input type="text" id="fitBox-source" data-fitbox="source" value="${esc(fit.text.source)}" placeholder="Or type it" autocomplete="off"></div>
     </div>`;
 }
 // The answers, as the words the letter uses
-function fitWhyText() { return [...fit.chips.why, fit.own.why.trim().replace(/^because\s+/i, "").replace(/[.\s]+$/, "")].filter(Boolean).slice(0, 3); }
-function fitAvailText() {
-  if (fit.chips.avail === "date") { if (!fit.availDate) return ""; const d = new Date(fit.availDate + "T00:00:00"); return isNaN(d) ? "" : `from ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`; }
-  return fit.chips.avail;
-}
+function fitWhyText() { return fitList("why").map(s => s.replace(/^because\s+/i, "").replace(/[.\s]+$/, "")).filter(Boolean).slice(0, 3); }
+function fitAvailText() { return String(fit.text.avail || "").trim(); }
 function fitToLetter() {
   const why = fitWhyText();
   if (why.length) { $("clWhy").value = listJoin(why); $("clWhy").dataset.auto = "0"; }
   const av = fitAvailText(); if (av) $("clAvail").value = av;
-  if (fit.chips.source) $("clSource").value = fit.chips.source;
+  const src = String(fit.text.source || "").trim(); if (src) $("clSource").value = src;
   renderReady();
 }
-// For the letter: the criteria sentences chosen, what interests them and what they bring
+// For the letter: every selection criterion (those the resume backs up come with a sentence), what interests them and what they bring.
+// Nothing here is chosen by hand: the criteria are the ad's, and a sentence is only offered where the resume has the evidence.
 const fitForCover = () => ({
-  fit: fit.items.filter(x => x.state === "yes" && val(x.say)).map(x => ({ criterion: x.text, say: x.say.trim(), ev: x.ev ? x.ev.text : "" })).filter((x, k, a) => a.findIndex(y => norm(y.say) === norm(x.say)) === k),
-  interest: [...fit.chips.interest, fit.own.interest.trim().replace(/[.\s]+$/, "")].filter(Boolean).slice(0, 2),
-  bring: fit.chips.bring.slice(0, 3)
+  fit: fit.items.filter(x => x.kind !== "Must-have" && x.state === "yes" && val(x.say)).map(x => ({ criterion: x.text, say: x.say.trim(), ev: x.ev ? x.ev.text : "" })).filter((x, k, a) => a.findIndex(y => norm(y.say) === norm(x.say)) === k),
+  criteria: fit.items.filter(x => x.kind !== "Must-have").map(x => x.text).slice(0, 10),
+  interest: fitList("interest").slice(0, 2),
+  bring: fitList("bring").slice(0, 3)
 });
-const FIT_NANO = `You write one sentence for a cover letter that shows how the candidate meets one selection criterion.
-Rules:
-1. Use only the evidence given. Never invent tasks, tools, numbers, employers or results.
-2. First person ("I"), past tense for past work, Australian spelling, 18 to 40 words.
-3. Name the employer when the evidence gives one, and link the work to what the criterion asks for.
-4. No clichés ("passionate", "team player", "hard-working") and no placeholders.
-Reply with JSON only: {"sentence": "..."}`;
-const FIT_EXAMPLES = [[
-  `Criterion: Strong customer service and communication skills
-Evidence: Served up to 80 customers a shift and resolved complaints calmly (Retail Assistant · Bright Shoes)`,
-  { sentence: "At Bright Shoes, I served up to 80 customers a shift and resolved complaints calmly, which built the clear, patient communication this role calls for." }
-]];
-async function fitStronger(btn) {
-  const note = $("fitAiNote"), todo = fit.items.filter(x => x.ev && x.state !== "no").slice(0, 6);
-  if (!todo.length) return;
-  btn.disabled = true; note.classList.add("busy");
-  let n = 0, last = null;
-  try {
-    for (const [k, x] of todo.entries()) {
-      note.textContent = `Writing ${k + 1} of ${todo.length}…`;
-      const src = [x.ev.text, x.ev.where, x.text].join("\n");
-      const r = await aiJSON({ nano: FIT_NANO, examples: FIT_EXAMPLES, prompt: `Criterion: ${x.text}\nEvidence: ${x.ev.text}${x.ev.where ? ` (${x.ev.where})` : ""}`, schema: { type: "object", properties: { sentence: { type: "string" } }, required: ["sentence"] }, label: "Writing", progress: m => { note.textContent = `${m} (${k + 1} of ${todo.length})`; },
-        check: d => { const t = stripMarkup(String(d.sentence || "")).replace(/\s+/g, " ").trim(); const why = factCheck(t, src, { years: true, min: 12, max: 45 }); return why ? { ok: false, why } : keepsFacts(x.ev.text, t) < 0.5 ? { ok: false, why: "keep the facts from the evidence" } : { ok: true, value: /[.!?]$/.test(t) ? t : t + "." }; } });
-      last = r;
-      if (r.data) { x.say = r.data; x.via = r.via; n++; }
-    }
-  } finally { btn.disabled = false; note.classList.remove("busy"); }
-  renderFit();
-  const n2 = $("fitAiNote"); if (n2) n2.textContent = n ? `Rewrote ${n} sentence${n === 1 ? "" : "s"}. Check each is true, then use the ones you like.` : aiMissWords(last);
-}
 // Wiring (this runs before the app shell, so it's wired directly, like the rest of Tailor to a job)
 $("fitBody").addEventListener("click", e => {
-  const t = e.target;
-  const q = t.closest("[data-fitq]");
-  if (q) {
-    const k = q.dataset.fitq, v = q.dataset.v;
-    if (Array.isArray(fit.chips[k])) fit.chips[k] = fit.chips[k].includes(v) ? fit.chips[k].filter(x => x !== v) : [...fit.chips[k], v];
-    else fit.chips[k] = fit.chips[k] === v ? "" : v;
-    const y = window.scrollY; renderFit(); window.scrollTo(0, y);
-    if (k === "avail" && v === "date") { const d = $("fitAvailDate"); if (d) d.focus(); }
-    return;
-  }
-  const a = t.closest("[data-fit-act]");
-  if (a) {
-    const y = window.scrollY;
-    if (a.dataset.fitAct === "all") fit.items.forEach(x => { if (x.say && x.state !== "no") x.state = "yes"; });
-    else { const li = a.closest("[data-fit-id]"), x = li && fit.items[+li.dataset.fitId]; if (x) x.state = a.dataset.fitAct === "undo" ? "" : a.dataset.fitAct; }
-    renderFit(); window.scrollTo(0, y); updateFlow(); return;
-  }
-  if (t.closest("#fitAi")) fitStronger(t.closest("#fitAi"));
+  const q = e.target.closest("[data-fitq]");
+  if (q) fitChip(q.dataset.fitq, q.dataset.v);
 });
 $("fitBody").addEventListener("input", e => {
   const t = e.target;
-  if (t.dataset && t.dataset.fitSay != null) { const x = fit.items[+t.dataset.fitSay]; if (x) x.say = t.textContent.replace(/\s+/g, " ").trim(); }
-  if (t.id === "fitWhyOwn") fit.own.why = t.value;
-  if (t.id === "fitInterestOwn") fit.own.interest = t.value;
-  if (t.id === "fitAvailDate") fit.availDate = t.value;
+  if (t.dataset && t.dataset.fitbox) {
+    const k = t.dataset.fitbox; fit.text[k] = t.value;
+    if (k === "avail") { fit.dateOn = false; const d = $("fitAvailDate"); if (d) d.hidden = true; }
+    document.querySelectorAll(`#fitBody [data-fitq="${k}"]`).forEach(c => c.setAttribute("aria-pressed", String(fitOn(k, c.dataset.v))));
+  }
+  if (t.id === "fitAvailDate") { fit.availDate = t.value; fit.text.avail = fitDateWords(); fitSync("avail"); }
 });
 $("fitNext").addEventListener("click", () => { fitToLetter(); fit.done = true; prefillCover(); updateFlow(); goTo("sec-cover"); });

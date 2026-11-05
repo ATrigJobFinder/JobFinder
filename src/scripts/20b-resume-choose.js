@@ -69,7 +69,13 @@ function chooseSections(p) {
   if (p.extras.projects) S.projects = { entries: entries("projects", e => e.name, e => linesOf(e.details), e => rangeOf(e)) };
   if (p.extras.volunteering) S.volunteering = { entries: entries("volunteering", e => [e.title, e.org].filter(Boolean).join(" at "), e => e.bullets.map(val).filter(Boolean), e => rangeOf(e)) };
   const groups = [["Technical", p.skills.hard], ["Software & tools", p.skills.software], ["Languages", p.skills.languages], ["Strengths", p.skills.soft]].filter(([, a]) => a.some(val));
-  if (groups.length) S.skills = { rows: groups.map(([label, a]) => row(`${label}: ${a.filter(val).join(", ")}`, "skills:" + label)) };
+  // one row for each group of skills, with each skill under it that can be left off by itself
+  const skillRow = (label, a) => {
+    const items = a.map(val).filter(Boolean).map(t => ({ text: t, key: `skill:${label}:${t}`, off: hideL.has(norm(`skill:${label}:${t}`)) }));
+    const on = items.filter(x => !x.off), r = row(`${label}: ${on.map(x => x.text).join(", ")}`, "skills:" + label);
+    return Object.assign(r, { label, items, shown: on.length, lines: on.length ? chLines(r.text, chars) : 0 });
+  };
+  if (groups.length) S.skills = { rows: groups.map(([label, a]) => skillRow(label, a)) };
   if (p.skills.certs.some(val)) S.certs = { rows: p.skills.certs.map(val).filter(Boolean).map(t => row(t)) };
   if (p.extras.awards && linesOf(p.awards).length) S.awards = { rows: linesOf(p.awards).map(t => row(t)) };
   if (p.extras.publications && linesOf(p.publications).length) S.publications = { rows: linesOf(p.publications).map(t => row(t)) };
@@ -80,7 +86,7 @@ function chooseSections(p) {
   return order.map(k => {
     const s = S[k], off = hideS.has(k), side = geo.sidebar && SIDE_KEYS.has(k), cols = side ? geo.sideChars : chars;
     // a sidebar design wraps its side column's text narrower than the main column's
-    if (side) { for (const r of s.rows || []) r.lines = chLines(r.text, cols); for (const en of s.entries || []) for (const r of en.rows) r.lines = chLines(r.text, cols); }
+    if (side) { for (const r of s.rows || []) r.lines = r.items && !r.shown ? 0 : chLines(r.text, cols); for (const en of s.entries || []) for (const r of en.rows) r.lines = chLines(r.text, cols); }
     let lines = 0;
     if (s.single) lines = chLines(s.single, cols);
     else if (s.entries) lines = s.entries.reduce((a, e) => a + (e.off ? 0 : geo.entry + e.rows.reduce((b, r) => b + (r.off ? 0 : r.lines), 0)), 0);
@@ -92,44 +98,67 @@ function chooseSections(p) {
 const chTotal = secs => pageGeometry().head + secs.reduce((a, s) => a + (s.off || s.side ? 0 : s.lines), 0);
 const chSideTotal = secs => secs.reduce((a, s) => a + (s.off || !s.side ? 0 : s.lines), 0);
 
+// The page count the preview actually shows (it is drawn from the same ticks), or null before it has been drawn
+const livePages = () => { const f = $("bPaper"); const n = f ? +f.dataset.pages : 0; return n > 0 ? n : null; };
+const SKILLS_TICKED_MAX = 4;
 function chooseInner() {
-  const p = P(), secs = chooseSections(p), geo = pageGeometry(), { cap } = geo;
-  const total = chTotal(secs), over = total - cap, pct = Math.min(100, Math.round(total / cap * 100));
-  const sideT = geo.sidebar ? chSideTotal(secs) : 0, sideOver = sideT - cap;
+  const p = P(), secs = chooseSections(p), geo = pageGeometry();
+  const pages = builder.chPages === 2 ? 2 : 1;
+  let capAll = geo.cap * pages;
+  const total = chTotal(secs), sideT = geo.sidebar ? chSideTotal(secs) : 0;
+  // The preview is the truth. If it shows the pages we want, the lines used are within the maximum; if it shows more, they are not.
+  const live = livePages();
+  if (live != null && live <= pages && Math.max(total, sideT) > capAll) capAll = Math.max(total, sideT);
+  else if (live != null && live > pages && Math.max(total, sideT) <= capAll) capAll = Math.max(1, Math.max(total, sideT) - 1);
+  const over = total - capAll, pct = Math.min(100, Math.round(total / capAll * 100)), sideOver = sideT - capAll;
   const lineWord = n => `${n} line${n === 1 ? "" : "s"}`;
+  const expected = live != null ? live : Math.max(1, Math.ceil(Math.max(total, sideT) / geo.cap));
+  const pageWord = pages === 2 ? "Two pages hold" : "One page holds";
+  const grip = (data, label) => `<span class="drag-h ch-grip" draggable="true" ${data} title="Drag to move" aria-label="Drag to move ${esc(label)}">${GRIP_SVG}</span>`;
   const whyNote = (why, key) => why ? `<p class="ch-why"><b>Hidden to fit the page:</b> ${esc(why)} <button class="linkish" type="button" data-act="ch-restore" data-key="${esc(key)}">Put it back</button></p>` : "";
-  const entryHtml = e => `<li class="ch-entry${e.off ? " off" : ""}">
-      <div class="ch-row"><label class="q-check"><input type="checkbox" data-show="${e.list}.${e.i}"${e.off ? "" : " checked"}><span class="ch-txt"><b>${esc(e.title)}</b>${e.dates ? ` <span class="small muted">${esc(e.dates)}</span>` : ""}</span></label><span class="ch-count">${e.off ? "off" : lineWord(Math.round(pageGeometry().entry + e.rows.reduce((b, r) => b + (r.off ? 0 : r.lines), 0)))}</span></div>
+  const entryHtml = e => `<li class="ch-entry${e.off ? " off" : ""}" data-ch-entry="${e.list}.${e.i}">
+      <div class="ch-row">${grip(`data-ch-drag="entry" data-list="${e.list}" data-i="${e.i}"`, e.title)}<label class="q-check"><input type="checkbox" data-show="${e.list}.${e.i}"${e.off ? "" : " checked"}><span class="ch-txt"><b>${esc(e.title)}</b>${e.dates ? ` <span class="small muted">${esc(e.dates)}</span>` : ""}</span></label><span class="ch-count">${e.off ? "off" : lineWord(Math.round(pageGeometry().entry + e.rows.reduce((b, r) => b + (r.off ? 0 : r.lines), 0)))}</span></div>
       ${whyNote(e.why, `entry:${e.list}.${e.i}`)}
-      ${e.rows.length && !e.off ? `<ul class="ch-rows">${e.rows.map(r => rowHtml(r)).join("")}</ul>` : ""}</li>`;
-  const rowHtml = r => `<li class="${r.off ? "off" : ""}"><div class="ch-row"><label class="q-check"><input type="checkbox" data-ch-line="${esc(r.key)}"${r.off ? "" : " checked"}><span class="ch-txt">${esc(r.text.length > 150 ? r.text.slice(0, 147) + "…" : r.text)}</span></label><span class="ch-count">${r.off ? "off" : r.lines}</span></div>${whyNote(r.why, "line:" + r.key)}</li>`;
-  const secHtml = (s, k) => `<li class="ch-sec${s.off ? " off" : ""}" data-sec="${s.key}">
-      <div class="ch-sec-head"><label class="q-check"><input type="checkbox" data-ch-sec="${s.key}"${s.off ? "" : " checked"}><span class="ch-txt"><b>${esc(s.title)}</b>${s.side ? ' <span class="small muted">side column</span>' : ""}</span></label><span class="ch-count">${s.off ? "off" : lineWord(s.lines)}</span>
-        <span class="ch-move"><button type="button" class="btn ghost" data-act="ch-up" data-key="${s.key}" aria-label="Move ${esc(s.title)} up"${k === 0 ? " disabled" : ""}>↑</button><button type="button" class="btn ghost" data-act="ch-down" data-key="${s.key}" aria-label="Move ${esc(s.title)} down"${k === secs.length - 1 ? " disabled" : ""}>↓</button></span></div>
+      ${e.rows.length && !e.off ? `<ul class="ch-rows">${e.rows.map(r => rowHtml(r, e)).join("")}</ul>` : ""}</li>`;
+  const skillItemHtml = x => `<label class="ch-skill${x.off ? " off" : ""}"><input type="checkbox" data-ch-line="${esc(x.key)}"${x.off ? "" : " checked"}><span>${esc(x.text)}</span></label>`;
+  const groupHtml = r => `<li class="${r.off ? "off" : ""}"><div class="ch-row"><label class="q-check"><input type="checkbox" data-ch-line="${esc(r.key)}"${r.off ? "" : " checked"}><span class="ch-txt"><b>${esc(r.label)}</b> <span class="small muted">${r.items.length === 1 ? "1 skill" : r.shown === r.items.length ? `${r.items.length} skills` : `${r.shown} of ${r.items.length} shown`}</span></span></label><span class="ch-count">${r.off ? "off" : r.lines}</span></div>${r.off ? "" : `<div class="ch-skills" role="group" aria-label="${esc(r.label)}: tick up to ${SKILLS_TICKED_MAX} to show">${r.items.map(skillItemHtml).join("")}</div>
+      <p class="ch-skill-note small muted">Up to ${SKILLS_TICKED_MAX} ticked here: ${SKILLS_TICKED_MAX} is a good number, because recruiters skim and a short list of your best reads as confident.${r.shown > SKILLS_TICKED_MAX ? ` <button class="linkish" type="button" data-act="ch-top4" data-label="${esc(r.label)}">Keep my top ${SKILLS_TICKED_MAX}</button>` : ""}</p>`}</li>`;
+  const rowHtml = (r, en) => r.items ? groupHtml(r) : `<li class="${r.off ? "off" : ""}"${en && (en.list === "experience" || en.list === "volunteering") ? ` data-ch-row="${en.list}.${en.i}"` : ""}><div class="ch-row">${en && (en.list === "experience" || en.list === "volunteering") && !r.off ? grip(`data-ch-drag="row" data-list="${en.list}" data-i="${en.i}" data-text="${esc(r.text)}"`, "this bullet point") : ""}<label class="q-check"><input type="checkbox" data-ch-line="${esc(r.key)}"${r.off ? "" : " checked"}><span class="ch-txt">${esc(r.text.length > 150 ? r.text.slice(0, 147) + "…" : r.text)}</span></label><span class="ch-count">${r.off ? "off" : r.lines}</span></div>${whyNote(r.why, "line:" + r.key)}</li>`;
+  const secHtml = s => `<li class="ch-sec${s.off ? " off" : ""}" data-sec="${s.key}">
+      <div class="ch-sec-head">${grip(`data-ch-drag="sec" data-key="${s.key}"`, s.title)}<label class="q-check"><input type="checkbox" data-ch-sec="${s.key}"${s.off ? "" : " checked"}><span class="ch-txt"><b>${esc(s.title)}</b></span></label><span class="ch-count">${s.off ? "off" : lineWord(s.lines)}</span></div>
       ${whyNote(s.why, "sec:" + s.key)}
-      ${s.off ? "" : s.single ? `<p class="ch-single small muted">${esc(s.single.length > 160 ? s.single.slice(0, 157) + "…" : s.single)}</p>` : s.entries ? `<ul class="ch-entries">${s.entries.map(entryHtml).join("") || '<li class="small muted">Nothing finished here yet.</li>'}</ul>` : `<ul class="ch-rows">${s.rows.map(rowHtml).join("")}</ul>`}</li>`;
-  return `<div class="ch-meter ${over > 0 ? "over" : "fits"}" role="status">
+      ${s.off ? "" : s.single ? `<p class="ch-single small muted">${esc(s.single.length > 160 ? s.single.slice(0, 157) + "…" : s.single)}</p>` : s.entries ? `<ul class="ch-entries">${s.entries.map(entryHtml).join("") || '<li class="small muted">Nothing finished here yet.</li>'}</ul>` : `<ul class="ch-rows">${s.rows.map(r => rowHtml(r)).join("")}</ul>`}</li>`;
+  // A design with two columns: the lines are counted and listed for each column, the left (side) column first
+  let list;
+  if (geo.sidebar) {
+    const left = secs.filter(s => s.side), right = secs.filter(s => !s.side);
+    const colHead = (n, name, used) => `<li class="ch-col-head"><b>Column ${n}</b> <span class="small muted">${name}</span><span class="ch-count${used > capAll ? " over" : ""}">${used} of ${capAll} lines</span></li>`;
+    list = colHead(1, "left, the side column", sideT) + (left.map(secHtml).join("") || '<li class="small muted">Nothing in this column.</li>')
+      + colHead(2, "right, the main column", total) + chooseList(right, secHtml, p);
+  } else list = chooseList(secs, secHtml, p);
+  return `<div class="ch-info" role="note"><span class="ch-i" aria-hidden="true">i</span><p>With what is ticked below, your resume is expected to run to <b>${expected} page${expected === 1 ? "" : "s"}</b>${live != null ? " (as the preview shows it)" : ""}. ${expected <= 1 ? "That fits on one page." : expected === 2 ? "Two pages is fine for most experienced people; press Fit to one page if you want just one." : "That is long. Aim for two at most."}</p></div>
+    <div class="ch-meter ${over > 0 ? "over" : "fits"}" role="status">
       <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
-      <span>About <b>${total} lines</b>. One page holds about <b>${cap}</b> in the ${esc(geo.tpl.name)} layout with ${geo.tpl.margin} mm margins${geo.tpl.lh && geo.tpl.lh !== 1 ? ` and ${geo.tpl.lh}× line spacing` : ""}. ${over > 0 ? `<b>${lineWord(over)} over</b>, so it runs onto a second page.` : `It fits on one page${cap - total >= 4 ? ` with about ${lineWord(cap - total)} to spare` : ""}.`}${geo.sidebar ? ` The side column uses ${sideT} of its ${cap} lines${sideOver > 0 ? ` (<b>${lineWord(sideOver)} over</b>)` : ""}.` : ""}</span></div>
+      <span>About <b>${Math.max(total, sideT)} lines</b> in the longest column. ${pageWord} about <b>${capAll}</b> in the ${esc(geo.tpl.name)} layout with ${geo.tpl.margin} mm margins${geo.tpl.lh && geo.tpl.lh !== 1 ? ` and ${geo.tpl.lh}× line spacing` : ""}. ${over > 0 || sideOver > 0 ? `<b>${lineWord(Math.max(over, sideOver))} over</b>, so it runs onto ${pages === 2 ? "a third page" : "a second page"}.` : `It fits on ${pages === 2 ? "two pages" : "one page"}${capAll - Math.max(total, sideT) >= 4 ? ` with about ${lineWord(capAll - Math.max(total, sideT))} to spare` : ""}.`}${geo.sidebar ? ` Column 1 uses ${sideT} lines and column 2 uses ${total}.` : ""}</span></div>
     <div class="b-actions"><button class="btn primary" type="button" data-act="ch-fit">Fit to one page</button><button class="btn" type="button" data-act="ch-fit2">Fit on two pages</button><button class="btn" type="button" data-act="ch-all">Show everything again</button></div>
-    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. If there's room later, press it again and it ticks back what it hid. A design with a side column is checked column by column."}</p>
-    <ol class="ch-list">${secs.map(secHtml).join("") || '<li class="small muted">Finish a job or qualification first, and it will show here.</li>'}</ol>`;
+    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. It checks both columns, then checks the preview, and keeps going until the preview agrees. If there's room later, press it again and it ticks back what it hid. Drag the handles to change the order."}</p>
+    <ol class="ch-list${geo.sidebar ? " two-col" : ""}">${list || '<li class="small muted">Finish a job or qualification first, and it will show here.</li>'}</ol>`;
 }
 function chooseHtml() {
   const drafts = draftsIn(P()).length;
-  return `<div class="b-sub">Choose what goes on this resume</div><p class="q-hint">Your profile keeps everything. Untick any section, job, bullet point or line you don't want on this version, and move sections up or down. The numbers are lines on the page. You can save each version under its own name below.</p>
+  return `<div class="b-sub">Choose what goes on this resume</div><p class="q-hint">Your profile keeps everything. Untick any section, job, bullet point or line you don't want on this version, and drag the handles to change the order. The numbers are lines on the page. You can save each version under its own name below.</p>
     <div class="ch-box" id="bChoose">${chooseInner()}</div>${drafts ? `<p class="small muted">${drafts} draft ${drafts === 1 ? "entry isn't" : "entries aren't"} on your resume until ${drafts === 1 ? "it's" : "they're"} finished.</p>` : ""}`;
 }
 function refreshChoose() {
+  touchProfile("builder");
+  renderPreview();   // first, so the page count in the box below is the one the preview shows
   const el = $("bChoose");
   if (el) el.innerHTML = chooseInner();
-  touchProfile("builder");
-  renderPreview();
 }
 
 /* --- Fit to one page: hide the least useful things first, each with its reason --- */
-function planOnePage(p, pages = 1) {
-  const secs = chooseSections(p), geo = pageGeometry(), cap = geo.cap * pages;
+function planOnePage(p, pages = 1, shrink = 0) {
+  const secs = chooseSections(p), geo = pageGeometry(), cap = geo.cap * pages - shrink;
   const pri = entryPriority(p), target = val(p.target.title) || "the job you're going for";
   const steps = [];
   const sec = k => secs.find(s => s.key === k && !s.off);
@@ -140,12 +169,12 @@ function planOnePage(p, pages = 1) {
   const queue = [];
   for (const [k, why] of ORDER) if (sec(k)) queue.push({ type: "sec", key: k, why, lines: sec(k).lines });
   // trim long lists of bullets on older jobs (keep the first two), and the subjects line on older qualifications
-  for (const { e, pr } of entryStep("experience", "E")) if (pr < 3) e.rows.slice(2).forEach(r => queue.push({ type: "line", key: r.key, why: `An older, less related job (${e.title}): its first two bullet points say enough.`, lines: r.lines }));
-  for (const { e } of entryStep("education", "D").slice(0, 3)) e.rows.filter(r => /^Relevant coursework/i.test(r.text)).forEach(r => queue.push({ type: "line", key: r.key, why: `The subjects line takes space and your degree already tells the story (${e.title}).`, lines: r.lines }));
+  for (const { e, pr } of entryStep("experience", "E")) if (pr < 3) e.rows.slice(2).filter(r => !r.off).forEach(r => queue.push({ type: "line", key: r.key, why: `An older, less related job (${e.title}): its first two bullet points say enough.`, lines: r.lines }));
+  for (const { e } of entryStep("education", "D").slice(0, 3)) e.rows.filter(r => !r.off && /^Relevant coursework/i.test(r.text)).forEach(r => queue.push({ type: "line", key: r.key, why: `The subjects line takes space and your degree already tells the story (${e.title}).`, lines: r.lines }));
   for (const { e, pr } of entryStep("experience", "E")) if (pr === 1 && secs.find(s => s.key === "experience").entries.filter(x => !x.off).length > 2) queue.push({ type: "entry", key: `entry:experience.${e.i}`, list: "experience", i: e.i, why: `Older and less related to ${target}, so it ranks lowest of your jobs.`, lines: Math.round(pageGeometry().entry + e.rows.reduce((a, r) => a + r.lines, 0)) });
   for (const { e, pr } of entryStep("education", "D")) if (pr === 1 && secs.find(s => s.key === "education").entries.filter(x => !x.off).length > 1) queue.push({ type: "entry", key: `entry:education.${e.i}`, list: "education", i: e.i, why: "School-level study isn't needed once you have a higher qualification.", lines: Math.round(pageGeometry().entry + e.rows.reduce((a, r) => a + r.lines, 0)) });
   // 3. last resort: the third bullet point onward on every remaining job
-  for (const { e } of entryStep("experience", "E")) e.rows.slice(3).forEach(r => queue.push({ type: "line", key: r.key, why: `Your first three bullet points for ${e.title} are the strongest; the rest don't fit.`, lines: r.lines }));
+  for (const { e } of entryStep("experience", "E")) e.rows.slice(3).filter(r => !r.off).forEach(r => queue.push({ type: "line", key: r.key, why: `Your first three bullet points for ${e.title} are the strongest; the rest don't fit.`, lines: r.lines }));
   let total = chTotal(secs);
   const seen = new Set();
   for (const q of queue) {
@@ -174,6 +203,17 @@ function restoreKey(p, key) {
   else if (key.startsWith("line:")) cv.hideLines = cv.hideLines.filter(x => norm(x) !== norm(key.slice(5)));
   else if (key.startsWith("entry:")) { const [l, i] = key.slice(6).split("."); const e = p[l] && p[l][+i]; if (e) { e.hidden = false; e.hideWhy = ""; } }
   cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith(key + "||"));
+}
+// The sections in order, with a tick box for the driver's licence straight under the profile
+function chooseList(secs, secHtml, p) {
+  const html = secs.map(secHtml);
+  if (val(p.contact.licence)) {
+    const off = !!p.cv.hideLicence;
+    const lic = `<li class="ch-sec ch-lic${off ? " off" : ""}"><div class="ch-sec-head"><label class="q-check"><input type="checkbox" data-ch-lic="1"${off ? "" : " checked"}><span class="ch-txt"><b>Driver's licence</b> <span class="small muted">${esc(p.contact.licence)}</span></span></label><span class="ch-count">${off ? "off" : "1 line"}</span></div></li>`;
+    const k = secs.findIndex(s => s.key === "summary");
+    html.splice(k + 1, 0, lic);
+  }
+  return html.join("");
 }
 const HIDE_LISTS = ["experience", "education", "projects", "volunteering"];
 const hideSnap = p => JSON.stringify({ s: p.cv.hideSections, l: p.cv.hideLines, w: p.cv.hideWhy, e: HIDE_LISTS.map(k => p[k].map(x => [x.hidden, x.hideWhy])) });
@@ -219,17 +259,35 @@ function chooseAct(act, b) {
   }
   if (act === "ch-fit" || act === "ch-fit2") {
     const pages = act === "ch-fit2" ? 2 : 1, word = pages === 1 ? "one page" : "two pages";
+    builder.chPages = pages;
     const back = restoreFit(p, pages);   // anything an earlier fit hid comes back first if there's room now
-    const plan = planOnePage(p, pages), sideNote = pageGeometry().sidebar ? " The side column is counted on its own too." : "";
-    if (!plan.steps.length) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (plan.fits ? `It fits on ${word}. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote;
-    else { applyPlan(p, plan); builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${plan.steps.length} thing${plan.steps.length === 1 ? "" : "s"} to fit ${word}${plan.fits ? "" : ", but it's still a little over"}. Each has its reason below, with a button to put it back.` + sideNote; }
+    const plan = planOnePage(p, pages), sideNote = pageGeometry().sidebar ? " Both columns were checked." : "";
+    let hidden = plan.steps.length, stillOver = !plan.fits;
+    if (hidden) applyPlan(p, plan);
+    // the preview has the last word: while it still shows more pages than asked for, hide a little more
+    renderPreview();
+    for (let tries = 0, extra = 2; tries < 10 && livePages() != null && livePages() > pages; tries++, extra += 2) {
+      const more = planOnePage(p, pages, extra);
+      if (!more.steps.length) break;
+      applyPlan(p, more); hidden += more.steps.length; renderPreview();
+    }
+    stillOver = livePages() != null ? livePages() > pages : stillOver;
+    if (!hidden) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (!stillOver ? `It fits on ${word}, and the preview agrees. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote;
+    else builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${hidden} thing${hidden === 1 ? "" : "s"} to fit ${word}${stillOver ? ", but the preview still shows it a little over" : ", and the preview agrees"}. Each has its reason below, with a button to put it back.` + sideNote;
+    refreshChoose();
+    return;
+  }
+  if (act === "ch-top4") {
+    const grp = (chooseSections(p).find(x => x.key === "skills") || { rows: [] }).rows.find(r => r.label === b.dataset.label);
+    if (grp) { const keep = new Set(grp.items.filter(x => !x.off).slice(0, SKILLS_TICKED_MAX).map(x => x.key)); for (const x of grp.items) if (!x.off && !keep.has(x.key)) cv.hideLines.push(x.key); }
+    builder.chNote = "";
     refreshChoose();
     return;
   }
   if (act === "ch-all") {
     cv.hideSections = []; cv.hideLines = []; cv.hideWhy = [];
     for (const l of ["experience", "education", "projects", "volunteering"]) p[l].forEach(e => { e.hidden = false; e.hideWhy = ""; });
-    builder.chNote = "Everything is back on this resume.";
+    builder.chNote = "Everything is back on this resume."; builder.chPages = 1;
     refreshChoose();
     return;
   }
@@ -242,13 +300,20 @@ function chooseAct(act, b) {
 onInit(() => {
   $("bForm").addEventListener("change", e => {
     const t = e.target, p = P(), cv = p.cv;
-    if (t.dataset.chSec) {
+    if (t.dataset.chLic) {
+      cv.hideLicence = !t.checked;
+      builder.chNote = ""; refreshChoose();
+    } else if (t.dataset.chSec) {
       const k = t.dataset.chSec;
       cv.hideSections = t.checked ? cv.hideSections.filter(x => x !== k) : [...new Set([...cv.hideSections, k])];
       cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith("sec:" + k + "||"));
       builder.chNote = ""; refreshChoose();
     } else if (t.dataset.chLine != null) {
       const k = t.dataset.chLine;
+      if (t.checked && /^skill:/.test(k)) {
+        const ticked = t.closest(".ch-skills") ? t.closest(".ch-skills").querySelectorAll("input:checked").length : 0;
+        if (ticked > SKILLS_TICKED_MAX) { t.checked = false; builder.chNote = ""; const n = t.closest("li") && t.closest("li").querySelector(".ch-skill-note"); if (n) { n.classList.add("warnflash"); n.textContent = `That's ${SKILLS_TICKED_MAX} already. ${SKILLS_TICKED_MAX} is a good number: untick one first if you'd like this one instead.`; } return; }
+      }
       cv.hideLines = t.checked ? cv.hideLines.filter(x => norm(x) !== norm(k)) : [...cv.hideLines, k];
       cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith("line:" + k + "||"));
       builder.chNote = ""; refreshChoose();

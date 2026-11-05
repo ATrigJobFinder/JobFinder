@@ -1,5 +1,5 @@
 /* ===================== App shell: sidebar and tabs ===================== */
-const VIEWS = { support: "Contact or help", home: "Home", connect: "Connect your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
+const VIEWS = { support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
 const NAV_KEY = "jobfinder.nav.v1", VIEW_KEY = "jobfinder.view.v1", MODE_KEY = "jobfinder.mode.v1";
 const EMPLOYER_VIEWS = new Set(["employer", "jobs", "connect"]);
 const appEl = $("app");
@@ -22,11 +22,26 @@ function setMode(mode, go) {
   if (go) openView(appMode === "employer" ? "employer" : "home");
 }
 document.querySelectorAll(".sn-mode [data-mode]").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode, true)));
+// the Job Finder logo is the way home (an employer's home is Hiring)
+$("snHome").addEventListener("click", e => {
+  e.preventDefault();
+  closeDrawer(false);
+  if (appMode !== "employer") globeToGlobe();   // if the map was open, the logo takes you back out to the globe
+  if (currentView === (appMode === "employer" ? "employer" : "home")) window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+  else openView(appMode === "employer" ? "employer" : "home");
+});
 
+// On a wide screen there is one bar across the top: the AI chip and the account buttons sit at the right of it.
+// On a phone they stay in the thin bar under the menu button.
+function placeBar() {
+  const to = mobileNav() ? $("appbar") : $("snRight");
+  for (const el of [document.querySelector(".ab-ai-wrap"), document.querySelector(".ab-tools")]) if (el && to && el.parentElement !== to) to.appendChild(el);
+}
 function applyNav() {
   const mob = mobileNav();
+  placeBar();
   const drawer = appEl.dataset.drawer === "open";
-  appEl.dataset.nav = mob ? "open" : navPref;
+  appEl.dataset.nav = "open";   // wide screens have the menu as a bar across the top (27-header-nav.css); only phones use the drawer
   if (!mob) appEl.dataset.drawer = "";
   const sn = $("sidenav");
   sn.inert = mob && !drawer;
@@ -54,14 +69,24 @@ $("navToggle").addEventListener("click", () => {
   }
 });
 $("scrim").addEventListener("click", () => closeDrawer(true));
+// The drop-down groups (Application documents, Find work, Get ready): hover or focus opens one; pressing the name opens it too (touch, keyboard)
+document.querySelectorAll(".sn-menu").forEach(m => {
+  const btn = m.querySelector(".sn-menu-btn");
+  btn.addEventListener("click", () => { const open = !m.classList.contains("open"); document.querySelectorAll(".sn-menu.open").forEach(x => { x.classList.remove("open"); x.querySelector(".sn-menu-btn").setAttribute("aria-expanded", "false"); }); m.classList.toggle("open", open); btn.setAttribute("aria-expanded", String(open)); });
+  m.addEventListener("mouseleave", () => m.classList.remove("shut"));
+  m.addEventListener("click", e => { if (e.target.closest(".sn-item")) { m.classList.remove("open"); m.classList.add("shut"); btn.setAttribute("aria-expanded", "false"); if (document.activeElement && m.contains(document.activeElement)) document.activeElement.blur(); } });
+});
+document.addEventListener("click", e => { if (!e.target.closest(".sn-menu")) document.querySelectorAll(".sn-menu.open").forEach(x => { x.classList.remove("open"); x.querySelector(".sn-menu-btn").setAttribute("aria-expanded", "false"); }); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".sn-menu.open").forEach(x => { x.classList.remove("open"); x.querySelector(".sn-menu-btn").setAttribute("aria-expanded", "false"); }); });
 // Collapsed to icons: hovering (or tabbing into) the sidebar opens it over the page, and leaving closes it again
 let peekTimer = null;
 function setPeek(on) {
   clearTimeout(peekTimer);
-  peekTimer = setTimeout(() => {
+  const apply = () => {
     if (on && (mobileNav() || appEl.dataset.nav !== "rail")) return;
     if (on) appEl.dataset.peek = "on"; else delete appEl.dataset.peek;
-  }, on ? 120 : 220);
+  };
+  if (on) apply(); else peekTimer = setTimeout(apply, 140);
 }
 $("sidenav").addEventListener("mouseenter", () => setPeek(true));
 $("sidenav").addEventListener("mouseleave", () => { if (!$("sidenav").contains(document.activeElement)) setPeek(false); });
@@ -131,7 +156,7 @@ async function downloadMade(name, make, statusEl, btn) {
 }
 
 /* --- Which AI is doing the work, and how to turn on Chrome's --- */
-/* renderAiChip lives with Connect your AI */
+/* renderAiChip lives with Choose your AI */
 
 /* --- A small card in the corner for long AI waits: downloads, getting ready, and writing, with the time left --- */
 // o: { title, sub, frac (0 to 1, or null when there's no measure), done }; null removes it
@@ -158,8 +183,19 @@ function aiCorner(o) {
 /* Chrome's one-time model download */
 function aiDownloadProgress(frac, progress) {
   if (!$("aiDl") && frac >= 1) return;   // already on this computer: nothing to show
-  if (!$("aiDl") && progress) progress("Getting Chrome's AI ready…");
-  if (frac >= 1) { aiCorner({ title: "Chrome's AI is ready", frac: 1, done: true }); if (progress) progress("Writing…"); return; }
-  aiCorner({ title: "Getting Chrome's AI ready", sub: "A one-time download. You can keep working.", frac });
+  if (!$("aiDl") && progress) progress("Getting " + BROWSER_AI() + " ready…");
+  if (frac >= 1) { aiCorner({ title: BROWSER_AI() + " is ready", frac: 1, done: true }); if (progress) progress("Writing…"); return; }
+  aiCorner({ title: "Getting " + BROWSER_AI() + " ready", sub: "A one-time download. You can keep working.", frac });
 }
 
+
+// A short message at the bottom of the screen, like the AI's Stop bar. It goes after 3 seconds, and can carry an Undo.
+function actToast(msg, undo) {
+  let t = document.getElementById("jfAct");
+  if (!t) { t = document.createElement("div"); t.id = "jfAct"; t.className = "act-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.innerHTML = `<span class="act-tick" aria-hidden="true">✓</span><span>${esc(msg)}</span>${undo ? `<button type="button" class="linkish act-undo">Undo</button>` : ""}`;
+  const b = t.querySelector(".act-undo");
+  if (b) b.addEventListener("click", () => { clearTimeout(t._t); t.hidden = true; undo(); }, { once: true });
+  t.hidden = false; t.classList.remove("in"); void t.offsetWidth; t.classList.add("in");
+  clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 3000);
+}

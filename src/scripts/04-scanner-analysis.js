@@ -40,7 +40,7 @@ const JD_HEAD = {
   duty: /\b(what you('ll| will) (do|be doing)|responsibilities|duties|the role|role overview|about the (role|position|opportunity|job)|key (responsibilities|accountabilities)|day[- ]to[- ]day|your role|in this role|what('s| is) involved|the opportunity|position (summary|overview)|the job)\b/i,
   req: /\b(about you|requirements?|what you('ll| will)? (need|bring|have)|who you are|you (will )?have|skills( and| &)? (experience|qualifications)|qualifications|experience|essential|key (skills|criteria|requirements)|selection criteria|to be successful|ideal candidate|the (ideal )?(person|candidate)|what we('re| are) looking for|we('re| are) looking for|must[- ]haves?|mandatory|your (skills|experience|background|profile)|skills)\b/i
 };
-const LINE_BOILER = /(equal opportunit|aboriginal and torres strait|first nations|diverse|diversity|inclusive|encourage[sd]? (all )?(people|applications|applicants)|reasonable adjustment|flexible working|hybrid working|work from home|parental leave|wellbeing|well-being|employee assistance|salary packaging|novated|discounts?\b|bonus scheme|we offer|we provide|you('ll| will) (get|enjoy|receive)|perks|career progression|professional development opportunit|apply now|click apply|to apply|privacy)/i;
+const LINE_BOILER = /(competitive (salary|pay|remuneration|package)|(performance|sign[- ]?on|retention|annual|profit[- ]?shar\w*) bonus(es)?|bonus(es)? (scheme|structure|program)|profit[- ]?shar\w*|\bprobation\b|(structured|consistent|flexible|regular|standard) (work )?(schedule|hours|roster)|mon(day)?\s*(-|–|to)\s*fri(day)?[^.]{0,30}(no|without) weekends?|no weekends?|(paid|annual|personal|sick|study|long service) leave|\bsuperannuation\b|\bsalary\b|employee (benefits|discount)|free (parking|lunch|breakfast|fruit|coffee|gym)|gym membership|team (events|social)|social (club|events)|equal opportunit|aboriginal and torres strait|first nations|diverse|diversity|inclusive|encourage[sd]? (all )?(people|applications|applicants)|reasonable adjustment|flexible working|hybrid working|work from home|parental leave|wellbeing|well-being|employee assistance|salary packaging|novated|discounts?\b|bonus scheme|we offer|we provide|you('ll| will) (get|enjoy|receive)|perks|career progression|professional development opportunit|apply now|click apply|to apply|privacy)/i;
 const LINE_LEARN = /(you('ll| will) (gain|get (exposure|experience|hands[- ]on)|learn|develop|build( up)?|pick up|be exposed|be trained|be taught|be mentored|receive (training|mentoring)|grow)|gain(ing)? (exposure|experience|insight|hands[- ]on experience|knowledge)|opportunit(y|ies) to (learn|develop|gain|grow|work (on|with|across)|be involved|rotate|build)|we('ll| will) (teach|train|upskill|support you to)|training (will be )?(provided|given)|(full|on[- ]the[- ]job) training|learn (about|how|from)|chance to (learn|work|gain)|rotat(e|ion|ions) (through|across|between)|develop (your|new) skills)/i;
 const LINE_NOTREQ = /(no (prior |previous )?(experience|knowledge|background)\b[^.]{0,50}\b(required|necessary|needed|expected)|\b(not|isn't|is not) (required|necessary|essential|expected|a (requirement|must))|don't need|do not need|no need to)/i;
 const LINE_NICE = /(desirable|preferred|advantageous|a bonus|bonus if|bonus points|nice to have|highly regarded|would be (an advantage|well regarded|great|beneficial)|is a plus|ideally)/i;
@@ -61,7 +61,7 @@ const NOT_SCORED = new Set(["boiler", "company", "learn", "notreq", "meta", "opt
 function jdHeadingKind(L, seen) {
   const t = L.text.trim();
   if (!t || seen === 1 || BULLET_RE.test(L.text) || META_LINE.test(t) || LOC_LINE.test(t)) return null;
-  const core = t.replace(/[:?]$/, "").trim();
+  const core = t.replace(/[’‘`´]/g, "'").replace(/[:?]$/, "").trim();
   const nWords = words(core).length;
   // "…looking for students or recent graduates in the following disciplines:"
   if (/:$/.test(t) && OPTIONS_HEAD.test(t) && nWords <= 30) return "options";
@@ -336,13 +336,17 @@ function analyse(resumeRaw, jdRaw, typedTitle, fileInfo, opts = {}) {
   const atsScore = statusScore(ats), tipsScore = statusScore(tips);
   // An ad that asks for no technical skills (many graduate programs) is judged on its soft skills instead
   const hardV = weighted(hard);
+  // Must-haves to apply (work rights, licences, qualification…): met 1, to check 0.5, not met 0
+  const needs = jobNeeds(jdRaw, { hard, soft, jdLines, jdLevel, resLevel }, resumeRaw);
+  const mustV = needs.must.length ? Math.round(100 * needs.must.reduce((a, m) => a + (m.you === "yes" ? 1 : m.you === "check" ? 0.5 : 0), 0) / needs.must.length) : null;
+  // Out of 100: must-haves 25, ATS readability 20, hard skills 20, education 15, soft skills 10, recruiter tips 10.
+  // A part the ad doesn't mention is left out and the rest share the points. An ad that asks for no technical skills is judged on its soft skills instead.
   const cats = [
-    { key: "hard", label: "Hard skills", weight: 40, value: hardV, anchor: "sec-hard" },
-    { key: "soft", label: "Soft skills", weight: hardV === null ? 40 : 10, value: weighted(soft), anchor: "sec-soft" },
-    { key: "title", label: "Job title", weight: 10, value: titleRes ? titleRes.score : null, anchor: "sec-tips" },
-    { key: "terms", label: "Other key terms", weight: 10, value: termsScore, anchor: "sec-terms" },
-    { key: "edu", label: "Education", weight: 5, value: eduScore, anchor: "sec-tips" },
-    { key: "ats", label: "ATS readability", weight: 15, value: atsScore, anchor: "sec-ats" },
+    { key: "must", label: "Must-haves", weight: 25, value: mustV, anchor: "sec-needs" },
+    { key: "hard", label: "Hard skills", weight: 20, value: hardV, anchor: "sec-hard" },
+    { key: "soft", label: "Soft skills", weight: hardV === null ? 30 : 10, value: weighted(soft), anchor: "sec-soft" },
+    { key: "edu", label: "Education", weight: 15, value: eduScore, anchor: "sec-tips" },
+    { key: "ats", label: "ATS readability", weight: 20, value: atsScore, anchor: "sec-ats" },
     { key: "tips", label: "Recruiter tips", weight: 10, value: tipsScore, anchor: "sec-tips" }
   ];
   const used = cats.filter(c => c.value !== null);
@@ -378,6 +382,6 @@ function analyse(resumeRaw, jdRaw, typedTitle, fileInfo, opts = {}) {
   const clean = [];
   for (const m of marks) if (!clean.length || m.s >= clean[clean.length - 1].e) clean.push(m);
 
-  return { overall, cats, hard, soft, ignored, jdLines, terms, titleRes, ats, tips, fixes: fixes.slice(0, 5), marks: clean, jdLevel, resLevel };
+  return { overall, cats, needs, hard, soft, ignored, jdLines, terms, titleRes, ats, tips, fixes: fixes.slice(0, 5), marks: clean, jdLevel, resLevel };
 }
 

@@ -1,7 +1,17 @@
 /* ===================== Wiring ===================== */
 els.scan.addEventListener("click", () => runScan(true));
 $("loadExample").addEventListener("click", loadExample);
-$("clearAll").addEventListener("click", clearAll);
+// Start over throws away the resume, the ad and the results, so it asks first (press it again within 4 seconds)
+$("clearAll").addEventListener("click", () => {
+  const b = $("clearAll"), has = !isExample && (els.resume.value.trim() || els.jd.value.trim() || els.title.value.trim() || lastResult);
+  if (has && b.dataset.sure !== "1") {
+    b.dataset.was = b.textContent; b.dataset.sure = "1"; b.textContent = "Clear it all? Press again";
+    clearTimeout(b._t); b._t = setTimeout(() => { if (b.dataset.sure === "1") { b.dataset.sure = ""; b.textContent = b.dataset.was; } }, 4000);
+    return;
+  }
+  clearTimeout(b._t); if (b.dataset.sure === "1") { b.dataset.sure = ""; b.textContent = b.dataset.was; }
+  clearAll();
+});
 els.pick.addEventListener("click", () => els.fileInput.click());
 els.fileInput.addEventListener("change", () => handleFile(els.fileInput.files[0]));
 ["dragenter", "dragover"].forEach(t => $("step-resume").addEventListener(t, e => { e.preventDefault(); els.drop.classList.add("over"); }));
@@ -20,40 +30,24 @@ function updateDownloadBtn() { updateFlow(); }
   if (t === els.resume && fileInfo && !stillSameFile()) fileInfo = null;
   updateFlow();
 }));
-$("downloadBtn").addEventListener("click", async () => {
-  if (await exportResume(finalText(), $("downloadStatus"), $("downloadBtn"))) {
-    downloaded = true; updateFlow();
-    $("downloadStatus").textContent += tailorMode === "resume" ? "" : " Next, fit your experience to the job's criteria, then write a cover letter to go with it.";
-    if (tailorMode !== "resume") $("toCover").focus({ preventScroll: true });
-  }
-});
 $("toCover").addEventListener("click", () => { prefillCover(); renderFit(); goTo("sec-fit"); });
 $("rsBack").addEventListener("click", () => setTailorStage("scan"));
 $("ltBack").addEventListener("click", () => setTailorStage(tailorMode === "letter" ? "scan" : "resume"));
 $("clPick").addEventListener("click", () => $("clFile").click());
 $("clFile").addEventListener("change", async () => { await addLetterFiles($("clFile").files); $("clFile").value = ""; });
-["dragenter", "dragover"].forEach(t => $("clDrop").addEventListener(t, e => { e.preventDefault(); $("clDrop").classList.add("over"); }));
-["dragleave", "drop"].forEach(t => $("clDrop").addEventListener(t, e => { e.preventDefault(); $("clDrop").classList.remove("over"); }));
-$("clDrop").addEventListener("drop", e => e.dataTransfer && addLetterFiles(e.dataTransfer.files));
+// like the resume above: drop the files anywhere on the cover letter part
+["dragenter", "dragover"].forEach(t => $("clPrev").addEventListener(t, e => { e.preventDefault(); $("clDrop").classList.add("over"); }));
+["dragleave", "drop"].forEach(t => $("clPrev").addEventListener(t, e => { e.preventDefault(); if (t === "drop" || !$("clPrev").contains(e.relatedTarget)) $("clDrop").classList.remove("over"); }));
+$("clPrev").addEventListener("drop", e => e.dataTransfer && addLetterFiles(e.dataTransfer.files));
 ["clRole", "clCompany", "clRecipient", "clName", "clEmail", "clPhone", "clLocation"].forEach(id => $(id).addEventListener("input", () => { $(id).dataset.auto = "0"; }));
 ["clRole", "clCompany", "clRecipient", "clAddress", "clSource", "clWhy", "clAvail", "clName", "clEmail", "clPhone", "clLocation"].forEach(id => $(id).addEventListener("input", renderReady));
-$("clRemember").addEventListener("change", async () => { if ($("clRemember").checked) await saveCoverStore(); renderLetterFiles(); });
 $("clGenerate").addEventListener("click", generateCover);
 document.querySelectorAll("#stepper button").forEach(b => b.addEventListener("click", () => goTo(b.dataset.go)));
 $("editInputs").addEventListener("click", () => goTo("step-resume"));
 $("rescan").addEventListener("click", () => runScan(true));
-els.aiBtn.addEventListener("click", runAI);
-els.aiStop.addEventListener("click", () => aiCtl && aiCtl.abort());
 
 updateCounts();
 updateFlow();
 
-(async () => {
-  let s = null;
-  try { s = window.claude && window.claude.use ? await window.claude.use("sample") : null; } catch { s = null; }
-  claudeSample = s;
-  refreshSample();
-  if (!sample) { els.aiStatus.textContent = "AI suggestions need an AI. Open Job Finder in Claude, or choose one in Connect your AI. The keyword scan above works without it."; els.aiBtn.disabled = true; return; }
-  resetAI();
-})();
+refreshSample();
 

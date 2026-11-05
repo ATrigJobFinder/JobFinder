@@ -1,5 +1,5 @@
 /* ===================== App shell: sidebar + tabs ===================== */
-body { padding: 0; }
+html, body { margin: 0; padding: 0; }
 .app { --sn-w: 252px; --bar-h: 52px; display: grid; grid-template-columns: var(--sn-w) minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
 .app[data-nav="rail"] { --sn-w: 68px; }
 .sidenav {

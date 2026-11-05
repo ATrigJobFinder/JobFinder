@@ -1,8 +1,8 @@
 /* ===================== Resume creator ===================== */
 const P = () => profile.data;
-// Layout first (so the preview looks right from the start); the summary near the end, so it can draw on everything else
+// Goal first (it decides which designs and tips come up); the summary near the end, so it can draw on everything else
 const B_STEPS = [
-  { key: "layout", label: "Layout" }, { key: "goal", label: "Goal" }, { key: "contact", label: "Contact" }, { key: "experience", label: "Experience" },
+  { key: "goal", label: "Goal" }, { key: "layout", label: "Layout" }, { key: "contact", label: "Contact" }, { key: "experience", label: "Experience" },
   { key: "education", label: "Education" }, { key: "skills", label: "Skills" }, { key: "extras", label: "Extras" }, { key: "summary", label: "Summary" }, { key: "review", label: "Review" }
 ];
 const SN = k => B_STEPS.findIndex(s => s.key === k);
@@ -32,7 +32,7 @@ function q(path, label, o = {}) {
   let input;
   if (o.area) input = `<textarea id="${id}" data-path="${path}"${o.lines ? ' data-lines="1"' : ""}${o.multi || o.lines ? ' data-multiline="1"' : ""} rows="${o.rows || 3}" placeholder="${esc(o.ph || "")}"${desc}${o.spell === false ? ' spellcheck="false"' : ' spellcheck="true" data-prose="1" autocapitalize="sentences"'}>${esc(o.lines ? (v || []).join("\n") : v || "")}</textarea>`;
   else if (o.select) input = `<select id="${id}" data-path="${path}"${desc}${o.rerender ? ' data-rerender="1"' : ""}>${o.select.map(x => { const [k, l] = Array.isArray(x) ? x : [x, x]; return `<option value="${esc(k)}"${k === (v || "") ? " selected" : ""}>${esc(l || "Choose…")}</option>`; }).join("")}</select>`;
-  else input = `<input type="${o.type || "text"}" id="${id}" data-path="${path}" value="${esc(v || "")}" placeholder="${esc(o.ph || "")}" autocomplete="${o.ac || "off"}"${extra}${desc}${o.suggest ? ` data-suggest="${o.suggest}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl"` : ""}>`;
+  else input = `<input type="${o.type || "text"}" id="${id}" data-path="${path}" value="${esc(v || "")}" placeholder="${esc(o.ph || "")}" autocomplete="${o.nofill ? "nope" : o.ac || "off"}"${o.nofill ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" readonly` : ""}${extra}${desc}${o.suggest ? ` data-suggest="${o.suggest}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl"` : ""}>`;
   if (o.suggest) input = `<div class="pick sugg">${input}<ul class="pick-list" id="${id}-sl" role="listbox" aria-label="${esc(String(label).replace(/<[^>]+>/g, ""))} suggestions" hidden></ul></div>`;
   const msg = o.date ? `<p class="pick-msg${badDate ? " err" : ""}" id="${id}-msg" role="status">${badDate ? esc(order || DATE_HELP) : ""}</p>` : "";
   return `<div class="q${o.wide ? " wide" : ""}">${lab}<div class="q-body">${input}${msg}${o.after || ""}${hint}</div></div>`;
@@ -55,11 +55,19 @@ function jobTypeQ(label, hint) {
     : `<div class="opt-grid" role="group" aria-labelledby="bJobTypeL">${JOB_TYPES.map(x => `<button type="button" class="opt-tile" data-act="pick" data-path="target.jobType" data-val="${esc(x.key)}" aria-pressed="${cur === x.key}">${esc(x.label)}</button>`).join("")}</div>`;
   return `<div class="q"><div class="q-label" id="bJobTypeL">${label}</div>${hint && !folded ? `<p class="q-hint">${hint}</p>` : ""}${grid}</div>`;
 }
+// Sidebar designs have two colours: the headings (above) and the side column. Dark sidebars pick from deep colours, light ones from the design's own.
+const SIDE_DARKS = ["#1F2430", "#14213D", "#0B3D3A", "#3B1E54", "#1F3D2B", "#4A1D1D", "#111111"];
+function colour2Q(t) {
+  if (t.layout !== "sidebar") return "";
+  const list = t.tone === "dark" ? SIDE_DARKS : t.accents, cur = P().cv.template === t.key ? P().cv.accent2 : "";
+  const first = t.tone === "dark" ? "#1F2430" : builderAccent(t);
+  return `<div class="q-label" id="bCol2L" style="margin-top:10px">Side column colour</div><div class="swatches" role="group" aria-labelledby="bCol2L"><button type="button" class="swatch" data-v25="accent2" data-val="" style="background:${first}" aria-pressed="${!cur}" aria-label="Side column: the design's own colour"></button>${list.filter(a => a !== first).map(a => `<button type="button" class="swatch" data-v25="accent2" data-val="${a}" style="background:${a}" aria-pressed="${a === cur}" aria-label="Side column colour ${a}"></button>`).join("")}</div>`;
+}
 // The design's colours, in the Layout step and again in Review
 function colourQ() {
   const t = builderTpl();
   return `<div class="q"><div class="q-label" id="bColL">Colour</div><div class="swatches" role="group" aria-labelledby="bColL">${t.accents.map(a => `<button type="button" class="swatch" data-act="accent" data-val="${a}" style="background:${a}" aria-pressed="${a === builderAccent(t)}" aria-label="Accent colour ${a}"></button>`).join("")}</div>
-        <p class="q-hint">${esc(t.name)}: ${esc(t.blurb)}${t.ats ? "" : " It has two columns, which some online application systems read out of order. For job portals, a single-column design like Professional is safer."}</p></div>`;
+        ${colour2Q(t)}<p class="q-hint">${esc(t.name)}: ${esc(t.blurb)}${t.ats ? "" : " It has two columns, which some online application systems read out of order. For job portals, a single-column design like Professional is safer."}</p></div>`;
 }
 const stepHead = (kicker, title, intro) => `<div class="b-step-head"><span class="kicker">${kicker}</span><h2 id="bStepTitle" tabindex="-1">${title}</h2>${intro ? `<p>${intro}</p>` : ""}</div>`;
 // Skills the job ad names, for "Asked for in the ad"
@@ -69,8 +77,7 @@ const skillsInAd = ad => [...findSkills(norm(String(ad || ""))).values()].sort((
 const STEP_RENDER = {
   layout() {
     const t = builderTpl();
-    return stepHead(kicker("layout"), "Choose your layout", "Pick a design before you start. Your resume takes shape in it as you go, and you can change it at any time.")
-      + jobTypeQ("What kind of work is it for?", "Pick the closest one. Designs that suit it are shown first.")
+    return stepHead(kicker("layout"), "Choose your layout", "Designs that suit the goal you chose are shown first. Your resume takes shape in the design as you go, and you can change it at any time.")
       + `<div class="q"><div class="q-label" id="bTplL">Design</div><p class="q-hint">Choose as many filters as you like: a design has to match one choice from each row you use.</p>${tplFilterHtml(builder.tplFilter, "data-act=\"tpl-filter\" data-val")}<div class="b-tpls" role="group" aria-labelledby="bTplL">${layoutCards()}</div>${layoutMore()}</div>`
       + colourQ()
       + pageSetupQ();
@@ -78,17 +85,18 @@ const STEP_RENDER = {
   goal() {
     const p = P(), st = p.target.stage;
     const tips = {
+      none: "No experience is fine. Lead with education, school and uni projects, volunteering, clubs and any casual or family work. Employers hiring for entry-level roles expect this, and they look for reliability and willingness to learn.",
       student: "Part-time jobs, volunteering, clubs and uni projects all count. Graduate recruiters expect them, and they show reliability.",
       early: "Lead with your most recent role and show results, not duties. One page is ideal, two at most.",
       experienced: "Focus on the last 10 to 15 years and your biggest results. Two pages is normal.",
       change: "Lead with the skills that carry over to the new field, and use your summary to explain the move in one line.",
       returning: "List the gap simply (for example “Career break: caring for family”) and include any courses or volunteering since."
     };
-    return stepHead(kicker("goal"), "What job are you going for?", "A resume works best when it's written for one kind of job. Your answers here shape the questions and tips that follow.")
-      + q("target.title", "What job title are you aiming for?", { hint: "Start typing and pick from the list, or type your own if it isn't there. It becomes the headline under your name, and recruiters search on it.", ph: "e.g. Graduate Mechanical Engineer", suggest: "titles", cap: "jobtitle" })
-      + (p.target.jobType ? `<p class="q-hint">Kind of work: <b>${esc(jobLabel(p.target.jobType))}</b>. <button class="linkish" type="button" data-act="pick" data-path="target.jobType" data-val="">Change</button></p>` : jobTypeQ("What kind of work is it?", "This shapes the skill suggestions that follow."))
-      + chipQ("target.stage", "Where are you in your career?", "Students and recent graduates lead with education. Everyone else leads with experience.", STAGES)
-      + (st ? `<p class="tip">${tips[st]}</p>` : "");
+    return stepHead(kicker("goal"), "What are you going for?", "A resume works best when it's written for one kind of job. Your answers here pick the designs, questions and tips that follow.")
+      + chipQ("target.stage", "Where are you in your career?", "Students, recent graduates and people with no experience lead with education. Everyone else leads with experience.", STAGES)
+      + (st ? `<p class="tip">${tips[st]}</p>` : "")
+      + jobTypeQ("Which industry?", "Pick the closest one. It decides which designs and skill ideas come first.")
+      + q("target.title", "What job title are you aiming for?", { hint: "Start typing and pick from the list, or type your own if it isn't there. It becomes the headline under your name, and recruiters search on it.", ph: "e.g. Graduate Mechanical Engineer", suggest: "titles", cap: "jobtitle" });
   },
   contact() {
     return stepHead(kicker("contact"), "How can employers reach you?", "Recruiters call more often than they email, so check your number.")
@@ -101,11 +109,13 @@ const STEP_RENDER = {
     const show = !!p.summary.trim() || builder.showSummary;
     return stepHead(kicker("summary"), "Your profile in three sentences", "The short paragraph at the top. It's written last, so it can draw on everything you've added. Recruiters often decide whether to keep reading from this alone.")
       + (filled ? `<p class="tip">We've started these answers from your earlier steps. Change anything that doesn't sound like you, then write your summary.</p>` : "")
+      + `<div class="b-aiin" data-ai-field="1" data-ai-what="write your summary"><div class="b-aiin-head"><span class="b-sub">Tell us about you</span><span class="card-tag ai">For the AI only: not on your resume</span></div><p class="q-hint">Answer in plain words. The AI uses these to write your summary below, and they never appear on the resume themselves.</p>`
       + q("summaryQ.who", "In one line, how would you describe yourself professionally?", { area: true, rows: 2, ph: "e.g. Final-year mechanical engineering student with internship experience in solar projects" })
       + q("summaryQ.strengths", "What are your two or three strongest skills for this kind of job?", { area: true, rows: 2, ph: "e.g. CAD design in SolidWorks, technical reports, working with site teams" })
       + q("summaryQ.proof", "What's one result you're proud of that backs that up?", { area: true, rows: 2, ph: "e.g. Cut a bracket's weight by 18% during my internship", hint: "A number makes it stick: how many, how much, how fast." })
       + q("summaryQ.next", "What are you looking for next?", { area: true, rows: 2, ph: "e.g. A graduate role in renewable energy design" })
-      + `<div class="b-actions"><button class="btn primary" type="button" data-act="ai-summary">${p.summary.trim() ? "Write it again" : "Write my summary"}</button>${show ? "" : '<button class="linkish" type="button" data-act="sum-self">or write it myself</button>'}<span class="engine-note" id="bSumEngine"></span></div>`
+      + `<div class="b-actions b-aiin-foot"><button class="btn primary" type="button" data-act="ai-summary">${p.summary.trim() ? "Write it again" : "Write my summary"}</button>${show ? "" : '<button class="linkish" type="button" data-act="sum-self">or write it myself</button>'}<span class="engine-note" id="bSumEngine"></span></div></div>`
+      + summaryStructureHtml()
       + (show ? q("summary", "Your summary", { area: true, rows: 5, multi: true, hint: "Edit it until it sounds like you. Aim for 40 to 75 words, no “I”, no clichés.", after: `<p class="b-check" id="bSumCheck"></p><div id="bSumActs">${summaryActions()}</div>` }) : "");
   },
   experience() {
@@ -136,10 +146,10 @@ const STEP_RENDER = {
     const p = P();
     const box = (key, label, inner) => `<div class="b-card${p.extras[key] ? "" : " off"}${p.extrasDone[key] ? " done" : ""}"><div class="b-card-body"><div class="b-extra-head"><label class="q-check"><input type="checkbox" data-path="extras.${key}" data-rerender="1"${p.extras[key] ? " checked" : ""}> <b>${label}</b></label>${p.extras[key] && p.extrasDone[key] ? '<span class="card-tag done">On your resume</span>' : ""}</div>${p.extras[key] ? inner : ""}</div></div>`;
     return stepHead(kicker("extras"), "Anything else worth showing?", "Tick the sections you want. They're optional, but projects, volunteering and awards can make a short resume stand out. Finish adds each one to your resume.")
-      + box("availability", "Availability", `<div class="q-grid">${startQ()}${q("availability", "Days and hours you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights; full time over summer", prose: true })}</div>`)
+      + box("availability", "Availability", `<div class="q-grid">${startQ()}${q("availDays", "Days you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights", prose: true })}${q("availHours", "Hours per week", { opt: true, ph: "e.g. 20", inputmode: "numeric", hint: "A number, or a range like 15 to 25.", ac: "off" })}${val(P().availability) && !val(P().availDays) && !val(P().availHours) ? `<p class="q-hint wide">Saved from before: “${esc(P().availability)}”. Fill in the two boxes above to replace it.</p>` : ""}</div>`)
       + box("projects", "Projects", p.projects.map((x, i) => projCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="projects">+ Add a project</button></div><p class="q-hint">University, personal or work projects. Say what you built and what came of it.</p>`)
       + box("volunteering", "Volunteering", p.volunteering.map((x, i) => volCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="volunteering">+ Add a role</button></div>`)
-      + box("awards", "Awards and achievements", lineListQ("awards", "Awards and achievements", "e.g. Dean's List, 2024", "+ Add an award", `<div class="x-wrap" data-xr="awards.0">${extraRewordHtml("awards", 0)}</div>`) + textFoot("awards"))
+      + box("awards", "Awards and achievements", lineListQ("awards", "Awards and achievements", "e.g. Dean's List, 2024", "+ Add an award") + textFoot("awards"))
       + box("publications", "Publications", lineListQ("publications", "Publications, in your field's citation style", "e.g. Nguyen, A. (2025). Title. Journal, 12(3), 45-60", "+ Add a publication") + textFoot("publications"))
       + box("interests", "Interests", q("interests", "A short line", { hint: "Only if they say something useful about you: a team sport, a club you run, a relevant hobby.", ph: "e.g. Club cricket, building mechanical keyboards", prose: true }) + textFoot("interests"))
       + box("referees", "Referees", refereesBlock());
@@ -158,7 +168,7 @@ const STEP_RENDER = {
       + `<div class="b-sub">Page setup</div>` + pageSetupQ()
       + designSuggestHtml()
       + `<div class="b-sub">Download</div><p class="q-hint">In your ${esc(t.name)} layout${t.ats ? ", which applicant tracking systems read reliably" : ". It has two columns, so for online job portals the Professional layout is read more reliably"}. <button class="linkish" type="button" data-act="goto" data-step="${SN("layout")}">Change layout</button></p>`
-      + `<div class="b-actions"><button class="btn primary" type="button" data-act="dl" data-kind="docx">Download as Word</button><button class="btn primary" type="button" data-act="dl" data-kind="pdf">Download as PDF</button><button class="btn" type="button" data-act="copy">Copy as text</button></div><p class="status-line" id="bDlStatus" role="status"></p>`
+      + `<div class="b-actions"><button class="btn primary" type="button" id="bDlBtn" data-dlmenu aria-haspopup="menu" aria-expanded="false">Download as…</button><button class="btn" type="button" data-act="copy">Copy as text</button></div><p class="status-line" id="bDlStatus" role="status"></p>`
       + savedResumesHtml()
       + nextStepsHtml();
   }
@@ -176,15 +186,25 @@ function specificJobQ() {
   }
   return `<div class="q"><div class="q-label" id="bSpecL">Is this resume for one particular job?</div><div class="seg" role="group" aria-labelledby="bSpecL">${b(0, "No, a general resume")}${b(1, "Yes, a particular job")}</div></div>${body}`;
 }
+// What "Reword…" can be asked for: each one is a short instruction for the AI
+const SUM_STYLES = [["another", "Another way to say it", "Say the same things in a different way."], ["shorter", "Shorter", "Make it shorter: 30 to 45 words, keeping the strongest points."], ["longer", "Longer", "Make it a little longer: 65 to 85 words, using only the facts given."], ["casual", "More casual", "Make the tone more casual and friendly, still professional."], ["formal", "More formal", "Make the tone more formal and polished."]];
 function summaryActions() {
   const p = P(), a = builder.sumAlts;
   if (!val(p.summary)) return "";
   const alts = a ? `<div class="bl-alts">${a.busy ? `<p class="progress">${esc(a.busy)}</p>` : a.items.length ? `<span class="small muted">Pick a new wording${a.via ? ` (by ${viaWords(a.via)})` : ""}:</span>${a.items.map((t, k) => `<button type="button" class="bl-alt" data-act="sum-use" data-k="${k}">${esc(t)}</button>`).join("")}${a.msg ? `<span class="small muted">${esc(a.msg)}</span>` : ""}` : `<span class="small muted">${esc(a.msg || "No other wordings this time.")}</span>`}<button class="linkish" type="button" data-act="sum-close">Close</button></div>` : "";
-  return `<div class="b-actions"><button class="btn" type="button" data-act="sum-reword">Reword</button><button class="btn${p.summaryOk ? "" : " primary"}" type="button" data-act="sum-accept"${p.summaryOk ? " disabled" : ""}>${p.summaryOk ? "✓ Accepted" : "Accept"}</button><span class="small muted" id="bSumOk">${p.summaryOk ? "It's on your resume. Edit it any time." : ""}</span></div>${alts}`;
+  const ask = builder.sumAsk && !(a && a.busy) ? `<div class="bl-alts rw-ask" data-nohelp="1"><span class="small muted">How should it change?</span><div class="opt-chips">${SUM_STYLES.map(([k, l]) => `<button type="button" class="opt-chip" data-act="sum-style" data-style="${k}">${l}</button>`).join("")}</div><div class="seg-in"><input type="text" id="bSumStyle" maxlength="120" placeholder="Or say it yourself, e.g. lead with my software skills" aria-label="Tell the AI how to change the summary"><button class="btn" type="button" data-act="sum-style" data-style="custom">Reword</button></div><button class="linkish" type="button" data-act="sum-ask-close">Close</button></div>` : "";
+  return `<div class="b-actions"><button class="btn" type="button" data-act="sum-reword" aria-expanded="${!!builder.sumAsk}">Reword…</button><button class="btn${p.summaryOk ? "" : " primary"}" type="button" data-act="sum-accept"${p.summaryOk ? " disabled" : ""}>${p.summaryOk ? "✓ Accepted" : "Accept"}</button><span class="small muted" id="bSumOk">${p.summaryOk ? "It's on your resume. Edit it any time." : ""}</span></div>${ask}${alts}`;
+}
+// A blue box in the same style as "Tell us about this job": a rough shape for a summary
+function summaryStructureHtml() {
+  const t = P().target.title;
+  return `<details class="sum-struct"><summary>How should I structure my summary?</summary>
+    <ol class="struct-list"><li><b>Who you are.</b> Your role or stage, and your field${t ? ` (for you: “${esc(t)}”)` : ""}.</li><li><b>What you're good at.</b> Two or three skills that match the job.</li><li><b>Proof.</b> One result with a number, from work, study or volunteering.</li><li><b>What you want next.</b> The kind of role you're after, in a few words.</li></ol>
+    <p class="q-hint">Three sentences, 40 to 75 words, no “I”, no clichés. Example: “Final-year mechanical engineering student with solar internship experience. Skilled in SolidWorks CAD and clear technical reports. Cut a bracket's weight by 18%. Seeking a graduate role in renewable energy design.”</p></details>`;
 }
 const hasContent = e => !!(e.title || e.org || e.degree || e.inst || e.name || e.subject);
 // Small badges on each card: finished (on the resume), a draft, or hidden from this resume
-const cardState = e => !hasContent(e) ? "" : (e.hidden ? '<span class="card-tag off">Hidden</span>' : "") + (e.done ? '<span class="card-tag done">On your resume</span>' : '<span class="card-tag draft">Draft</span>');
+const cardState = e => `<span class="card-tags">${!hasContent(e) ? "" : `<span class="card-slot">${e.done ? '<span class="card-tag done">On your resume</span>' : '<span class="card-tag draft">Draft</span>'}</span><span class="card-slot">${e.hidden ? '<span class="card-tag off">Hidden</span>' : ""}</span>`}</span>`;
 function expCard(e, i) {
   const open = builder.open.experience.has(i);
   const title = [e.title, e.org].filter(Boolean).join(" at ") || "New job";
@@ -192,20 +212,21 @@ function expCard(e, i) {
   const genned = builder.genned.has(i) || !!builder.sugg[i];
   // once there are bullet points, the questions fold away so the bullets are easy to read; click to open them again
   const hasBullets = e.bullets.some(b => b.trim()), foldOpen = builder.foldOpen[i] === undefined ? !hasBullets : builder.foldOpen[i];
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="experience" data-i="${i}"${open ? " open" : ""}><summary>${dragH("experience", i)}<span>${esc(title)}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="experience" data-i="${i}" data-flip="${flipId(e)}"${open ? " open" : ""}><summary>${dragH("experience", i)}<span>${esc(title)}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".title", "Job title", { ph: "e.g. Engineering Intern", suggest: "titles", cap: "jobtitle" })}${q(base + ".org", "Employer", { ph: "e.g. Brightwater Solar", suggest: "employers", cap: "title" })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("Feb 2023"), date: true })}${e.current ? presentBox() : q(base + ".end", "Finished", { ph: datePh("Nov 2024"), date: true })}${endCheck(base + ".current", "I work here now")}</div>
     ${locQ(base + ".location", "Location", { opt: true })}
-    <div class="b-aiin"><div class="b-aiin-head"><span class="b-sub">Tell us about this job</span><span class="card-tag ai">For the AI only: not on your resume</span></div><p class="q-hint">Answer in plain words. The AI uses these to write your bullet points below, and they never appear on the resume themselves.</p>
+    <div class="b-aiin" data-ai-field="1" data-ai-what="turn your answers into bullet points"><div class="b-aiin-head"><span class="b-sub">Tell us about this job</span><span class="card-tag ai">For the AI only: not on your resume</span></div><p class="q-hint">Answer in plain words. The AI uses these to write your bullet points below, and they never appear on the resume themselves.</p>
     ${q(base + ".answers.duties", "What were your main responsibilities?", { area: true, rows: 2, ph: "e.g. Served customers, ran the register, opened and closed the store", after: `<p class="b-check warn" data-vague="${i}">${esc(vagueNote(e))}</p>` })}
     ${q(base + ".answers.wins", "What did you achieve, improve or get recognised for?", { area: true, rows: 3, hint: "Numbers help a lot: how many customers, how much money, how much time saved, how many people trained.", ph: "e.g. Trained 5 new staff. Cut weekly stock-count time from 4 hours to 2 by reorganising the storeroom." })}
     <div class="q-grid">${q(base + ".answers.tools", "Which tools, software or equipment did you use?", { area: true, rows: 2, ph: "e.g. Excel, SolidWorks, POS system, forklift" })}${q(base + ".answers.people", "Who did you work with or for?", { area: true, rows: 2, ph: "e.g. A team of 6; senior engineers; up to 200 customers a day" })}</div>
+    ${genned ? "" : `<div class="b-actions b-aiin-foot"><button class="btn primary" type="button" data-act="ai-bullets" data-i="${i}" data-mode="new">Turn into bullet points</button></div>`}
     </div>
     <div class="b-sub">Bullet points <span class="card-tag done">This is what your resume shows, word for word</span>${hinfoHtml("One achievement or task per box: start with an action word and say what changed.", "Bullets are what recruiters actually read, and these are the exact words that appear on your resume.")}</div>
     <p class="q-hint">Three to six for recent jobs. Each one a full sentence: an action word, what you did, how, and what came of it.</p>
     <div class="bl-list">${e.bullets.map((b, j) => bulletRow(`${base}.bullets.${j}`, b, i, j, e.current)).join("")}</div>
-    <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button>${genned ? "" : `<button class="btn primary" type="button" data-act="ai-bullets" data-i="${i}" data-mode="new">Turn my answers into bullet points</button>`}${genned ? `<button class="btn ghost" type="button" data-act="ai-bullets" data-i="${i}" data-mode="redo">Try again</button>` : ""}</div>
-    ${verbsHelp()}
+    <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button>${genned ? `<button class="btn ghost" type="button" data-act="redo-ask" data-i="${i}" aria-expanded="${builder.redoAsk === i}">Try again…</button>` : ""}</div>
+    ${verbsHelp(i)}
     <div class="b-sugg" id="bSugg${i}">${suggHtml(i)}</div>
     ${cardFoot("experience", i, e)}
   </div></details>${finNoteHtml("experience", i)}`;
@@ -223,12 +244,12 @@ function cardFoot(list, i, e) {
   const len = list === "referees" ? P().referees.list.length : n.length;
   const polished = e.polished && e.polished === polishSig(list, e);
   return `${e.done ? "" : `<p class="q-hint fin-hint">${FIN_HINT[list]}</p>`}<p class="status-line" id="bFin-${list}-${i}" role="status"></p>
-    <div class="b-card-foot">${i > 0 ? `<button class="btn ghost" type="button" data-act="move" data-list="${list}" data-i="${i}" data-d="-1">Move up</button>` : ""}${i < len - 1 ? `<button class="btn ghost" type="button" data-act="move" data-list="${list}" data-i="${i}" data-d="1">Move down</button>` : ""}<button class="btn ghost" type="button" data-act="del" data-list="${list}" data-i="${i}">Remove</button>${list === "referees" ? "" : `<button class="btn ghost" type="button" data-act="hide" data-list="${list}" data-i="${i}" aria-pressed="${!!e.hidden}">${e.hidden ? "Show on resume" : "Hide from resume"}</button>`}
-    <span class="foot-gap"></span><button class="btn primary" type="button" data-act="finish" data-list="${list}" data-i="${i}">${e.done ? "Finish" : `Finish this ${NOUN[list]}`}</button></div>`;
+    <div class="b-card-foot"><button class="btn ghost" type="button" data-act="del" data-list="${list}" data-i="${i}">Remove</button>${list === "referees" ? "" : `<button class="btn ghost" type="button" data-act="hide" data-list="${list}" data-i="${i}" aria-pressed="${!!e.hidden}">${e.hidden ? "Show on resume" : "Hide from resume"}</button>`}
+    <span class="foot-gap"></span><button class="btn primary" type="button" data-act="finish" data-list="${list}" data-i="${i}">${e.done ? "Finish" : `Finish this ${NOUN[list]}`}</button></div>${list === "referees" ? "" : `<p class="q-hint hide-why">${e.hidden ? "Hidden: it stays saved in your profile but is left off this resume. Press Show on resume to bring it back." : "Hide from resume keeps it saved but leaves it off this resume. It can be brought back any time, and Job Finder may also hide things itself to fit a page and tell you why."}</p>`}`;
 }
 function bulletRow(path, text, i, j, current) {
   const alts = builder.alts[`${i}.${j}`], ask = builder.fixAsk === `${i}.${j}`;
-  return `<div class="bl-item" data-i="${i}" data-j="${j}"><textarea data-path="${path}" data-bullet="1" data-current="${current ? 1 : 0}" rows="2" spellcheck="true" data-prose="1" aria-label="Bullet point ${j + 1}">${esc(text)}</textarea><button type="button" class="chip-x" data-act="del-bullet" data-i="${i}" data-j="${j}" aria-label="Remove bullet point ${j + 1}">×</button>
+  return `<div class="bl-item" data-i="${i}" data-j="${j}" data-flip="b${i}:${flipText(i, text)}"><span class="drag-h bl-grip" draggable="true" data-bdrag="1" data-i="${i}" data-j="${j}" title="Drag to move this bullet point" aria-label="Drag to move bullet point ${j + 1}">${GRIP_SVG}</span><textarea data-path="${path}" data-bullet="1" data-current="${current ? 1 : 0}" rows="2" spellcheck="true" data-prose="1" aria-label="Bullet point ${j + 1}">${esc(text)}</textarea><button type="button" class="chip-x" data-act="del-bullet" data-i="${i}" data-j="${j}" aria-label="Remove bullet point ${j + 1}">×</button>
     <div class="coach" data-coach="${path}">${coachHtml(text, current, i, j)}</div>
     ${ask ? `<div class="bl-ask"><div class="bl-ask-head"><label class="small" for="bAsk${i}_${j}">What's the number? For example how many, how much, or how often.</label><button class="linkish" type="button" data-act="close-ask" data-i="${i}" data-j="${j}">Close</button></div><div class="seg-in"><input type="text" id="bAsk${i}_${j}" data-ask="${i}.${j}" placeholder="e.g. about 120 customers a day"><button class="btn" type="button" data-act="fix-number" data-i="${i}" data-j="${j}">Add it</button></div></div>` : ""}
     ${alts ? `<div class="bl-alts">${alts.busy ? `<p class="progress">${esc(alts.busy)}</p>` : alts.items.length ? `<span class="small muted">${esc(alts.head || "Pick a new wording")}${alts.via ? ` (by ${viaWords(alts.via)})` : ""}:</span>${alts.items.map((t, k) => `<button type="button" class="bl-alt" data-act="use-alt" data-i="${i}" data-j="${j}" data-k="${k}">${esc(t)}</button>`).join("")}${alts.msg ? `<span class="small muted">${esc(alts.msg)}</span>` : ""}` : `<span class="small muted">${esc(alts.msg || "No other wordings this time.")}</span>`}<button class="linkish" type="button" data-act="close-alts" data-i="${i}" data-j="${j}">Close</button></div>` : ""}
@@ -239,23 +260,23 @@ function eduCard(e, i) {
   const base = `education.${i}`, lv = qualLevel(e.level);
   const subjects = listOf(val(e.coursework)).filter(x => !isBlank(x)), picked = pickSubjects(e, P());
   const levels = [["", "Choose the level…"], ...QUAL_LEVELS.map(x => [x.k, x.label])];
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="education" data-i="${i}"${open ? " open" : ""}><summary>${dragH("education", i)}<span>${esc([e.degree, e.inst].filter(Boolean).join(", ") || "New qualification")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e, true))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="education" data-i="${i}" data-flip="${flipId(e)}"${open ? " open" : ""}><summary>${dragH("education", i)}<span>${esc([e.degree, e.inst].filter(Boolean).join(", ") || "New qualification")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e, true))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".level", "Level", { select: levels, rerender: true })}${q(base + ".subject", lv && lv.school ? "Certificate" : lv && (lv.k === "other" || lv.k === "short") ? "Name of the qualification" : "Subject or field", { ph: (lv && lv.ph) || "e.g. Engineering (Mechanical), Commerce or Hospitality", suggest: "subject", cap: "title", opt: !!(lv && lv.school) })}
       ${e.double ? q(base + ".level2", "Second degree: level", { select: levels, rerender: true }) + q(base + ".subject2", qualLevel(e.level2) && qualLevel(e.level2).school ? "Certificate" : "Second degree: subject or field", { ph: (qualLevel(e.level2) && qualLevel(e.level2).ph) || "e.g. Commerce or Laws", suggest: "subject", cap: "title" }) : ""}
       <div class="q wide q-solo"><div class="q-body"><label class="q-check"><input type="checkbox" data-path="${base}.double" data-rerender="1"${e.double ? " checked" : ""}> This is a double degree (two qualifications studied together)</label></div></div>
-      <div class="q wide q-merged"><span class="q-label">On your resume</span><div class="q-body"><p class="q-merge" id="${fid(base)}_name">${e.degree ? esc(e.degree) : '<span class="muted">Choose a level and type the subject</span>'}</p></div></div>
+      <div class="q wide q-merged"><label class="q-label" for="${fid(base)}_title">Education title <span class="card-tag done">This shows on your resume</span></label><div class="q-body"><input type="text" id="${fid(base)}_title" data-path="${base}.degree" data-degree-title="${i}" data-cap="title" value="${esc(e.degree || "")}" placeholder="Choose a level and type the subject, or write your own" autocomplete="off"><p class="q-hint">Filled in from the level and subject. Change the words if you like, for example to match how your certificate reads. ${e.degreeCustom ? `<button class="linkish" type="button" data-act="degree-auto" data-i="${i}">Fill it in from the level and subject again</button>` : ""}</p></div></div>
       ${q(base + ".inst", lv && lv.school ? "School" : "University, TAFE or school", { ph: lv && lv.school ? "Start typing your school's name" : "e.g. Queensland University of Technology", suggest: "inst", cap: "title", hint: lv && lv.school && !SCHOOLS_LOADED() ? "Type your school's full name." : "" })}${locQ(base + ".location", "Location", { opt: true })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("Feb 2022"), date: true })}${q(base + ".end", e.current ? "Expected to finish" : "Finished", { ph: datePh("Nov 2025"), date: true })}${endCheck(base + ".current", "I'm still studying")}</div>
     ${builder.autoStudy === base + ".end" && e.current ? `<p class="b-check ok" role="status">That's after today, so “I'm still studying” is ticked${studyStage(e) && studyStage(e).label ? ` and you'll be described as ${aOrAn(studyStage(e).label)} ${studyStage(e).label} student` : ""}.</p>` : ""}
     <div class="q-grid">${gradeQ(e, base)}${q(base + ".awards", "Scholarships or awards", { opt: true, ph: "e.g. Dean's List 2024", prose: true })}</div>
-    ${q(base + ".coursework", "Relevant subjects", { opt: true, area: true, rows: 2, ph: "e.g. Thermodynamics, Fluid Mechanics, Engineering Design, Statics, Materials Science", hint: `Add every subject, separated by commas. Each resume shows the ${SUBJECTS_SHOWN} closest to the job you're going for${P().target.specific && val(P().target.ad) ? " (picked from the job ad in Goal)" : ""}.`, after: subjects.length > SUBJECTS_SHOWN ? `<p class="b-check ok" data-subjects="${i}">Showing ${picked.length} of ${subjects.length} on this resume: ${esc(picked.join(", "))}.</p>` : `<p class="b-check" data-subjects="${i}"></p>` })}
+    ${subjectsQ(e, i)}
     ${projectQ(e, base)}
     ${cardFoot("education", i, e)}
   </div></details>${finNoteHtml("education", i)}`;
 }
 function projCard(x, i) {
   const base = `projects.${i}`;
-  return `<details class="b-card${x.done ? " done" : ""}${x.hidden ? " is-hidden" : ""}" data-card="projects" data-i="${i}"${builder.open.projects.has(i) ? " open" : ""}><summary>${dragH("projects", i)}<span>${esc(x.name || "New project")}</span>${cardState(x)}<span class="meta">${esc(rangeOf(x))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${x.done ? " done" : ""}${x.hidden ? " is-hidden" : ""}" data-card="projects" data-i="${i}" data-flip="${flipId(x)}"${builder.open.projects.has(i) ? " open" : ""}><summary>${dragH("projects", i)}<span>${esc(x.name || "New project")}</span>${cardState(x)}<span class="meta">${esc(rangeOf(x))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".name", "Project name", { ph: "e.g. Solar-powered irrigation controller", cap: "title" })}${q(base + ".org", "For or with", { opt: true, ph: "e.g. RMIT capstone, team of 4" })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { opt: true, ph: datePh("Mar 2024"), date: true })}${x.current ? presentBox() : q(base + ".end", "Finished", { opt: true, ph: datePh("Jun 2024"), date: true })}${endCheck(base + ".current", "It's ongoing")}</div>
     ${q(base + ".details", "What did you do, and what came of it? One point per line.", { area: true, rows: 3, multi: true, after: `<div class="x-wrap" data-xr="projects.${i}">${extraRewordHtml("projects", i)}</div>` })}
@@ -263,7 +284,7 @@ function projCard(x, i) {
 }
 function volCard(e, i) {
   const base = `volunteering.${i}`;
-  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="volunteering" data-i="${i}"${builder.open.volunteering.has(i) ? " open" : ""}><summary>${dragH("volunteering", i)}<span>${esc([e.title, e.org].filter(Boolean).join(" at ") || "New role")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
+  return `<details class="b-card${e.done ? " done" : ""}${e.hidden ? " is-hidden" : ""}" data-card="volunteering" data-i="${i}" data-flip="${flipId(e)}"${builder.open.volunteering.has(i) ? " open" : ""}><summary>${dragH("volunteering", i)}<span>${esc([e.title, e.org].filter(Boolean).join(" at ") || "New role")}</span>${cardState(e)}<span class="meta">${esc(rangeOf(e))}</span></summary><div class="b-card-body">
     <div class="q-grid">${q(base + ".title", "Role", { ph: "e.g. Volunteer Coach", cap: "jobtitle", suggest: "titles" })}${q(base + ".org", "Organisation", { ph: "e.g. Northside Junior Football Club", cap: "title", suggest: "employers" })}</div>
     <div class="q-dates">${q(base + ".start", "Started", { opt: true, ph: datePh("2022"), date: true })}${e.current ? presentBox() : q(base + ".end", "Finished", { opt: true, ph: datePh("2024"), date: true })}${endCheck(base + ".current", "I still do this")}</div>
     ${q(base + ".bullets", "What did you do? One point per line.", { area: true, rows: 3, lines: true, after: `<div class="x-wrap" data-xr="volunteering.${i}">${extraRewordHtml("volunteering", i)}</div>` })}
@@ -282,8 +303,8 @@ function refereesBlock() {
 }
 function refCard(x, i) {
   const base = `referees.list.${i}`, open = builder.open.referees.has(i) || (!x.done && !x.name);
-  return `<details class="b-card${x.done ? " done" : ""}" data-card="referees" data-i="${i}"${open ? " open" : ""}><summary><span>${esc(x.name ? [x.name, x.role].filter(Boolean).join(", ") : `Referee ${i + 1}`)}</span>${cardState(x)}</summary><div class="b-card-body">
-    <div class="q-grid">${q(base + ".name", "Name", { cap: "name", ph: "e.g. Priya Shah" })}${q(base + ".role", "Their role", { cap: "jobtitle", suggest: "titles", ph: "e.g. Store Manager" })}${q(base + ".org", "Organisation", { cap: "title", suggest: "employers" })}${q(base + ".phone", "Phone", { type: "tel", inputmode: "tel" })}${q(base + ".email", "Email", { type: "email", wide: true })}</div>
+  return `<details class="b-card${x.done ? " done" : ""}" data-card="referees" data-i="${i}" data-flip="${flipId(x)}"${open ? " open" : ""}><summary>${dragH("referees", i)}<span>${esc(x.name ? [x.name, x.role].filter(Boolean).join(", ") : `Referee ${i + 1}`)}</span>${cardState(x)}</summary><div class="b-card-body">
+    <div class="q-grid">${q(base + ".name", "Name", { cap: "name", ph: "e.g. Priya Shah", nofill: true })}${q(base + ".role", "Their role", { cap: "jobtitle", suggest: "titles", ph: "e.g. Store Manager", nofill: true })}${q(base + ".org", "Organisation", { cap: "title", suggest: "employers", nofill: true })}${q(base + ".phone", "Phone", { inputmode: "tel", nofill: true })}${q(base + ".email", "Email", { inputmode: "email", wide: true, nofill: true })}</div>
     ${cardFoot("referees", i, x)}</div></details>${finNoteHtml("referees", i)}`;
 }
 // Awards, publications and interests: Polish and Finish under the box
@@ -300,9 +321,9 @@ const CHIP_LABELS = {
 };
 function chipEditor(key, label, hint, ph) {
   const items = P().skills[key], id = "chin_" + key;
-  return `<div class="q" data-chips="${key}"><div class="q-label" id="chl_${key}">${label}</div>${hint ? `<p class="q-hint">${hint}</p>` : ""}
+  return `<section class="q skill-card" data-chips="${key}"><header class="skill-head"><h3 class="q-label" id="chl_${key}">${label}</h3><span class="skill-count" data-skill-count="${key}">${items.length ? `${items.length} added` : "none yet"}</span></header>${hint ? `<p class="q-hint">${hint}</p>` : ""}
     <div class="chip-edit pick sugg">${items.map((s, i) => `<span class="echip">${esc(s)}<button type="button" class="chip-x" data-act="chip-del" data-key="${key}" data-i="${i}" aria-label="Remove ${esc(s)}">×</button></span>`).join("")}<input type="text" id="${id}" class="chip-in" data-chip-in="${key}" data-suggest="chip-${key}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" placeholder="${esc(ph)}" aria-labelledby="chl_${key}" autocomplete="off"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
-    <div class="sugg-row" data-sugg="${key}">${skillSuggestions(key)}</div></div>`;
+    <details class="skill-ideas" open><summary>Ideas to pick from</summary><div class="sugg-row" data-sugg="${key}">${skillSuggestions(key)}</div></details></section>`;
 }
 function skillSuggestions(key) {
   const p = P(), have = new Set(Object.values(p.skills).flat().map(s => s.toLowerCase()));
@@ -324,17 +345,22 @@ function skillSuggestions(key) {
   const pick = (arr, n) => [...new Set(arr)].filter(s => !have.has(s.toLowerCase())).slice(0, n);
   // "Suggest more" starts with this kind of job's own ideas, then widens to everything we know for this box
   const wide = pages || ideas.length < 12 ? [...ideas, ...((SUGGEST_SRC["chip-" + key] || (() => []))())] : ideas;
-  const a = pick(fromYou, 10), ad = pick(fromAd, 10).filter(s => !a.includes(s)), b = pick(pages ? wide : ideas, 12 + pages * 12).filter(s => !a.includes(s) && !ad.includes(s));
+  const a = pick(fromYou, 10), ad = pick(fromAd, 10).filter(s => !a.includes(s));
+  // tools and skills that usually go with the ones already picked (or found in the answers) come before the general ideas
+  const rel = (key === "software" || key === "hard") ? relatedIdeas(key, [...p.skills[key], ...(key === "software" ? p.skills.hard : []), ...fromYou], have).filter(s => !a.includes(s) && !ad.includes(s)) : [];
+  const b = pick(pages ? wide : ideas, 12 + pages * 12).filter(s => !a.includes(s) && !ad.includes(s) && !rel.includes(s));
   const all = [...new Set(key === "soft" || key === "hard" || key === "software" || key === "certs" ? [...ideas, ...((SUGGEST_SRC["chip-" + key] || (() => []))())] : ideas)].filter(s => !have.has(s.toLowerCase()) && !a.includes(s) && !ad.includes(s)).length;
   const chip = s => `<button type="button" class="opt-chip" data-act="chip-sugg" data-key="${key}" data-val="${esc(s)}">${esc(s)}</button>`;
   // a small button on every section: more skills that are common for this kind of job
-  const moreBtn = all > b.length ? `<button type="button" class="btn sugg-more" data-act="sugg-more" data-key="${key}">Suggest more</button>` : pages && b.length ? `<span class="small muted">That's every idea we have for this kind of job.</span>` : "";
+  const hideBtn = pages ? ` <button type="button" class="linkish sugg-hide" data-act="sugg-hide" data-key="${key}">hide</button>` : "";
+  const moreBtn = all > b.length ? `<button type="button" class="btn sugg-more" data-act="sugg-more" data-key="${key}">Suggest more</button>${hideBtn}` : pages && b.length ? `<span class="small muted">That's every idea we have for this kind of job.</span>${hideBtn}` : "";
   return (ad.length ? `<span>Asked for in the ad, if you have it:</span>${ad.map(chip).join("")}` : "")
     + (a.length ? `<span>Found in your answers:</span>${a.map(chip).join("")}` : "")
+    + (rel.length ? `<span>Goes well with what you've picked:</span>${rel.map(chip).join("")}` : "")
     + (b.length ? `<span>${a.length || ad.length ? "Also common" : `Common for ${esc(lowerFirst(jobLabel(jt) || "this kind of job"))}`}, if you have it:</span>${b.map(chip).join("")}` : "")
     + moreBtn;
 }
-const verbsHelp = () => `<details class="verbs"><summary>Need a word to start a bullet point?</summary><div class="opt-chips">${ACTION_VERBS.map(v => `<button type="button" class="opt-chip" data-act="verb" data-val="${v}">${v}</button>`).join("")}</div></details>`;
+const verbsHelp = i => `<details class="verbs" data-verbs="${i}"><summary>Need an action word?</summary><p class="q-hint verbs-nai" hidden>No AI is connected, so pick a starting word from this list. Or <a href="#connect">connect an AI</a> to have it fixed for you.</p><p class="q-hint">Drag a word onto a bullet point to swap its first word, or click into a bullet point and then click a word.</p><div class="opt-chips">${ACTION_VERBS.map(v => `<button type="button" class="opt-chip" draggable="true" data-act="verb" data-val="${v}" data-verb-drag="${v}">${v}</button>`).join("")}</div></details>`;
 
 /* --- Bullet coach: quick checks as you type --- */
 const VERB_WORDS = new Set([...ACTION_VERBS.map(v => v.toLowerCase()), "cut", "won", "grew", "sold", "taught", "ran", "led", "built", "wrote", "drew", "kept", "made", "set", "met", "took", "gave", "found", "brought", "bought", "held", "dealt", "spoke", "sent", "spent", "oversaw", "did", "got", "showed", "chose", "fed", "lent"]);
@@ -421,24 +447,35 @@ function resumeHealth(p) {
   const fails = items.filter(i => i.status === "fail").length, warns = items.filter(i => i.status === "warn").length;
   return { items, score: Math.max(5, Math.min(100, 100 - fails * 14 - warns * 6)) };
 }
-function stepDone(k, p) {
+// "done": everything in the step is complete. "draft": something is in it, but it isn't complete (or has entries still to finish). "": nothing yet.
+function stepState(k, p) {
+  const has = x => !!String(x == null ? "" : x).trim();
+  const entriesState = (arr, complete) => {
+    const real = arr.filter(e => hasContent(e));
+    if (!real.length) return "";
+    return real.every(e => e.done !== false) && real.some(e => complete(e)) ? "done" : "draft";
+  };
   switch (k) {
-    case "layout": return !!p.cv.template;
-    case "goal": return !!(p.target.title && p.target.stage);
-    case "contact": return !!(p.contact.name && p.contact.email && p.contact.phone);
-    case "summary": return wordCount(p.summary) >= 20;
-    case "experience": return p.experience.some(e => e.done && (e.title || e.org) && e.bullets.filter(b => b.trim()).length >= 2);
-    case "education": return p.education.some(e => e.done && (e.degree || e.inst));
-    case "skills": return p.skills.hard.length + p.skills.software.length >= 3;
-    case "extras": return builder.visited.has(SN("extras"));
-    default: return false;
+    case "goal": return p.target.stage && p.target.jobType && has(p.target.title) ? "done" : (p.target.stage || p.target.jobType || has(p.target.title)) ? "draft" : "";
+    case "layout": return p.cv.template ? "done" : "";
+    case "contact": {
+      const c = p.contact, need = [has(c.name) || (has(c.first) && has(c.last)), has(c.email), has(c.phone), has(c.location)];
+      return need.every(Boolean) ? "done" : need.some(Boolean) || has(c.linkedin) || has(c.website) ? "draft" : "";
+    }
+    case "summary": return wordCount(p.summary) >= 20 && p.summaryOk ? "done" : has(p.summary) || Object.values(p.summaryQ || {}).some(has) ? "draft" : "";
+    case "experience": return entriesState(p.experience, e => (e.title || e.org) && e.bullets.filter(b => b.trim()).length >= 2);
+    case "education": return entriesState(p.education, e => e.degree || e.inst);
+    case "skills": { const n = p.skills.hard.length + p.skills.software.length; return n >= 3 ? "done" : n || p.skills.certs.length || p.skills.soft.length ? "draft" : ""; }
+    case "extras": return draftsIn(p, "extras").length ? "draft" : builder.visited.has(SN("extras")) ? "done" : "";
+    default: return "";
   }
 }
+const stepDone = (k, p) => stepState(k, p) === "done";
 
 /* --- Rendering --- */
 function renderSteps() {
   const p = P();
-  $("bSteps").innerHTML = B_STEPS.map((s, i) => `<li class="${stepDone(s.key, p) ? "done" : ""}${i === builder.step ? " current" : ""}"><button type="button" data-act="goto" data-step="${i}"${i === builder.step ? ' aria-current="step"' : ""}><span class="n">${i + 1}</span><span class="t">${s.label}</span></button></li>`).join("");
+  $("bSteps").innerHTML = B_STEPS.map((s, i) => { const state = stepState(s.key, p); return `<li class="${state}${i === builder.step ? " current" : ""}"><button type="button" data-act="goto" data-step="${i}"${i === builder.step ? ' aria-current="step"' : ""}${state ? ` title="${state === "done" ? "Complete" : "Started, not finished yet"}"` : ""}><span class="n">${i + 1}</span><span class="t">${s.label}</span>${state ? `<span class="visually-hidden">${state === "done" ? " (complete)" : " (draft)"}</span>` : ""}</button></li>`; }).join("");
 }
 function renderBuilder(focus) {
   const f = $("bForm");
@@ -447,6 +484,8 @@ function renderBuilder(focus) {
   builder.visited.add(builder.step);
   const y = window.scrollY;
   const pend = builder.pendingGoto;
+  const flipFrom = builder.animate ? flipCapture() : null;
+  builder.animate = false;
   f.innerHTML = STEP_RENDER[k]() + (pend ? `<div class="b-pending" role="alert"><p>${esc(pend.msg)}</p><div class="b-actions"><button class="btn primary" type="button" data-act="finish-all">Finish ${pend.count > 1 ? "them" : "it"} and continue</button><button class="btn" type="button" data-act="goto" data-step="${pend.step}" data-force="1">Continue without ${pend.count > 1 ? "them" : "it"}</button></div></div>` : "")
     + `<div class="b-nav">${builder.step > 0 ? `<button class="btn" type="button" data-act="goto" data-step="${builder.step - 1}">← ${B_STEPS[builder.step - 1].label}</button>` : "<span></span>"}${builder.step < B_STEPS.length - 1 ? `<button class="btn primary" type="button" data-act="goto" data-step="${builder.step + 1}">Next: ${B_STEPS[builder.step + 1].label} →</button>` : ""}</div>`;
   renderSteps();
@@ -456,6 +495,7 @@ function renderBuilder(focus) {
   if (k === "layout" || k === "review") fitThumbs();
   if (focus) { const h = $("bStepTitle"); if (h) h.focus({ preventScroll: true }); smoothTo(f); }
   else if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);   // re-rendering never moves the page
+  if (flipFrom) flipPlay(flipFrom);
 }
 // Text boxes grow to fit what's in them, so nothing is hidden
 function autoGrow(t) { if (!t || !t.isConnected) return; t.style.height = "auto"; t.style.height = Math.max(t.scrollHeight + 2, 44) + "px"; }
@@ -482,15 +522,21 @@ function layoutMore() {
   const n = layoutMatches().length, left = n - builder.tplShow;
   return left > 0 ? `<div class="b-actions"><button class="btn" type="button" data-act="tpl-more">Show ${Math.min(12, left)} more designs</button><span class="small muted">${n} ${n === 1 ? "match" : "matches"}</span></div>` : "";
 }
-function renderPreview() {
+// keepPaper: update the counts and the score but leave the page as it is, because someone is typing on it (see 20h-builder-preview-edit.js)
+function renderPreview(keepPaper) {
   const frame = $("bPaper");
   if (!frame || currentView !== "builder") return;
   const p = P(), base = builderTpl(), tpl = tplWithPrefs(base);
   // with nothing finished yet, show a made-up resume so the design can be judged
   const example = !hasProfile(p) && !finished(p.experience).length && !finished(p.education).length;
-  const pages = mountPaper(frame, cvHtml(cvModel(example ? SAMPLE_PROFILE : p, tpl), tpl, { accent: builderAccent(base) }));
-  builder.pages = pages;
-  paperHighlight();
+  let pages = builder.pages || 1;
+  if (!keepPaper) {
+    pages = mountPaper(frame, cvHtml(cvModel(example ? SAMPLE_PROFILE : p, tpl, { ghostSummary: true }), tpl, { accent: builderAccent(base) }));
+    builder.pages = pages;
+    paperHighlight();
+    bpEditor.example = example;
+    paperEditable(frame, bpEditor);
+  } else if (+frame.dataset.pages) pages = builder.pages = +frame.dataset.pages;
   const drafts = draftsIn(p).length, hidden = ["experience", "education", "projects", "volunteering"].reduce((a, l) => a + p[l].filter(e => e.hidden && e.done !== false && hasContent(e)).length, 0);
   $("bPages").textContent = `${pages} page${pages === 1 ? "" : "s"} in the ${tpl.name} layout.${example ? " This is an example with made-up details. Yours replace it as you finish each part." : ""}${pages > 2 && !example ? " Aim for two at most." : ""}${drafts ? ` ${drafts} ${drafts === 1 ? "entry isn't" : "entries aren't"} finished yet, so ${drafts === 1 ? "it's" : "they're"} not shown.` : ""}${hidden ? ` ${hidden} hidden from this resume.` : ""}`;
   const h = resumeHealth(p);
@@ -551,7 +597,7 @@ function dateOrderCheck(path) {
 function onBuilderInput(e) {
   const t = e.target, p = P(), change = e.type === "change";
   if (t.tagName === "TEXTAREA" && (t.dataset.bullet || t.dataset.suggEdit || /\.answers\.|^target\.ad$/.test(t.dataset.path || ""))) autoGrow(t);
-  if (t.dataset.chipIn || t.dataset.ask) return;
+  if (t.dataset.chipIn || t.dataset.ask || t.dataset.subjIn != null) return;
   // edited suggestion before adding it
   if (t.dataset.suggEdit) { const sg = builder.sugg[+t.dataset.i]; if (sg) sg.items[+t.dataset.j] = t.value; return; }
   // places are saved only when picked from the list (see the place picker)
@@ -604,15 +650,17 @@ function onBuilderInput(e) {
     const ed = p.education[+path.split(".")[1]], end = dateEnd(ed.end);
     if (end && end > new Date() && !ed.current) { ed.current = true; builder.autoStudy = path; touchProfile("builder"); keepOpen(); renderBuilder(false); return; }
   }
-  // the qualification's level and subject make its full name
+  // the qualification's level and subject make its full name, unless the person has written their own title
+  if (/^education\.\d+\.degree$/.test(path)) { const ed = p.education[+path.split(".")[1]]; ed.degreeCustom = !!val(ed.degree); }
   if (/^education\.\d+\.(level|subject|level2|subject2|double)$/.test(path)) {
     const i = +path.split(".")[1], ed = p.education[i];
+    ed.degreeCustom = false;
     syncQual(ed);
-    const nm = $(fid(`education.${i}`) + "_name"); if (nm) nm.innerHTML = ed.degree ? esc(ed.degree) : '<span class="muted">Choose a level and type the subject</span>';
+    const nm = $(fid(`education.${i}`) + "_title"); if (nm) nm.value = ed.degree || "";
   }
   if (/^education\.\d+\.coursework$/.test(path)) {
     const i = +path.split(".")[1], ed = p.education[i], all = listOf(val(ed.coursework)).filter(x => !isBlank(x)), pk = pickSubjects(ed, p), n = $q(`[data-subjects="${i}"]`);
-    if (n) { n.textContent = all.length > SUBJECTS_SHOWN ? `Showing ${pk.length} of ${all.length} on this resume: ${pk.join(", ")}.` : ""; n.classList.toggle("ok", all.length > SUBJECTS_SHOWN); }
+    if (n) { n.textContent = all.length > subjN(ed) ? `Showing ${pk.length} of ${all.length} on this resume: ${pk.join(", ")}.` : ""; n.classList.toggle("ok", all.length > subjN(ed)); }
   }
   // a place of study picked from the list: fill in its city
   if (change && /^education\.\d+\.inst$/.test(path)) { const i = +path.split(".")[1], ed = p.education[i], city = instCity(v); if (city && !val(ed.location)) { ed.location = city; keepOpen(); touchProfile("builder"); renderBuilder(false); return; } }
@@ -644,10 +692,12 @@ function onBuilderInput(e) {
   const card = t.closest("details.b-card");
   if (card && /\.(title|org|degree|level|subject|inst|name|role|start|end)$/.test(path)) {
     const list = card.dataset.card, i = +card.dataset.i, x = list === "referees" ? p.referees.list[i] : p[list][i];
-    const sp = card.querySelector(":scope > summary > span");
+    const sp = card.querySelector(":scope > summary > span:not(.drag-h):not(.card-tags):not(.meta)");
     if (sp && x) sp.textContent = list === "education" ? [x.degree, x.inst].filter(Boolean).join(", ") || "New qualification" : list === "projects" ? x.name || "New project" : list === "referees" ? (x.name ? [x.name, x.role].filter(Boolean).join(", ") : `Referee ${i + 1}`) : [x.title, x.org].filter(Boolean).join(" at ") || (list === "volunteering" ? "New role" : "New job");
     const m = card.querySelector(":scope > summary > .meta");
     if (m && x) m.textContent = rangeOf(x, list === "education");
+    const tg = card.querySelector(":scope > summary > .card-tags");
+    if (tg && x && list !== "referees") { const n = document.createElement("div"); n.innerHTML = cardState(x); tg.replaceWith(n.firstElementChild); }
   }
   updateChecks();
   previewSoon();
@@ -703,7 +753,12 @@ async function onBuilderClick(e) {
         if (drafts.length) {
           const d0 = drafts[0].e, nm = d0.title || d0.degree || d0.name || d0.org || d0.inst;
           builder.pendingGoto = { step: to, count: drafts.length, msg: `${drafts.length === 1 ? `“${nm}” isn't` : `${drafts.length} entries aren't`} finished yet, so ${drafts.length === 1 ? "it's" : "they're"} not on your resume.` };
-          renderBuilder(false); const pe = document.querySelector(".b-pending"); if (pe) smoothTo(pe, 80); return;
+          // open every draft and take you back to the first one (the notice with the buttons is under the cards)
+          for (const d of drafts) if (builder.open[d.list]) builder.open[d.list].add(d.i);
+          renderBuilder(false);
+          const first = document.querySelector(`#bForm details[data-card="${drafts[0].list}"][data-i="${drafts[0].i}"]`), pe = document.querySelector(".b-pending");
+          if (first) { smoothTo(first, 80); first.classList.remove("flash"); void first.offsetWidth; first.classList.add("flash"); } else if (pe) smoothTo(pe, 80);
+          return;
         }
       }
       builder.pendingGoto = null; builder.step = to; renderBuilder(true); return;
@@ -728,12 +783,14 @@ async function onBuilderClick(e) {
       builder.tplShow = 12; renderBuilder(false); return;
     }
     case "tpl-more": builder.tplShow += 12; renderBuilder(false); return;
-    case "tpl": { p.cv.template = b.dataset.tpl; p.cv.accent = ""; if (typeof cvState !== "undefined") cvState.selected = b.dataset.tpl; touchProfile("builder"); renderBuilder(false); return; }
+    case "tpl": { p.cv.template = b.dataset.tpl; p.cv.accent = ""; p.cv.accent2 = ""; if (typeof cvState !== "undefined") cvState.selected = b.dataset.tpl; touchProfile("builder"); renderBuilder(false); return; }
     case "accent": { if (!p.cv.template) p.cv.template = builderTpl().key; p.cv.accent = b.dataset.val; touchProfile("builder"); renderBuilder(false); return; }
     case "sum-self": builder.showSummary = true; renderBuilder(false); { const ta = $(fid("summary")); if (ta) ta.focus(); } return;
-    case "sum-reword": return rewordSummary();
+    case "sum-reword": builder.sumAsk = !builder.sumAsk; { const bx = $("bSumActs"); if (bx) bx.innerHTML = summaryActions(); } return;
+    case "sum-ask-close": builder.sumAsk = false; { const bx = $("bSumActs"); if (bx) bx.innerHTML = summaryActions(); } return;
+    case "sum-style": { const st = SUM_STYLES.find(x => x[0] === b.dataset.style), custom = ($("bSumStyle") || {}).value || ""; if (!st && !custom.trim()) { const inp = $("bSumStyle"); if (inp) inp.focus(); return; } builder.sumAsk = false; return rewordSummary(st ? st[2] : `Change it like this: ${custom.trim()}`, st ? st[0] : "custom"); }
     case "sum-use": { const a = builder.sumAlts; if (a && a.items[+b.dataset.k]) { if (p.summary.trim()) builder.prevSummary = p.summary; p.summary = a.items[+b.dataset.k]; p.summaryOk = false; builder.sumAlts = null; touchProfile("builder"); renderBuilder(false); } return; }
-    case "sum-close": builder.sumAlts = null; renderBuilder(false); return;
+    case "sum-close": builder.sumAlts = null; builder.sumAsk = false; renderBuilder(false); return;
     case "sum-accept": {
       let s = tidySpaces(p.summary);
       const r = autocorrect(s); s = r.text;
@@ -783,6 +840,7 @@ async function onBuilderClick(e) {
       const arr = listArr(p, list), j = i + +b.dataset.d;
       if (j < 0 || j >= arr.length) return;
       [arr[i], arr[j]] = [arr[j], arr[i]];
+      builder.animate = true;
       builder.foldOpen = {};
       builder.extraAlts = {};
       builder.open[list] = new Set([j]);
@@ -792,18 +850,23 @@ async function onBuilderClick(e) {
     case "del-bullet": { keepOpen(); const dj = +b.dataset.j; p.experience[i].bullets.splice(dj, 1); const moved = {}; for (const [k, v] of Object.entries(builder.alts)) { const [ki, kj] = k.split(".").map(Number); if (ki !== i) moved[k] = v; else if (kj < dj) moved[k] = v; else if (kj > dj) moved[ki + "." + (kj - 1)] = v; } builder.alts = moved; if (builder.fixAsk && builder.fixAsk.startsWith(i + ".")) builder.fixAsk = null; } touchProfile("builder"); renderBuilder(false); return;
     case "chip-del": P().skills[b.dataset.key].splice(i, 1); touchProfile("builder"); rerenderChips(b.dataset.key); return;
     case "chip-sugg": addChip(b.dataset.key, b.dataset.val); return;
+    case "sugg-hide": builder.moreSugg[b.dataset.key] = 0; rerenderChips(b.dataset.key); return;
     case "sugg-more": builder.moreSugg[b.dataset.key] = (+builder.moreSugg[b.dataset.key] || 0) + 1; rerenderChips(b.dataset.key); return;
     case "lang-add": case "lang-del": langClick(act, i); return;
     case "verb": {
       const t = builder.lastBullet && builder.lastBullet.isConnected ? builder.lastBullet : null;
       if (!t) { b.closest("details").querySelector("summary").textContent = "Click into a bullet point first, then pick a word"; return; }
-      const v = t.value.trim();
-      t.value = v ? b.dataset.val + " " + v[0].toLowerCase() + v.slice(1) : b.dataset.val + " ";
-      t.dispatchEvent(new Event("input", { bubbles: true }));
-      t.focus(); return;
+      applyVerb(t, b.dataset.val); return;
     }
     case "ai-summary": return writeSummary(b);
     case "ai-bullets": return writeBullets(i, b, b.dataset.mode || "new");
+    case "redo-ask": builder.redoAsk = builder.redoAsk === i ? null : i; { const bx = $("bSugg" + i); if (bx) bx.innerHTML = suggHtml(i); } { const inp = $("bRedo" + i); if (inp) inp.focus(); } return;
+    case "redo-close": builder.redoAsk = null; { const bx = $("bSugg" + i); if (bx) bx.innerHTML = suggHtml(i); } return;
+    case "redo-go": {
+      const st = REDO_STYLES.find(x => x[0] === b.dataset.style), custom = ($("bRedo" + i) || {}).value || "";
+      if (!st && !custom.trim()) { const inp = $("bRedo" + i); if (inp) inp.focus(); return; }
+      return writeBullets(i, b, "redo", st ? st[2] : custom.trim());
+    }
     case "sugg-add": case "sugg-all": {
       keepOpen();
       const s = builder.sugg[i];
@@ -834,14 +897,12 @@ async function onBuilderClick(e) {
       return;
     }
     case "sugg-dismiss": delete builder.sugg[i]; $("bSugg" + i).innerHTML = ""; return;
-    case "dl": return builderDownload(b.dataset.kind, b);
     case "copy": {
       try { await navigator.clipboard.writeText(profileToText(p)); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy here"; }
       setTimeout(() => { b.textContent = "Copy as text"; }, 2200); return;
     }
     case "save-resume": return saveResumeVersion(b);
     case "saved-open": return openSavedResume(+b.dataset.k);
-    case "saved-dl": return downloadSavedResume(+b.dataset.k, b.dataset.kind, b);
     case "saved-del": {
       if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Delete it?"; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Delete"; } }, 4000); return; }
       savedResumes.data.list.splice(+b.dataset.k, 1); savedResumes.save(true); renderBuilder(false); return;
@@ -849,6 +910,7 @@ async function onBuilderClick(e) {
     case "to-cv": openView("cv"); return;
     case "to-letter": openView("letter"); return;
     case "to-linkedin": openView("linkedin"); return;
+    case "degree-auto": { keepOpen(); const ed = p.education[+b.dataset.i]; ed.degreeCustom = false; ed.degree = ""; syncQual(ed); touchProfile("builder"); renderBuilder(false); return; }
     case "sort-date": return sortByDate(list);
     case "sort-level": return sortByLevel();
     case "to-scanner": sendToScanner(); return;
@@ -862,6 +924,7 @@ builder.aiText = new Set();
 // Downloads use the layout, colour, spacing and margins chosen in the Resume creator
 async function builderDownload(kind, btn) {
   const base = builderTpl(), tpl = tplWithPrefs(base), accent = builderAccent(base), model = cvModel(P(), tpl);
+  if (kind === "txt") return downloadTextFile(cvFileName(model, kind, base.family === "academic" || base.key === "academic" ? "CV" : "Resume"), profileToText(P()), $("bDlStatus"), btn);
   await downloadMade(cvFileName(model, kind, base.family === "academic" || base.key === "academic" ? "CV" : "Resume"), async () => kind === "pdf" ? (await cvPdf(model, tpl, { accent })).blob : cvDocx(model, tpl, { accent }), $("bDlStatus"), btn);
 }
 function sendToScanner() {
@@ -886,7 +949,7 @@ function savedResumesHtml() {
   const list = savedResumes.data.list || [];
   return `<div class="b-sub">Save this version to your profile</div><p class="q-hint">Give it a name, like the job it's for, so you can open or download it again later.</p>
     <div class="b-actions"><button class="btn primary" type="button" data-act="save-resume">Save to my profile…</button><span class="status-line" id="bSaveStatus" role="status"></span></div>
-    ${list.length ? `<ul class="saved-list" aria-label="Your saved resumes">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))}${x.tplName ? ` · ${esc(x.tplName)} layout` : ""}</span></span><span class="b-actions"><button class="btn" type="button" data-act="saved-open" data-k="${k}">Open</button><button class="btn ghost" type="button" data-act="saved-dl" data-k="${k}" data-kind="docx">Word</button><button class="btn ghost" type="button" data-act="saved-dl" data-k="${k}" data-kind="pdf">PDF</button><button class="btn ghost" type="button" data-act="saved-del" data-k="${k}">Delete</button></span></li>`).join("")}</ul>` : ""}`;
+    ${list.length ? `<ul class="saved-list" aria-label="Your saved resumes">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))}${x.tplName ? ` · ${esc(x.tplName)} layout` : ""}</span></span><span class="b-actions"><button class="btn" type="button" data-act="saved-open" data-k="${k}">Open</button><button class="btn ghost" type="button" data-dlmenu="saved-resume" data-k="${k}" aria-haspopup="menu" aria-expanded="false">Download as…</button><button class="btn ghost" type="button" data-act="saved-del" data-k="${k}">Delete</button></span></li>`).join("")}</ul>` : ""}`;
 }
 // A small pop-up that asks for a name. Resolves to the name, or null if cancelled.
 function askName({ title, text, label, value, ok = "Save" }) {
@@ -925,10 +988,13 @@ function openSavedResume(k) {
   const st = $("bSaveStatus");
   if (st) { st.innerHTML = `Opened “${esc(x.name)}”. <button class="linkish" type="button" id="bUndoOpen">Undo</button>`; $("bUndoOpen").onclick = () => { replaceProfile(builder.undo, "import"); builder.undo = null; renderBuilder(false); }; }
 }
+dlMenu("bDlBtn", { docx: b => builderDownload("docx", b), pdf: b => builderDownload("pdf", b), txt: b => builderDownload("txt", b) });
+dlMenu("saved-resume", { docx: b => downloadSavedResume(+b.dataset.k, "docx", b), pdf: b => downloadSavedResume(+b.dataset.k, "pdf", b), txt: b => downloadSavedResume(+b.dataset.k, "txt", b) });
 async function downloadSavedResume(k, kind, btn) {
   const x = (savedResumes.data.list || [])[k];
   if (!x) return;
   const pr = mergeProfile(x.profile), base = tplByKey(x.tpl), tpl = tplWithPrefs(base, pr.prefs), model = cvModel(pr, tpl);
+  if (kind === "txt") return downloadTextFile(cvFileName(model, kind, "Resume"), profileToText(pr), $("bSaveStatus"), btn);
   await downloadMade(cvFileName(model, kind, "Resume"), async () => kind === "pdf" ? (await cvPdf(model, tpl, { accent: x.accent || base.accent })).blob : cvDocx(model, tpl, { accent: x.accent || base.accent }), $("bSaveStatus"), btn);
 }
 
@@ -937,6 +1003,7 @@ const SUMMARY_RULES = `You write the profile paragraph at the top of an Australi
 Use ONLY facts the candidate gave. Never invent employers, numbers, skills, tools, qualifications or achievements.
 Write 2 or 3 sentences, 40 to 75 words, in the implied first person (no "I", no "my"), Australian spelling.
 Start with who they are professionally, then their strongest skills with one piece of evidence, then what they are looking for.
+If they gave "A result they're proud of", that result is the piece of evidence: put it in, keeping its numbers exactly as given.
 If <study> says they are still studying, describe them by their year of study (for example "penultimate-year" or "final-year" student, as <study> says) and never as a graduate or recent graduate.
 No clichés ("hard-working", "team player", "passionate", "results-driven", "go-getter", "proven track record"), no buzzwords like "leverage" or "utilise", no markdown.
 Reply with only JSON: {"summary": "..."}`;
@@ -1038,6 +1105,15 @@ function templateSummary(p) {
   else if (p.target.title) parts.push(`Looking for a ${p.target.title} role.`);
   return parts.join(" ").replace(/\s+/g, " ").replace(/\.\./g, ".").trim();
 }
+// The result they're proud of has to be in the summary: its numbers, or most of its key words
+function proofMissing(text, p) {
+  const pr = val(p.summaryQ.proof);
+  if (!pr) return "";
+  const nums = numsOf(pr), have = numsOf(text);
+  if (nums.length) return nums.every(n => have.includes(n)) ? "" : `it must include the result they're proud of, with its numbers: “${pr}”`;
+  const words = [...contentWords(pr)], t = norm(text), hit = words.filter(w => t.includes(w)).length;
+  return words.length && hit / words.length < 0.5 ? `it must include the result they're proud of: “${pr}”` : "";
+}
 async function writeSummary(btn) {
   const p = P(), note = $("bSumEngine");
   if (!Object.values(p.summaryQ).some(v => v.trim()) && !p.experience.length) { note.textContent = "Answer at least one of the questions above first."; return; }
@@ -1049,7 +1125,7 @@ async function writeSummary(btn) {
   // a current student must never come out as a "recent graduate"
   const ss = finished(p.education).map(e => studyStage(e)).find(Boolean), studying = !!(ss && ss.current);
   const GRAD = /\b(recent(ly)?|new(ly)?)[\s-]+graduat\w*|\bgraduated\b|\bgraduate (of|from)\b|^(an? )?graduate\b/i;
-  const judge = t => { const h = honest(t, src, { min: 25, max: 95, keepStop: true }); if (!h) return [null, factCheck(t, src, { noFirstPerson: true, min: 25, max: 95 }) || "it used something that isn't in their answers"]; if (studying && GRAD.test(h)) return [null, `they're still studying${ss.label ? ` (a ${ss.label} student)` : ""}, so never call them a graduate`]; return [h, ""]; };
+  const judge = t => { const h = honest(t, src, { min: 25, max: 95, keepStop: true }); if (!h) return [null, factCheck(t, src, { noFirstPerson: true, min: 25, max: 95 }) || "it used something that isn't in their answers"]; const miss = proofMissing(h, p); if (miss) return [null, miss]; if (studying && GRAD.test(h)) return [null, `they're still studying${ss.label ? ` (a ${ss.label} student)` : ""}, so never call them a graduate`]; return [h, ""]; };
   try {
     const small = await withChromeAI(progress, async make => {
       progress(`Writing with ${SMALL()}…`);
@@ -1089,12 +1165,12 @@ async function writeSummary(btn) {
 const SUM_REWORD_NANO = `You write different wordings of the profile paragraph at the top of an Australian resume.
 Rules:
 1. Write 3 versions. Each keeps every fact and adds nothing new: no new skills, numbers, employers, qualifications or results.
-2. 40 to 75 words each, 2 or 3 sentences, no "I" or "my", Australian spelling.
-3. Vary them: one leads with who they are, one with their strongest skill, one with their result.
+2. 40 to 75 words each, 2 or 3 sentences, no "I" or "my", Australian spelling. If <change> says to make it shorter or longer, follow that instead of the word count.
+3. If <change> is given, every version does what it says. Otherwise vary them: one leads with who they are, one with their strongest skill, one with their result.
 4. If they're still studying, keep their year of study and never call them a graduate.
 5. No clichés ("hard-working", "team player", "passionate", "results-driven") and no buzzwords ("leverage", "utilise").
 Reply with JSON only: {"options": ["...", "...", "..."]}`;
-async function rewordSummary() {
+async function rewordSummary(change = "", kind = "another") {
   const p = P(), cur = val(p.summary);
   if (!cur) return;
   builder.sumAlts = { busy: "Finding other ways to say it…" };
@@ -1105,16 +1181,18 @@ async function rewordSummary() {
   const r = await aiJSON({ nano: SUM_REWORD_NANO, prompt: `${studyLine(p) ? `<study>${studyLine(p)}</study>\n` : ""}<summary>${cur}</summary>\n<facts>\n${summaryPrompt(p)}\n</facts>`, schema: { type: "object", properties: { options: strArr }, required: ["options"] }, label: "Rewording", progress: m => { builder.sumAlts = { busy: m }; const b2 = $("bSumActs"); if (b2) b2.innerHTML = summaryActions(); },
     check: d => {
       const seen = new Set([norm(cur)]);
-      const ok = (Array.isArray(d.options) ? d.options : []).map(x => honest(x, src, { min: 25, max: 95, keepStop: true })).filter(x => x && !(studying && GRAD.test(x)) && keepsFacts(cur, x) >= 0.45 && !seen.has(norm(x)) && seen.add(norm(x)));
-      return ok.length >= 2 ? { ok: true, value: ok.slice(0, 3).map(x => /[.!?]$/.test(x) ? x : x + ".") } : { ok: false, why: "write 3 different versions of 40 to 75 words that keep every fact and add nothing" };
+      const ok = (Array.isArray(d.options) ? d.options : []).map(x => honest(x, src, { min: 25, max: 95, keepStop: true })).filter(x => x && !(studying && GRAD.test(x)) && keepsFacts(cur, x) >= (kind === "shorter" ? 0.3 : 0.45) && changedWords(cur, x) >= 4 && !seen.has(norm(x)) && seen.add(norm(x)));
+      return ok.length >= (kind === "another" ? 2 : 1) ? { ok: true, value: ok.slice(0, 3).map(x => /[.!?]$/.test(x) ? x : x + ".") } : { ok: false, why: "write 3 different versions of 40 to 75 words that keep every fact and add nothing" };
     } });
   let items = r.data || [], msg = "";
   if (!items.length) {
     // without AI: the same sentences in a different order
     const sents = sentencesOf(cur).map(x => x.trim()).filter(Boolean);
-    if (sents.length >= 2) items = [[...sents.slice(1), sents[0]].join(" "), [sents[sents.length - 1], ...sents.slice(0, -1)].join(" ")].filter(x => norm(x) !== norm(cur));
-    const t = templateSummary(p); if (t && norm(t) !== norm(cur) && !items.includes(t)) items.push(t);
-    msg = aiMissWords(r) + (items.length ? " These are reshuffles of your own sentences." : "");
+    if (kind === "shorter") { if (sents.length >= 2) items = [sents.slice(0, -1).join(" "), sents.length > 2 ? [sents[0], sents[sents.length - 1]].join(" ") : ""].filter(x => x && wordCount(x) >= 20); }
+    else if (kind !== "another") items = [];
+    else if (sents.length >= 2) items = [[...sents.slice(1), sents[0]].join(" "), [sents[sents.length - 1], ...sents.slice(0, -1)].join(" ")].filter(x => norm(x) !== norm(cur));
+    const t = kind === "another" ? templateSummary(p) : ""; if (t && norm(t) !== norm(cur) && !items.includes(t)) items.push(t);
+    msg = aiMissWords(r) + (items.length ? (kind === "shorter" ? " These are your own sentences with one left out." : " These are reshuffles of your own sentences.") : " This kind of change needs AI.");
   }
   builder.sumAlts = { items: items.slice(0, 3), via: r.data ? r.via : null, msg };
   const b3 = $("bSumActs"); if (b3) b3.innerHTML = summaryActions();
@@ -1200,7 +1278,7 @@ function withPurpose(b) {
   const hit = PURPOSE.find(([re]) => re.test(b));
   return hit ? `${b} ${hit[1]}` : b;
 }
-function bulletPrompt(e, avoid = []) {
+function bulletPrompt(e, avoid = [], style = "") {
   return `<job>${e.title || "(title not given)"}${e.org ? ` at ${e.org}` : ""}, ${rangeOf(e) || "dates not given"}${e.current ? " (their current job: use present tense)" : " (a past job: use past tense)"}</job>
 <their_answers>
 Main responsibilities: ${e.answers.duties || "(not given)"}
@@ -1211,9 +1289,10 @@ Who they worked with or for: ${e.answers.people || "(not given)"}
 <bullets_they_already_have>
 ${e.bullets.filter(Boolean).map(b => "- " + b).join("\n") || "(none)"}
 </bullets_they_already_have>
-Write new bullet points that don't repeat the ones they already have${avoid.length ? ` or these suggestions:\n${avoid.map(b => "- " + b).join("\n")}` : ""}.`;
+Write new bullet points that don't repeat the ones they already have${avoid.length ? ` or these suggestions:\n${avoid.map(b => "- " + b).join("\n")}` : ""}.${style ? `
+How they want them this time: ${style}. Still use only their facts.` : ""}`;
 }
-async function writeBullets(i, btn, mode = "new") {
+async function writeBullets(i, btn, mode = "new", style = "") {
   const e = P().experience[i];
   const box = $("bSugg" + i);
   if (!Object.values(e.answers).some(v => v.trim())) { box.innerHTML = `<div class="s-head"><span>Answer the questions above first, especially what you achieved.</span></div>`; return; }
@@ -1227,32 +1306,36 @@ async function writeBullets(i, btn, mode = "new") {
   const clean = arr => (Array.isArray(arr) ? arr : []).map(b => honest(b, src, { min: 12, max: 34 })).filter(Boolean).filter(b => !seen.has(norm(b))).slice(0, 6);
   let items = [], via = "";
   try {
-    const r = await aiJSON({ nano: BULLET_NANO, full: BULLET_RULES, examples: BULLET_EXAMPLES, prompt: bulletPrompt(e, avoid), schema: BULLETS_SCHEMA, label: "Writing bullet points", progress,
+    const r = await aiJSON({ nano: BULLET_NANO, full: BULLET_RULES, examples: BULLET_EXAMPLES, prompt: bulletPrompt(e, avoid, style), schema: BULLETS_SCHEMA, label: "Writing bullet points", progress,
       check: d => { const ok = clean(d.bullets); return ok.length >= 2 ? { ok: true, value: ok } : { ok: false, why: (Array.isArray(d.bullets) ? d.bullets : []).map(b => factCheck(b, src, { noFirstPerson: true, min: 12, max: 34 })).find(Boolean) || "write at least 3 new bullet points, each a full sentence of 16 to 30 words, using their details" }; } });
-    if (r.data) { items = r.data; via = `Written and polished by ${viaWords(r.via)} from your answers. Edit any of them, and remove any that aren't true.`; }
+    if (r.data) { items = r.data; via = ""; }
     else if (r.tried) via = aiMissWords(r);
   } finally { btn.disabled = false; }
   const ai = !!items.length;
   if (!items.length) { items = answersToBullets(e).filter(b => !seen.has(norm(b))); via = (via ? via + " " : "") + "These were made from your answers without AI. Edit them so each one is true and sounds like you."; }
   builder.genned.add(i);
   delete builder.foldOpen[i];   // new bullet points: fold the questions away
-  // Written bullet points go straight onto the job, ready to edit, with an Undo
-  const e3 = P().experience[i], added = [];
+  // Written bullet points go straight onto the job, ready to edit. "Try again" swaps in the new ones for the AI's last ones (if you haven't changed them)
+  const e3 = P().experience[i], added = [], was = e3.bullets.slice();
   e3.bullets = e3.bullets.filter(x => x.trim());
+  const redo = mode === "redo" && items.length && prev && Array.isArray(prev.added) && prev.added.length;
+  if (redo) { const old = new Set(prev.added); e3.bullets = e3.bullets.filter(x => !old.has(tidy(String(x)).replace(/[.\s]+$/, ""))); }
   for (const t of items) { const x = tidy(String(t || "")).replace(/[.\s]+$/, ""); if (x && !e3.bullets.includes(x)) { e3.bullets.push(x); added.push(x); if (ai) aiMade(x); } }
   if (e3.bullets.length && e3.bullets.every(x => builder.aiText.has(norm(x)))) e3.polished = polishSig("experience", e3);
-  builder.sugg[i] = { items: [], added, via, ai: ai || (prev && prev.ai) };
+  builder.sugg[i] = { items: [], added, via: ai ? "" : via, ai: ai || (prev && prev.ai) };
+  builder.redoAsk = null;
   touchProfile("builder");
   keepOpen(); renderBuilder(false);
+  if (redo && added.length) actToast(`Swapped in ${added.length} new bullet point${added.length === 1 ? "" : "s"}.`, () => { keepOpen(); P().experience[i].bullets = was; touchProfile("builder"); renderBuilder(false); });
   const nb = $("bSugg" + i); if (nb && !added.length) nb.insertAdjacentHTML("afterbegin", `<p class="small">No new bullet points this time. Add more detail to your answers, then try again.</p>`);
 }
+// What "Try again…" can ask the AI for
+const REDO_STYLES = [["formal", "More formal", "more formal and polished"], ["casual", "More casual", "more casual and conversational, still professional"], ["shorter", "Shorter", "shorter: 12 to 20 words each"], ["longer", "Longer", "fuller: 24 to 32 words each, with more detail from their answers"], ["results", "More about results", "leading with the result or number wherever their answers give one"], ["people", "More about teamwork", "focused on who they worked with or for, where their answers say"]];
 function suggHtml(i) {
-  const s = builder.sugg[i];
-  if (!s) return "";
-  if (s.added) {
-    if (!s.added.length) return "";
-    return `<div class="s-head"><b>Added ${s.added.length} bullet point${s.added.length === 1 ? "" : "s"} above</b><span class="b-actions"><button class="btn" type="button" data-act="sugg-undo" data-i="${i}">Undo</button><button class="linkish" type="button" data-act="sugg-dismiss" data-i="${i}">Close</button></span></div><p class="small muted">${esc(s.via)}</p>`;
-  }
+  const s = builder.sugg[i], ask = builder.redoAsk === i
+    ? `<div class="bl-alts rw-ask" data-nohelp="1"><span class="small muted">What do you want from the AI this time? Your current bullet points stay until the new ones are ready.</span><div class="opt-chips">${REDO_STYLES.map(([k, l]) => `<button type="button" class="opt-chip" data-act="redo-go" data-i="${i}" data-style="${k}">${l}</button>`).join("")}</div><div class="seg-in"><input type="text" id="bRedo${i}" maxlength="120" placeholder="Or say it yourself, e.g. lead with the tools I used" aria-label="Tell the AI what you want"><button class="btn" type="button" data-act="redo-go" data-i="${i}" data-style="custom">Write again</button></div><button class="linkish" type="button" data-act="redo-close" data-i="${i}">Close</button></div>` : "";
+  if (!s) return ask;
+  if (s.added) return ask + (s.via && s.added.length ? `<p class="small muted">${esc(s.via)}</p>` : "");
   if (!s.items.length) return `<div class="s-head"><span>Couldn't make bullet points from those answers. Try adding a sentence or two about what you did and what came of it.</span><button class="linkish" type="button" data-act="sugg-dismiss" data-i="${i}">Close</button></div>`;
   return `<div class="s-head"><b>Suggested bullet points</b><span class="b-actions"><button class="btn primary" type="button" data-act="sugg-all" data-i="${i}">Add all</button><button class="linkish" type="button" data-act="sugg-dismiss" data-i="${i}">Close</button></span></div>${s.items.map((t, j) => `<div class="s-row"><textarea data-sugg-edit="1" data-i="${i}" data-j="${j}" rows="2" aria-label="Suggested bullet point ${j + 1}, editable">${esc(t)}</textarea><button class="btn" type="button" data-act="sugg-add" data-i="${i}" data-j="${j}">Add</button></div>`).join("")}<p class="small muted">${esc(s.via)} You can edit a suggestion before adding it.</p>`;
 }
@@ -1430,6 +1513,7 @@ async function importInto(kind, input, statusEl, sourceName) {
   if (kind === "linkedin") liFillFromImport(input);
   builder.undo = hasProfile(before) ? before : null;
   builder.open = openSets();
+  for (const l of ["experience", "education", "projects", "volunteering"]) builder.open[l] = new Set(P()[l].map((_, i) => i));
   const p = P(), n = (a, b) => Math.max(0, a - b);
   const jobs = n(p.experience.filter(hasContent).length, before.experience.filter(hasContent).length), quals = n(p.education.filter(hasContent).length, before.education.filter(hasContent).length);
   const skills = n(Object.values(p.skills).flat().length, Object.values(before.skills).flat().length);

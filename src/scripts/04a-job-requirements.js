@@ -126,7 +126,7 @@ function jobNeeds(jdRaw, res, resumeRaw) {
   const stated = new Set([...res.hard, ...res.soft].map(x => x.name));
 
   // 1 and 2. The selection criteria, each turned into skills, with the evidence for each
-  const isItem = L => !L.heading && L.text.trim() && wordCount(L.text) <= 45 && !LINE_BOILER.test(L.text) && !/^(please note|applications? (close|open)|click|to apply|note:)/i.test(L.text.trim());
+  const isItem = L => !L.heading && L.text.trim() && wordCount(L.text) <= 45 && !LINE_BOILER.test(L.text) && !/\?\s*$/.test(L.text.trim()) && !/^(please note|applications? (close|open)|click|to apply|note:)/i.test(L.text.trim());
   const crit = L => {
     const text = L.text.replace(BULLET_RE, "").trim();
     const skills = [...findSkills(norm(text)).keys()].map(name => ({ name, kind: skillByName(name).kind, ...skillEvidence(name, rLines) }));
@@ -338,7 +338,7 @@ function needsAiHtml(ai) {
 }
 async function needsClick(e) {
   const t = e.target;
-  if (t.closest("[data-needs-place]")) { const s = $("sec-place"); if (s) s.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); return; }
+  if (t.closest("[data-needs-place]")) { closeDetails(); const s = $("sec-place"); if (s) s.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); return; }
   const d = t.closest("[data-needs-draft]");
   if (d && lastResult && lastResult.needs) {
     const i = +d.dataset.needsDraft, c = lastResult.needs.criteria[i], box = $("needsDraft" + i);
@@ -357,7 +357,7 @@ async function needsClick(e) {
     btn.disabled = true; note.classList.add("busy");
     try {
       const r = await aiJobNeeds(lastScan.jd, lastResult, m => { note.textContent = m; });
-      if (!r) { note.textContent = sample || smallEngine() || (await chromeAIState()) === "available" ? "The AI's answer couldn't be checked against the ad, so nothing was added. Try again." : "No AI is connected. Choose one in Connect your AI."; return; }
+      if (!r) { note.textContent = sample || smallEngine() || (await chromeAIState()) === "available" ? "The AI's answer couldn't be checked against the ad, so nothing was added. Try again." : "No AI is connected. Pick one under Choose your AI."; return; }
       lastResult.needs.ai = r; note.textContent = "";
       $("needsAiOut").innerHTML = needsAiHtml(r);
     } finally { btn.disabled = false; note.classList.remove("busy"); }

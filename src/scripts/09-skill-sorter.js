@@ -2,11 +2,12 @@
 const place = { parsed: null, missing: [], placements: new Map(), hints: new Map(), selected: null, open: false, confirmForget: false };
 
 function setupPlace() {
-  const btn = $("placeBtn"), body = $("placeBody");
-  if (!btn || !lastScan || !lastResult) return;
+  const body = $("placeBody");
+  if (!body || !lastScan || !lastResult) return;
   place.parsed = parseResume(lastScan.resume);
+  place.update = null;
   place.missing = [...lastResult.hard, ...lastResult.soft].filter(x => !x.found).map(x => ({ name: x.name, n: x.jd, kind: x.kind, priority: x.priority, adLine: x.adLine }));
-  place.placements = new Map(); place.hints = new Map(); place.selected = null; place.open = false;
+  place.placements = new Map(); place.hints = new Map(); place.selected = null; place.open = true;
   if (memory.where !== "loading") {
     for (const s of place.missing) {
       const r = rememberedZone(s.name, place.parsed.zones);
@@ -14,17 +15,9 @@ function setupPlace() {
       else if (r && r.hint) place.hints.set(s.name, r.hint);
     }
   }
-  const total = place.missing.length, known = place.placements.size;
-  btn.hidden = !total;
-  btn.textContent = !total ? "" : known === total ? `Apply my saved answers (${total})` : known ? `Place missing skills (${total - known} new)` : `Place missing skills (${total})`;
-  btn.disabled = memory.where === "loading";
-  btn.onclick = () => {
-    place.open = true;
-    renderSorter();
-    if (place.placements.size === place.missing.length) applyPlacements(false);
-    else $("sorterTop").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  };
-  body.innerHTML = total ? "" : `<p class="empty">This resume already covers every skill we found in the ad.</p>`;
+  // the box to place them in is always open
+  if (place.missing.length) renderSorter();
+  else body.innerHTML = `<p class="empty">This resume already covers every skill we found in the ad.</p>`;
   renderMemoryLine();
 }
 
@@ -115,7 +108,7 @@ function renderSorter() {
     </div>
     <div class="zones" id="zones"></div>
     <div class="sorter-foot">
-      <button class="btn primary" id="applyBtn" type="button" ${place.placements.size ? "" : "disabled"}>Save answers to profile</button>
+      <button class="btn primary" id="applyBtn" type="button" ${place.placements.size ? "" : "disabled"}>Save answers to profile and tailor my resume →</button>
       <span class="engine-note" id="engineNote"></span>
     </div>
     <div id="updateOut" aria-live="polite"></div>
@@ -152,10 +145,10 @@ function renderSorter() {
       if (d.notes) {
         const inp = document.createElement("input");
         inp.type = "text"; inp.id = "note-" + d.id + "-" + s.name.replace(/[^a-z0-9]/gi, "_");
-        inp.placeholder = s.kind === "hard" ? `What did you do with it? e.g. "drafted bracket drawings"` : `When did you show it? e.g. "trained 3 new starters"`;
-        inp.setAttribute("aria-label", `How you used ${s.name} in ${d.title}`);
+        inp.placeholder = s.kind === "hard" ? `How did you show this? (optional) e.g. "drafted bracket drawings"` : `How did you show this? (optional) e.g. "trained 3 new starters"`;
+        inp.setAttribute("aria-label", `How did you show ${s.name} in ${d.title}? (optional)`);
         inp.value = place.placements.get(s.name).note || "";
-        inp.maxLength = 160;
+        inp.maxLength = 160; inp.dataset.nohelp = "1";
         inp.addEventListener("input", () => { const p = place.placements.get(s.name); if (p) { p.note = inp.value; p.remembered = false; } });
         item.appendChild(inp);
       }

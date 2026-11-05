@@ -4,8 +4,7 @@
 //   talent/<id>  a job seeker's opt-in profile for employers to find
 //   outbox/<id>  an employer's invitations to apply (toIds lists who they're for)
 //   apps/<id>    a job seeker's applications to jobs posted here (employerIds lists who they're for)
-//   feed/<id>    imported job listings (from the collector), written by the owner or editors
-const market = { started: false, db: null, uid: null, user: null, canWrite: null, canEdit: false, employers: [], talent: [], invites: [], incoming: [], myApps: null, feed: [], outbox: null, myJobs: null, error: "" };
+const market = { started: false, db: null, uid: null, user: null, canWrite: null, canEdit: false, employers: [], talent: [], invites: [], incoming: [], myApps: null, outbox: null, myJobs: null, error: "" };
 const hiring = privateDoc("hiring", "jobfinder.hiring.v1", () => ({ status: {}, notes: {} }));
 const EXAMPLE_JOBS = [
   { id: "ex1", title: "Graduate Mechanical Engineer", company: "Coastline Energy Services", location: "Brisbane, QLD", workType: "Full time", remote: "Hybrid", salary: "$75,000 to $82,000 + super", posted: "2026-10-20", source: "Coastline Energy careers page", sourceType: "company", url: "https://example.com/coastline/careers/grad-mech", description: "Join our engineering team delivering solar, battery storage and HVAC projects for commercial clients across Queensland. You will produce 3D models and drawings in SolidWorks or AutoCAD, carry out FEA and hand calculations, support HVAC and piping design, and prepare technical reports. Requirements: Bachelor of Engineering (Mechanical), SolidWorks or AutoCAD, FEA, strong written communication. Job reference: CES-2041.", example: true },
@@ -36,13 +35,6 @@ async function startMarket() {
     live(db.collection("apps").where("employerIds", "array-contains", uid), snap => { market.incoming = snap.docs.flatMap(d => ((d.data() || {}).items || []).filter(i => i.employerId === uid).map(i => ({ ...i, candidate: d.id, name: (d.data() || {}).name }))); marketChanged(); });
     live(db.doc("apps/" + uid), snap => { market.myApps = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; marketChanged(); });
     live(db.doc("outbox/" + uid), snap => { market.outbox = snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null; marketChanged(); });
-    try {
-      const feeders = await db.collection("feed").get();
-      for (const f of feeders.docs) {
-        const chunks = await db.collection("feed/" + f.id + "/chunks").get();
-        for (const c of chunks.docs) market.feed.push(...(((c.data() || {}).jobs) || []));
-      }
-    } catch { /* no feed yet */ }
     marketChanged();
   })();
   return market.ready;
@@ -70,13 +62,10 @@ async function safeWrite(fn, statusId) {
 const safeUrl = u => /^https?:\/\/[^\s"'<>]+$/i.test(String(u || "").trim()) ? String(u).trim() : "";
 function allJobs() {
   const site = market.employers.flatMap(e => (e.jobs || []).filter(j => j.status !== "closed" && j.status !== "draft").map(j => ({ ...j, company: (e.employer || {}).name || "Employer", employerUid: e.uid, key: e.uid + ":" + j.id, source: "Job Finder", sourceType: "site", url: "" })));
-  const feed = market.feed.map(j => ({ ...j, url: safeUrl(j.url), sourceType: j.sourceType || "aggregator", also: (j.also || []).map(a => ({ ...a, url: safeUrl(a.url) })) }));
   const mine = T().filter(i => i.title && (i.jd || i.url)).map(i => ({ id: "t" + i.id, trackerId: i.id, title: i.title, company: i.company, location: i.location, url: safeUrl(i.url), description: i.jd, source: "Saved by you", sourceType: "user", posted: (i.created || "").slice(0, 10) }));
-  // imported listings come from the jobs database (see 34b); made-up examples only show when there's no database or nothing real yet
-  const real = [...site, ...feed], fromDb = dbFeed();
-  const list = real.length || fromDb.length || dbJobs.ready ? [...real, ...mine] : [...EXAMPLE_JOBS, ...mine];
-  // the database already shows one listing per duplicate group, so only the other sources are merged here
-  return [...DEDUP.cluster(list), ...fromDb];
+  // made-up examples only show when nothing real has been posted yet
+  const list = site.length ? [...site, ...mine] : [...EXAMPLE_JOBS, ...mine];
+  return DEDUP.cluster(list);
 }
 function jobMatch(j) {
   const p = P();
@@ -365,8 +354,6 @@ onInit(() => {
     else if (a === "prep") { els.jd.value = els.jd.value || j.description; openView("interview"); }
   });
   $("view-jobs").addEventListener("submit", e => { const f = e.target.closest("[data-apply]"); if (!f) return; e.preventDefault(); const j = allJobs().find(x => x.key === f.dataset.apply); if (j) submitApplication(f, j); });
-  $("jbFeedBtn").addEventListener("click", () => $("jbFeedFile").click());
-  $("jbFeedFile").addEventListener("change", async () => { const f = $("jbFeedFile").files[0]; $("jbFeedFile").value = ""; if (f) await importFeed(f); });
   // employer
   document.querySelectorAll("[data-emtab]").forEach(b => b.addEventListener("click", () => { emUI.tab = b.dataset.emtab; lsSet("jobfinder.emtab.v1", emUI.tab); renderEmployer(); }));
   const em = $("view-employer");
@@ -416,28 +403,4 @@ onInit(() => {
   // invitations show on Home too
   memoryReady.then(() => setTimeout(startMarket, 1500));
 });
-
-/* --- Importing listings from the collector (owner and editors) --- */
-async function importFeed(file) {
-  if (!market.db || !market.canEdit) { say("jbFeedStatus", "Only the owner or an editor of this Job Finder can import listings.", true); return; }
-  let data;
-  try { data = JSON.parse(await file.text()); } catch { say("jbFeedStatus", "That isn't a valid JSON file from the collector.", true); return; }
-  const jobs = (Array.isArray(data) ? data : data.jobs || []).filter(j => j && j.title && j.company).map(j => ({ id: String(j.id || uid8()).slice(0, 80), title: String(j.title).slice(0, 160), company: String(j.company).slice(0, 120), location: String(j.location || "").slice(0, 120), workType: String(j.workType || ""), remote: String(j.remote || ""), salary: String(j.salary || "").slice(0, 80), posted: String(j.posted || "").slice(0, 10), url: String(j.url || ""), source: String(j.source || "Imported").slice(0, 80), sourceType: ["company", "ats", "aggregator", "board"].includes(j.sourceType) ? j.sourceType : "aggregator", description: String(j.description || "").slice(0, 1500), ref: String(j.ref || "").slice(0, 40), closes: String(j.closes || "").slice(0, 10),
-    also: Array.isArray(j.also) ? j.also.slice(0, 8).map(a => ({ source: String((a && a.source) || "").slice(0, 80), url: safeUrl(a && a.url), posted: String((a && a.posted) || "").slice(0, 10), sourceType: String((a && a.sourceType) || "").slice(0, 12) })) : [] })).filter(j => !j.closes || j.closes >= todayISO()).map(j => ({ ...j, url: safeUrl(j.url) }));
-  const merged = DEDUP.cluster(jobs).map(j => ({ ...j, also: (j.also || []).slice(0, 8) }));
-  const listings = merged.reduce((a, j) => a + 1 + j.also.length, 0), sources = new Set(merged.flatMap(j => [j.source, ...j.also.map(a => a.source)]));
-  if (!merged.length) { say("jbFeedStatus", "No jobs found in that file.", true); return; }
-  // split into documents well under the 256 KiB limit
-  const chunks = [[]]; let size = 0;
-  for (const j of merged) { const n = JSON.stringify(j).length; if (size + n > 180000 && chunks[chunks.length - 1].length) { chunks.push([]); size = 0; } chunks[chunks.length - 1].push(j); size += n; }
-  say("jbFeedStatus", `Saving ${merged.length} jobs…`);
-  const base = "feed/" + market.uid;
-  const ok = await safeWrite(async () => {
-    for (let i = 0; i < chunks.length; i++) await market.db.doc(`${base}/chunks/c${i}`).set({ jobs: chunks[i] });
-    const old = await market.db.collection(base + "/chunks").get();
-    for (const d of old.docs) if (+d.id.slice(1) >= chunks.length) await market.db.doc(base + "/chunks/" + d.id).delete();
-    await market.db.doc(base).set({ count: merged.length, listings, imported: new Date().toISOString(), sources: [...sources].slice(0, 50) });
-  }, "jbFeedStatus");
-  if (ok) { market.feed = merged; say("jbFeedStatus", `Imported ${merged.length} jobs from ${sources.size} source${sources.size === 1 ? "" : "s"}: ${listings} listings, with ${listings - merged.length} duplicates merged. Everyone using Job Finder now sees them.`); renderJobs(); }
-}
 

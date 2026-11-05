@@ -263,7 +263,7 @@ document.addEventListener("click", e => {
     else guidePick = { key: k, jd: null };
     openView("scanner");
     // straight to the job ad box when there's a new ad to paste, or to the guide when this ad is theirs
-    setTimeout(() => { if (guidePick.jd === null) goTo("step-jd"); else { const s = $("sec-needs"); if (s) s.scrollIntoView({ block: "start" }); } }, 60);
+    setTimeout(() => { if (guidePick.jd === null) goTo("step-jd"); else openDetails(); }, 60);
     return;
   }
   const cp = e.target.closest("[data-guide-copy]");

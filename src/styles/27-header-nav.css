@@ -1,0 +1,87 @@
+/* ===================== Menu across the top (wide screens) =====================
+   On a phone the menu is still the drawer from 01. From 900px up the same menu becomes a header bar:
+   logo and name, the tools in a row (short names, full names on hover), and Job seeker / Employer. */
+.sn-short { display: none; }
+.ab-ai-x { color: var(--muted); }
+@media (min-width: 900px) {
+  .app, .app[data-nav="rail"] { --sn-w: 0px; --hdr-h: 54px; --ab-h: 46px; --bar-h: calc(var(--hdr-h) + var(--ab-h)); grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .sidenav, .app[data-nav="rail"][data-peek="on"] .sidenav {
+    position: sticky; top: 0; left: auto; z-index: 40; grid-column: 1; grid-row: 1; width: auto; height: var(--hdr-h);
+    flex-direction: row; align-items: center; gap: 10px; padding: 0 max(14px, env(safe-area-inset-right, 0px)) 0 max(14px, env(safe-area-inset-left, 0px));
+    overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); box-shadow: none;
+  }
+  .main { grid-column: 1; grid-row: 2; }
+  .sn-head, .app[data-nav="rail"] .sn-head, .app[data-nav="rail"][data-peek="on"] .sn-head { padding: 0; min-height: 0; justify-content: flex-start; flex: none; }
+  .app[data-nav="rail"] .sn-brand, .app[data-nav="rail"][data-peek="on"] .sn-brand { display: inline; }
+  .sn-mode, .app[data-nav="rail"] .sn-mode, .app[data-nav="rail"][data-peek="on"] .sn-mode { margin: 0; grid-template-columns: 1fr 1fr; flex: none; order: 3; }
+  .app[data-nav="rail"] .sn-mode button span { max-width: none; }
+  .sn-nav { display: flex; align-items: center; gap: 2px; flex: 1 1 auto; min-width: 0; overflow: visible; order: 2; }
+  .sn-group { display: none !important; }
+  .sn-sep { width: 1px; height: 22px; margin: 0 6px; border: 0; background: var(--line); flex: none; }
+  .sn-item, .app[data-nav="rail"] .sn-item, .app[data-nav="rail"][data-peek="on"] .sn-item { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; white-space: nowrap; flex: none; }
+  .sn-item svg { margin: 0; width: 20px; height: 20px; }
+  .sn-text, .app[data-nav="rail"] .sn-text, .app[data-nav="rail"][data-peek="on"] .sn-text { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; }
+  .sn-text small { display: none; }
+  .sn-full { display: none; }
+  .sn-short { display: inline; }
+  .sn-text b { font-size: 0.84rem; }
+  .sn-item[aria-current="page"]::before { left: 10px; right: 10px; top: auto; bottom: -9px; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
+  .sn-item.has-todo::after, .app[data-nav="rail"] .sn-item.has-todo::after { top: 4px; right: 4px; }
+  /* the foot: only the Developer button stays up here (the AI, account and help are in the bar below) */
+  .sn-foot, .app[data-nav="rail"] .sn-foot, .app[data-nav="rail"][data-peek="on"] .sn-foot { display: flex; align-items: center; margin: 0; padding: 0; border: 0; flex: none; order: 4; }
+  .sn-foot .ai-chip, .sn-foot #profileWhere, .sn-foot .sn-links { display: none; }
+  .sn-dev { white-space: nowrap; }
+  .sn-dev.on { border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  #navToggle { display: none; }
+  .ab-brand, .ab-sep, .app[data-nav] .ab-brand, .app[data-nav] .ab-sep { display: none; }
+  .appbar { top: var(--hdr-h); height: var(--ab-h); }
+  .ai-help { left: 16px; }
+}
+/* Less room: names only (no icons) ... */
+@media (min-width: 900px) and (max-width: 1699px) {
+  .sn-item svg { display: none; }
+  .sn-item, .app[data-nav="rail"] .sn-item, .app[data-nav="rail"][data-peek="on"] .sn-item { padding: 8px 9px; }
+  .sn-text b { font-size: 0.82rem; }
+  .sn-sep { margin: 0 3px; }
+}
+/* ... and on a small laptop, icons only, with the name shown for the page you are on (and on hover) */
+@media (min-width: 900px) and (max-width: 1179px) {
+  .sn-item svg { display: block; }
+  .sn-text b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sn-item[aria-current="page"] .sn-text b { position: static; width: auto; height: auto; clip: auto; overflow: visible; }
+  .sn-brand { display: none !important; }
+}
+/* The AI chip: the grey cross to disconnect sits inside the bubble, at its right-hand end */
+.ab-ai-x {
+  top: 50%; right: 7px; transform: translateY(-50%); width: 18px; height: 18px; border: 0; background: transparent; color: var(--muted);
+}
+.ab-ai-x:hover, .ab-ai-x:focus-visible { background: var(--surface-2); color: var(--ink); filter: none; outline: 2px solid var(--line); outline-offset: 0; }
+.ab-ai-wrap:has(.ab-ai-x:not([hidden])) .ab-ai { padding-right: 30px; }
+
+/* Groups of tools: Application documents, Find work and Get ready open as drop-downs */
+.sn-mode[hidden] { display: none !important; }
+.sn-menu-btn { display: none; }
+@media (min-width: 900px) {
+  .sn-group { display: none !important; }
+  .sn-menu { position: relative; flex: none; }
+  .sn-menu-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font: inherit; font-size: 0.84rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .sn-menu-btn svg { color: var(--muted); }
+  .sn-menu:hover > .sn-menu-btn, .sn-menu:focus-within > .sn-menu-btn, .sn-menu.open > .sn-menu-btn { background: var(--surface-2); }
+  .sn-menu:has([aria-current="page"]) > .sn-menu-btn { background: var(--accent-soft); color: var(--accent); }
+  .sn-menu:has([aria-current="page"]) > .sn-menu-btn svg { color: var(--accent); }
+  .sn-menu-panel { display: none; position: absolute; left: 0; top: 100%; z-index: 60; min-width: 20rem; padding: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 36px rgba(8, 12, 20, 0.22); }
+  .sn-menu:hover > .sn-menu-panel, .sn-menu:focus-within > .sn-menu-panel, .sn-menu.open > .sn-menu-panel { display: grid; gap: 2px; }
+  .sn-menu.shut > .sn-menu-panel { display: none; }
+  .sn-menu-panel .sn-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 12px; padding: 9px 10px; white-space: normal; }
+  .sn-menu-panel .sn-item svg { display: block; }
+  .sn-menu-panel .sn-text b { position: static; width: auto; height: auto; clip: auto; overflow: visible; font-size: 0.875rem; }
+  .sn-menu-panel .sn-text small { display: block; }
+  .sn-menu-panel .sn-full { display: inline; }
+  .sn-menu-panel .sn-short { display: none; }
+  .sn-menu-panel .sn-item[aria-current="page"]::before { left: 0; right: auto; top: 9px; bottom: 9px; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
+}
+@media (min-width: 900px) and (max-width: 1179px) { .sn-menu-btn { font-size: 0.8rem; padding: 8px 8px; } }
+
+/* No coloured line along the bottom of the top bars, and no box round a heading you've just moved to */
+.appbar { border-bottom: 1px solid var(--line); box-shadow: none; }
+[tabindex="-1"]:focus, [tabindex="-1"]:focus-visible { outline: none; }

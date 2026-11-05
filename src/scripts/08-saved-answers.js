@@ -4,7 +4,7 @@ const memory = { skills: {}, where: "loading", doc: null };
 const memoryReady = (async () => {
   try {
     const c = window.claude;
-    if (c && c.use) {
+    if (c && c.use && !devFresh()) {   // (devFresh: the Developer button's new-visitor view skips the Claude account, see 07c)
       const [db, user] = await Promise.all([c.use("db"), c.use("user")]);
       const uid = user ? await user.id() : null;
       if (db && uid) {

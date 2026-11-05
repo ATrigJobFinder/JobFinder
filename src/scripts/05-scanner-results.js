@@ -3,8 +3,7 @@ const $ = id => document.getElementById(id);
 const els = {
   resume: $("resumeText"), jd: $("jobText"), title: $("jobTitle"), results: $("results"),
   scan: $("scanBtn"), err: $("formErr"), fileInput: $("fileInput"), pick: $("pickFile"), drop: $("drop"),
-  fileStatus: $("fileStatus"), exampleNote: $("exampleNote"), rCount: $("resumeCount"), jCount: $("jdCount"),
-  aiBtn: $("aiBtn"), aiStop: $("aiStop"), aiStatus: $("aiStatus"), aiOut: $("aiOut")
+  fileStatus: $("fileStatus"), exampleNote: $("exampleNote"), rCount: $("resumeCount"), jCount: $("jdCount")
 };
 let fileInfo = null;
 let lastResult = null;
@@ -40,7 +39,7 @@ function skillTable(list, id) {
   return `<div class="table-wrap"><table>
     <thead><tr><th>Skill</th><th>Priority</th><th class="num">Ad</th><th class="num">Resume</th><th>Status</th></tr></thead>
     <tbody>${list.map(x => `<tr data-found="${x.found}"><td title="${esc(x.adLine)}">${esc(x.name)}</td><td><span class="prio p-${x.priority.split(" ")[0].toLowerCase()}">${esc(x.priority)}</span></td><td class="num">${x.jd}</td><td class="num">${x.resume}</td>
-      <td><span class="pill ${x.found ? "found" : "missing"}">${x.found ? "Found" : "Missing"}</span>${x.found ? "" : `<button type="button" class="x-ignore" data-ignore="${esc(x.name)}" title="Not relevant to this job: leave it out of the score" aria-label="${esc(x.name)} isn't relevant: leave it out of the score">Not relevant</button>`}</td></tr>`).join("")}</tbody>
+      <td><span class="pill ${x.found ? "found" : "missing"}">${x.found ? "Found" : "Missing"}</span>${x.found ? "" : `<button type="button" class="x-ignore" data-ignore="${esc(x.name)}" title="Not relevant to this job: leave it out of the score" aria-label="${esc(x.name)} isn't relevant: leave it out of the score"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg></button>`}</td></tr>`).join("")}</tbody>
   </table></div>`;
 }
 function ignoredList(list) {
@@ -79,7 +78,17 @@ function highlightJD(text, marks, jdLines) {
 }
 
 // What the button after the results says: the tailored resume page, or (cover letter only) the criteria and letter page
-const nextWords = () => tailorMode === "letter" ? "Next: fit the job's criteria and write the letter" : "Next: your tailored resume";
+// What each score is, and why it matters: shown when you point at it
+const CAT_HELP = {
+  must: ["What the ad says you need before you can apply: work rights, licences and checks, your study stage, the qualification.", "If you can't meet one, it usually doesn't matter how strong the rest is. Green counts in full, yellow (check it yourself) counts half."],
+  hard: ["Technical skills and tools the ad asks for, such as software, methods and licences.", "Employers and applicant tracking systems search for these words first, so every one missing costs you the most."],
+  soft: ["Behaviours the ad asks for, like communication, teamwork or initiative.", "They decide between similar candidates, but only count when your resume shows an example."],
+  edu: ["Whether your qualification meets the level the ad asks for.", "Some employers filter out applications that don't list it clearly."],
+  ats: ["Whether applicant tracking software can read your resume: contact details, headings, dates and file.", "If the software can't read it, no person ever sees it."],
+  tips: ["What a person notices when they skim it: numbers, length, clichés and spelling.", "It decides whether a recruiter keeps reading past the first few seconds."]
+};
+const openDetails = () => { const d = $("detModal"); if (d && !d.open) d.showModal(); };
+const closeDetails = () => { const d = $("detModal"); if (d && d.open) d.close(); };
 function render(res, jdRaw) {
   const hardFound = res.hard.filter(x => x.found).length, softFound = res.soft.filter(x => x.found).length;
   const issues = [...res.ats, ...res.tips].filter(i => i.status === "warn" || i.status === "fail").length;
@@ -96,11 +105,13 @@ function render(res, jdRaw) {
     </div>
     <div class="cats">
       <h3>Score breakdown</h3>
-      ${res.cats.map(c => c.value === null
-        ? `<div class="cat na"><span>${c.label}</span><span class="small">Not in this ad</span><span class="val">–</span></div>`
-        : `<div class="cat"><a href="#${c.anchor}">${c.label}</a><div class="bar" aria-hidden="true"><i style="width:${c.value}%;background:${bandColor(c.value)}"></i></div><span class="val">${c.value}%</span></div>`).join("")}
-      <p class="cats-more"><button class="btn" type="button" data-scroll="sec-needs">Details</button><span class="small muted">What this job needs, line by line</span></p>
-      <p class="weights">Weights: hard skills 40, ATS readability 15, soft skills, job title, key terms and recruiter tips 10 each, education 5. Categories the ad doesn't mention are left out.</p>
+      ${res.cats.map(c => {
+        const h = CAT_HELP[c.key] || ["", ""], tip = `<span class="cat-tip" role="tooltip" id="cat-tip-${c.key}"><b>${esc(c.label)}: ${c.weight} of 100 points</b>${esc(h[0])} <em>${esc(h[1])}</em></span>`;
+        return c.value === null
+          ? `<div class="cat na" tabindex="0" aria-describedby="cat-tip-${c.key}"><span>${c.label}</span><span class="small">Not in this ad</span><span class="val">–</span>${tip}</div>`
+          : `<div class="cat" tabindex="0" aria-describedby="cat-tip-${c.key}"><span class="cat-name">${c.label}</span><div class="bar" aria-hidden="true"><i style="width:${c.value}%;background:${bandColor(c.value)}"></i></div><span class="val">${c.value}%</span>${tip}</div>`; }).join("")}
+      <p class="cats-more"><button class="btn" type="button" data-open-details>Details</button><span class="small muted">What this job needs, the ad highlighted, ATS checks and recruiter tips</span></p>
+      <p class="weights">Out of 100: must-haves 25, ATS readability 20, hard skills 20, education 15, soft skills 10, recruiter tips 10. Anything the ad doesn't mention is left out and the rest share its points.</p>
     </div>
     <div class="fixes">
       <h3>Fix these first</h3>
@@ -116,6 +127,7 @@ function render(res, jdRaw) {
         <label class="toggle"><input type="checkbox" id="missingOnly"> Missing only</label>
       </div>
       ${skillTable(res.hard, "hard")}
+      <p class="small muted ignore-tip">Is a missing skill not relevant to this job? Point at its row and press <b>×</b> to leave it out of the score.</p>
       ${ignoredList(res.ignored)}
     </section>
     <div class="stack">
@@ -137,14 +149,17 @@ function render(res, jdRaw) {
         <h2><span class="stepno">4</span> Place your missing skills</h2>
         <p>Have some of the missing skills above but haven't mentioned them? Drag each one to the job or section where you used it, or to "Not applicable". Save your answers to your profile and they're remembered for future job ads.</p>
       </div>
-      <button class="btn primary" id="placeBtn" type="button"></button>
     </div>
     <div class="memory-line" id="memoryLine"></div>
     <div id="placeBody"></div>
   </section>
-  <div class="tw-next"><span class="small muted">Done with your skills?</span><button class="btn primary" type="button" data-tw-next="1">${nextWords()}</button></div>
   </div>
+  <div class="tw-next tw-letter"><span class="small muted">Cover letter only:</span><button class="btn primary" type="button" data-tw-next="1">Next: fit the job's criteria and write the letter</button></div>
 
+  <dialog class="det-modal" id="detModal" aria-labelledby="detH">
+  <div class="det-card">
+  <div class="det-head"><h2 id="detH">Details: what this job needs</h2><button class="btn" type="button" data-close-details>Close</button></div>
+  <div class="det-body">
   ${needsHtml(res.needs)}
 
   <section class="panel" id="sec-jd">
@@ -164,7 +179,9 @@ function render(res, jdRaw) {
       ${checkList(res.tips)}
     </section>
   </div>
-  <div class="tw-next tw-end"><button class="btn primary" type="button" data-tw-next="1">${nextWords()}</button></div>`;
+  </div>
+  </div>
+  </dialog>`;
 
   const toggle = $("missingOnly");
   toggle.addEventListener("change", () => {
@@ -178,7 +195,6 @@ function rescore() {
   if (!lastScan) return;
   const y = window.scrollY, keepAi = lastResult && lastResult.needs && lastResult.needs.ai;
   lastResult = analyse(lastScan.resume, lastScan.jd, lastScan.title, fileInfo, { ignore: scanIgnore });
-  lastResult.needs = jobNeeds(lastScan.jd, lastResult, lastScan.resume);
   if (keepAi) lastResult.needs.ai = keepAi;
   render(lastResult, lastScan.jd);
   window.scrollTo(0, y);
@@ -188,6 +204,8 @@ els.results.addEventListener("click", e => {
   if (ig) { scanIgnore.add(ig.dataset.ignore); rescore(); return; }
   if (un) { scanIgnore.delete(un.dataset.unignore); rescore(); return; }
   if (e.target.closest("[data-tw-next]")) { goTo(tailorMode === "letter" ? "sec-fit" : "sec-download"); return; }
+  if (e.target.closest("[data-open-details]")) { openDetails(); return; }
+  if (e.target.closest("[data-close-details]") || e.target === $("detModal")) { closeDetails(); return; }
   const sc = e.target.closest("[data-scroll]");
   if (sc) { const t = $(sc.dataset.scroll); if (t) t.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); return; }
   needsClick(e);
@@ -207,13 +225,10 @@ function runScan(scroll) {
   if (!ok.j) { els.err.textContent = "Paste the full job ad, including the requirements, so there's something to compare against."; return; }
   if (!lastScan || lastScan.jd !== j) scanIgnore.clear();
   lastResult = analyse(r, j, els.title.value, fileInfo, { ignore: scanIgnore });
-  lastResult.needs = jobNeeds(j, lastResult, r);
   lastScan = { resume: r, jd: j, title: els.title.value };
   downloaded = false; resumeEdit = null;
   if (tailorStage !== "scan") setTailorStage("scan", { silent: true });
   render(lastResult, j);
-  resetAI();
-  $("ai").hidden = false;
   $("sec-download").hidden = false;
   $("sec-fit").hidden = false;
   $("sec-cover").hidden = false;
@@ -233,11 +248,11 @@ function hideResults() {
   lastResult = null; lastScan = null; downloaded = false; resumeEdit = null;
   if (tailorStage !== "scan") setTailorStage("scan", { silent: true });
   els.results.innerHTML = "";
-  $("ai").hidden = true; $("sec-download").hidden = true; $("sec-fit").hidden = true; $("sec-cover").hidden = true; $("stale").hidden = true;
+  $("sec-download").hidden = true; $("sec-fit").hidden = true; $("sec-cover").hidden = true; $("stale").hidden = true;
   fit.key = ""; fit.items = []; fit.done = false;
-  $("clOut").innerHTML = ""; cover.draft = null; cover.downloaded = false;
+  $("clOut").innerHTML = ""; cover.draft = null; cover.draftFor = null; cover.downloaded = false; $("clGenRow").hidden = false; $("clEditNote").textContent = "";
+  $("clBreak").innerHTML = `<p class="small muted">Your letter's breakdown appears here, above the preview. Select a paragraph in either to see it on the left.</p>`; $("clPaper").innerHTML = ""; $("clScore").textContent = ""; $("clActions").hidden = true;
   $("downloadStatus").textContent = "";
-  resetAI();
 }
 function loadExample() {
   els.resume.value = EXAMPLE_RESUME;

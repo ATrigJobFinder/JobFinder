@@ -1,0 +1,87 @@
+/* ===================== Version 27: one bar across the top, developer circle, map with a list of jobs ===================== */
+
+/* --- One header --- */
+.sn-head { text-decoration: none; color: inherit; border-radius: 10px; }
+.sn-head:hover .sn-logo { filter: brightness(1.08); }
+.sn-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sn-right { display: none; }
+@media (min-width: 900px) {
+  /* the thin bar under the menu is gone: the AI chip, help and account sit at the right of the menu bar */
+  .app, .app[data-nav="rail"] { --ab-h: 0px; --bar-h: var(--hdr-h); }
+  .appbar { display: none; }
+  .sn-right { display: flex; align-items: center; gap: 8px; order: 5; flex: none; min-width: 0; }
+  .sn-right .ab-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .sn-foot, .app[data-nav="rail"] .sn-foot, .app[data-nav="rail"][data-peek="on"] .sn-foot { display: none; }
+  .sn-right .ab-ai { max-width: 14rem; }
+  .sidenav, .app[data-nav="rail"][data-peek="on"] .sidenav { border-bottom: 1px solid var(--line); background: var(--surface); }
+}
+@media (min-width: 900px) and (max-width: 1399px) { .sn-right .ab-ai { max-width: 11rem; } .sn-right .ab-tools .acct-who { display: none; } }
+@media (min-width: 900px) and (max-width: 1179px) { .sn-right .ab-ai #abAiText { display: none; } .sn-right .ab-ai { padding: 8px; } }
+
+/* --- Developer options: a small circle under the header, top right (shown with Ctrl+D) --- */
+.dev-dot { position: fixed; z-index: 55; top: calc(var(--bar-h, 52px) + 10px); right: max(14px, env(safe-area-inset-right, 0px)); width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; box-shadow: 0 2px 10px rgba(8, 12, 20, 0.22); }
+.dev-dot svg { width: 15px; height: 15px; }
+.dev-dot:hover, .dev-dot[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.dev-dot.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.dev-dot[hidden], .dev-pop[hidden] { display: none; }
+.dev-pop { position: fixed; z-index: 56; top: calc(var(--bar-h, 52px) + 48px); right: max(14px, env(safe-area-inset-right, 0px)); width: min(17rem, calc(100vw - 28px)); display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1.5px solid var(--line); border-radius: 12px; box-shadow: 0 14px 36px rgba(8, 12, 20, 0.28); }
+.dev-pop h2 { margin: 0; font-size: var(--step--1); font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.dev-pop .sn-mode { display: grid; grid-template-columns: 1fr 1fr; order: 0; margin: 0; }
+.dev-pop .sn-mode[hidden] { display: none !important; }
+.dev-pop .sn-dev { display: block; width: 100%; text-align: center; white-space: normal; }
+.dev-pop .small { margin: 0; }
+
+/* --- The map, laid out like a property search: the search and the list of jobs on the left, the map on the right --- */
+.gl-hero { --gl-side-w: 420px; }
+.gl-side { display: none; }
+.gl-street .gl-side {
+  display: flex; position: absolute; z-index: 3; left: 0; top: 0; bottom: 0; width: min(var(--gl-side-w), 100%); flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  background: #fff; box-shadow: 4px 0 24px rgba(8, 12, 20, 0.2);
+  color: #1E2533; --ink: #1E2533; --muted: #5B6474; --line: #E3E7EE; --surface: #fff; --surface-2: #F5F7FA; --accent: #2440B8; --accent-soft: #E8ECFB; --accent-ink: #fff; --good: #0F7B3F; color-scheme: light;
+}
+.gl-diving .gl-map, .gl-street .gl-map { left: var(--gl-side-w); }
+.gl-street .gl-bar { left: calc(var(--gl-side-w) + (100% - var(--gl-side-w)) / 2); }
+/* the search boxes sit at the top of the list while the map is open */
+.gl-side-top { position: sticky; top: 0; z-index: 4; padding: 14px 16px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+.gl-side-top:empty { display: none; }
+.gl-hero .gl-side .gl-head { max-width: none; gap: 0; opacity: 1; visibility: visible; text-shadow: none; }
+.gl-side .gl-head h1, .gl-side .gl-head .lp-lede, .gl-side .gl-find .lp-cta a.btn { display: none; }
+.gl-side .gl-find { max-width: none; margin: 0; gap: 8px; }
+.gl-side .gl-find .lp-cta { margin: 0; }
+.gl-side .gl-find .lp-cta .btn { width: 100%; justify-content: center; }
+.gl-hero.gl-real .gl-side .gl-find input[type="text"] { background: #fff; color: #1E2533; border-color: #C9D0DC; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.gl-hero.gl-real .gl-side .gl-find input::placeholder { color: #8A93A3; }
+.gl-hero.gl-real .gl-side .gl-loc { background: #fff; color: #1E2533; border-color: #C9D0DC; }
+.gl-hero.gl-real .gl-side .gl-find .gl-results { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 10px 30px rgba(8, 12, 20, 0.22); }
+.gl-side .gl-msg { text-shadow: none; }
+.gl-side .gl-msg.err { color: #B42318; }
+.gl-list-head { display: grid; gap: 2px; padding: 14px 16px 8px; }
+.gl-list-head h2 { margin: 0; font-size: var(--step-1); }
+.gl-list-head p { margin: 0; color: var(--muted); }
+.gl-list { list-style: none; margin: 0; padding: 0 12px 8px; display: grid; gap: 10px; }
+.gl-job { border: 1.5px solid var(--line); border-radius: 12px; background: #fff; transition: box-shadow 0.12s ease, border-color 0.12s ease; }
+.gl-job:hover, .gl-job.hot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.gl-job-b { display: grid; gap: 3px; width: 100%; padding: 12px 14px; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 12px; box-sizing: border-box; }
+.gl-job-b:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gl-job-pay { font-family: var(--font-display); font-stretch: 108%; font-weight: 800; font-size: var(--step-1); line-height: 1.2; }
+.gl-job-title { font-size: var(--step-0); }
+.gl-job-org, .gl-job-about { color: var(--muted); font-size: var(--step--1); }
+.gl-job-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0; }
+.gl-job-tags i { font-style: normal; font-size: 0.7rem; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.gl-job-tags i:last-child { color: #8A5A00; background: #FFF4DC; border-color: #F2D9A0; }
+.gl-empty { display: grid; justify-items: start; gap: 6px; padding: 16px; border: 1.5px dashed var(--line); border-radius: 12px; font-size: var(--step--1); color: var(--muted); }
+.gl-empty b { color: var(--ink); }
+.gl-list-note { margin: 0; padding: 4px 16px 18px; }
+.gl-list-note a { color: var(--accent); }
+/* pins on the map are small pills with the pay on them */
+.gl-pin { width: auto; height: auto; margin: 0; padding: 0; border-radius: 999px; border: 2px solid #fff; background: #1D2B64; color: #fff; transform: translate(-50%, -50%); }
+.gl-pin::after { display: none; }
+.gl-pin-l { display: block; padding: 3px 9px; font: 700 12px/1.25 var(--font-body); white-space: nowrap; pointer-events: none; }
+.gl-pin:hover, .gl-pin:focus-visible, .gl-pin.on, .gl-pin.hot { transform: translate(-50%, -50%) scale(1.12); z-index: 5; background: #F59E0B; color: #1E2533; }
+.gl-pin.hot .gl-pin-tip { opacity: 1; visibility: visible; }
+@container main (max-width: 747px) {
+  .gl-hero { --gl-side-h: 54%; }
+  .gl-diving .gl-map, .gl-street .gl-map { left: 0; bottom: var(--gl-side-h); }
+  .gl-street .gl-side { left: 0; right: 0; top: auto; width: auto; height: var(--gl-side-h); box-shadow: 0 -4px 24px rgba(8, 12, 20, 0.22); }
+  .gl-street .gl-bar { left: 50%; top: 10px; }
+}

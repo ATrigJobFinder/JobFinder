@@ -53,8 +53,8 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 .ll-row .ll-in { flex: 1; min-width: 0; }
 .b-side { max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; align-content: start; }
 @media (max-width: 960px) { .b-side { max-height: none; overflow: visible; } }
-.paper-sheet .cv-hl { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.22); border-radius: 3px; }
-.paper-sheet .cv-hl-entry { outline: 2px solid #E0A800; outline-offset: 3px; background: rgba(255, 224, 70, 0.28); border-radius: 3px; }
+.paper-sheet .cv-hl { outline: 1.5px solid rgba(224, 168, 0, 0.35); outline-offset: 3px; background: rgba(255, 224, 70, 0.10); border-radius: 3px; }
+.paper-sheet .cv-hl-entry { outline: 1.5px solid rgba(224, 168, 0, 0.4); outline-offset: 3px; background: rgba(255, 224, 70, 0.14); border-radius: 3px; }
 .opt-chips[role="group"] .opt-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 /* Cover letter page: sections, pages, dots */
@@ -129,13 +129,16 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 .ab-ai { max-width: 18rem; font-size: var(--step--1); font-weight: 600; background: var(--surface); border-color: var(--line); }
 .ab-ai #abAiText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ab-ai .dot { width: 9px; height: 9px; }
+.ab-ai-wrap { position: relative; display: inline-flex; flex: 0 1 auto; min-width: 0; }
+.ab-ai-x { position: absolute; top: -6px; right: -6px; z-index: 2; width: 18px; height: 18px; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 2px solid var(--surface); background: var(--bad); color: #fff; cursor: pointer; line-height: 1; }
+.ab-ai-x:hover, .ab-ai-x:focus-visible { filter: brightness(1.15); outline: 2px solid var(--bad); outline-offset: 1px; }
+.ab-ai-x[hidden] { display: none; }
 @media (max-width: 900px) { .ab-ai #abAiText { display: none; } .ab-ai { padding: 8px; } }
 
 /* Cover letter: design note, Next button, writing message, sign-off, what the AI wrote */
 .tpl-mine { justify-self: start; max-width: 100%; margin-top: -2px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.68rem; font-weight: 700; white-space: nowrap; }
 .lt-design-note { margin: 4px 0 8px; }
 .lt-next-row { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.status-line.busy { color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .lt-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); display: inline-block; animation: lt-spin 0.8s linear infinite; }
 @keyframes lt-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lt-spin { animation: none; } }
@@ -165,3 +168,310 @@ details.b-card.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
 @media (max-width: 760px) { .ab-ai #abAiText { display: none; } .ab-ai { padding: 8px; } }
 @media (max-width: 640px) { .ab-brand, .ab-sep { display: none !important; } }
 .view-head .top-actions .btn { white-space: normal; max-width: 100%; }
+
+/* Use more of a wide screen: the page may grow to 1840px before it stops (it was 1160px) */
+.wrap { max-width: 1840px; }
+
+/* AI loading and suggestions in the cover letter look like the resume builder's: the moving bar, and the blue suggestion box */
+.status-line.busy { display: block; color: var(--accent); font-weight: 600; }
+.lt-alts.bl-alts { grid-column: auto; }
+.lt-rwopts { display: flex; flex-wrap: wrap; gap: 6px; }
+.lt-rwopts .bl-alt { text-align: center; }
+
+/* Details the AI made up: red behind the words; hover for keep or discard */
+.lt-part .hl-back .made-up { color: transparent; background: rgba(214, 40, 40, 0.28); border-bottom: 2px solid #D62828; border-radius: 2px; }
+.made-pop { position: fixed; z-index: 120; width: min(22rem, calc(100vw - 16px)); padding: 12px 14px; display: grid; gap: 8px; background: var(--surface); border: 1.5px solid var(--bad); border-radius: 12px; box-shadow: 0 14px 36px rgba(8, 12, 20, 0.28); font-size: var(--step--1); }
+.made-pop[hidden] { display: none; }
+.made-pop p { margin: 0; }
+
+/* ===== Version 23: Tailor to a job, in four pages ===== */
+/* Each page shows only its own part: the scan, Tailor to resume, Fit the criteria, the Cover letter */
+#view-scanner[data-stage="scan"] #sec-download, #view-scanner[data-stage="scan"] #sec-fit, #view-scanner[data-stage="scan"] #sec-cover,
+#view-scanner[data-stage="resume"] #sec-fit, #view-scanner[data-stage="resume"] #sec-cover,
+#view-scanner[data-stage="fit"] #sec-download, #view-scanner[data-stage="fit"] #sec-cover,
+#view-scanner[data-stage="letter"] #sec-download, #view-scanner[data-stage="letter"] #sec-fit,
+#view-scanner[data-stage="fit"] #inputs, #view-scanner[data-stage="fit"] #inputsBar, #view-scanner[data-stage="fit"] #scanRow, #view-scanner[data-stage="fit"] #stale,
+#view-scanner[data-stage="fit"] #exampleNote, #view-scanner[data-stage="fit"] #results { display: none !important; }
+/* The job ad box stretches to fill its sheet, and the Scan button sits on the right */
+.inputs { align-items: stretch; }
+#step-jd { grid-template-rows: auto 1fr; align-content: stretch; }
+#step-jd > label.field { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+#step-jd #jobText { width: 100%; height: 100%; min-height: 300px; resize: vertical; }
+.scan-row { justify-content: flex-end; }
+.scan-row .scan-hint { order: 1; margin-right: auto; font-size: var(--step--1); color: var(--muted); }
+.scan-row .form-err { order: 2; }
+.scan-row #scanBtn { order: 3; }
+/* A cover letter from your profile */
+#clProfilePick { margin: 0; }
+/* The Stop button, shown while an AI is working */
+.ai-stopbar { position: fixed; z-index: 380; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; background: var(--surface); color: var(--ink); border: 1px solid var(--accent); border-radius: 999px; box-shadow: 0 10px 30px rgba(8, 12, 20, 0.28); font-size: var(--step--1); font-weight: 600; max-width: calc(100vw - 24px); }
+.ai-stopbar[hidden] { display: none; }
+.ai-stopbar .btn { border-radius: 999px; padding: 5px 16px; border-color: var(--bad); color: var(--bad); font-weight: 700; }
+.ai-stopbar .btn:hover { background: var(--bad); color: #fff; }
+.ai-spin { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: ai-spin 0.9s linear infinite; flex: none; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ai-spin { animation: none; border-top-color: var(--line); } }
+
+/* Tailor to resume: half to edit (with the key skills highlighted), half the preview */
+.rs-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.rs-left, .rs-right { display: grid; gap: 10px; min-width: 0; align-content: start; }
+@container main (min-width: 900px) {
+  .rs-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+  .rs-right { position: sticky; top: calc(var(--bar-h) + 12px); max-height: calc(100vh - var(--bar-h) - 24px); overflow-y: auto; scrollbar-gutter: stable; }
+}
+.rs-right .rs-paper { max-height: none; margin: 0; }
+.rs-right .b-side-head h3 { margin: 0; font-size: var(--step-0); }
+.rs-hl { display: grid; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); font: 13.5px/1.55 var(--font-body); }
+.rs-hl:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rs-hl .hl-back, .rs-hl textarea { grid-area: 1 / 1; margin: 0; padding: 12px 14px; font: inherit; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; border: 0; border-radius: 8px; box-sizing: border-box; min-height: 16rem; width: 100%; letter-spacing: normal; }
+.rs-hl .hl-back { color: transparent; pointer-events: none; }
+.rs-hl .hl-back mark.sk-hit { color: transparent; }
+.rs-hl textarea { background: transparent; color: var(--ink); resize: none; overflow: hidden; position: relative; }
+.rs-hl textarea:focus { border: 0; box-shadow: none; outline: none; }
+#rsChanges .update-out { margin: 0; }
+#rsChanges .added { cursor: pointer; }
+.rs-changes-head { margin: 0; font-size: var(--step-0); }
+
+/* Cover letter in the tailor flow: letter on the left; breakdown above the preview on the right */
+.cl-two .cl-setup, .cl-two .cl-edit { display: grid; gap: 12px; align-content: start; }
+.cl-two #clOut { display: grid; gap: 16px; min-width: 0; }
+.cl-preview .cl-break { position: static; width: 100%; }
+.cl-preview .cl-part { cursor: pointer; transition: box-shadow 0.12s, border-color 0.12s; }
+.cl-preview .cl-part.hot, .cl-two .lt-part.hot { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.cl-two .lt-part { border: 1px solid transparent; border-radius: 10px; padding: 6px; margin: -6px; transition: box-shadow 0.12s, border-color 0.12s; }
+.cl-two .lt-part.flagged .hl-wrap { border-color: var(--warn); }
+.paper-sheet .lt-p[data-cli] { cursor: pointer; border-radius: 3px; transition: background 0.12s; }
+.paper-sheet .lt-p.hot { background: rgba(36, 64, 184, 0.10); outline: 2px solid rgba(36, 64, 184, 0.45); outline-offset: 3px; }
+.cl-two .lt-part .hl-back mark.sk-hit { color: transparent; }
+.cl-two .lt-part .hl-back mark.sk-hit.hard { background: #BFE8CD; }
+.cl-two .lt-part .hl-back mark.sk-hit.soft { background: #DCCFF6; }
+.cl-key-legend { margin: 0; }
+
+/* The breakdown above the preview is compact: the paragraph's purpose is on the left already, and the evidence is shown in the Based on line on the left page */
+.cl-preview .cl-part .purpose, .cl-preview .cl-part .cl-based, .cl-preview .cl-part .ev { display: none; }
+#rsChanges .changes { max-height: 18rem; overflow-y: auto; }
+
+/* ===================== Version 24 ===================== */
+/* The (i): just smaller than the text beside it */
+.hinfo { width: 1.5em; height: 1.5em; min-width: 14px; min-height: 14px; margin-left: 0.4em; border-width: 1.25px; font-size: 0.6em; line-height: 1; }
+.hinfo::after { inset: -0.7em; }
+
+/* Download as…: one button, a small menu under it */
+.dl-pop { position: fixed; z-index: 390; min-width: 11rem; display: grid; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px rgba(8, 12, 20, 0.22); }
+.dl-pop button { all: unset; box-sizing: border-box; padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: var(--step--1); color: var(--ink); }
+.dl-pop button:hover, .dl-pop button:focus-visible { background: var(--accent-soft); color: var(--accent); }
+[data-dlmenu]::after { content: ""; display: inline-block; width: 0.42em; height: 0.42em; margin-left: 0.55em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-0.18em) rotate(45deg); }
+
+/* Score breakdown: not links; point at one to see what it is and why it matters */
+.cat { position: relative; border-radius: 6px; cursor: help; }
+.cat:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.cat-tip { position: absolute; z-index: 30; left: 0; top: calc(100% + 6px); width: max-content; max-width: min(22rem, 86vw); padding: 10px 12px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 28px rgba(8, 12, 20, 0.2); font-size: 0.8rem; line-height: 1.45; display: none; text-align: left; pointer-events: none; }
+.cat-tip b { display: block; margin-bottom: 2px; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cat-tip em { display: block; margin-top: 4px; font-style: normal; color: var(--muted); }
+.cat:hover .cat-tip, .cat:focus .cat-tip { display: block; }
+.cat .cat-name { color: var(--ink); }
+
+/* "Not relevant": a quiet × that shows when you point at the row */
+.x-ignore { margin-left: 8px; width: 20px; height: 20px; padding: 0; display: inline-grid; place-items: center; vertical-align: middle; border: 1px solid transparent; border-radius: 50%; background: none; color: var(--muted); text-decoration: none; opacity: 0; transition: opacity 0.12s; }
+.x-ignore svg { width: 10px; height: 10px; }
+tr:hover .x-ignore, .x-ignore:focus-visible { opacity: 1; }
+.x-ignore:hover { border-color: var(--line); background: var(--surface-2); color: var(--ink); }
+@media (hover: none) { .x-ignore { opacity: 0.7; } }
+.ignore-tip { margin: 8px 0 0; }
+
+/* Details: a pop-up over the page */
+.det-modal { width: min(1120px, 94vw); max-width: none; max-height: 90vh; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); box-shadow: 0 24px 60px rgba(8, 12, 20, 0.4); overflow: hidden; }
+.det-modal::backdrop { background: rgba(10, 14, 25, 0.62); }
+.det-card { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 90vh; }
+.det-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.det-head h2 { margin: 0; font-size: var(--step-1); }
+.det-body { overflow-y: auto; padding: 16px 18px 22px; display: grid; gap: 16px; align-content: start; }
+.tw-letter { display: none; }
+#view-scanner[data-tailor="letter"] .tw-letter { display: flex; }
+
+/* Place your skills is always open */
+#sec-place .place-intro { grid-template-columns: minmax(0, 1fr); }
+
+/* Tailor to resume: the match ring, the resume in parts, the preview in your design */
+.match-ring { flex: none; display: block; }
+.match-ring .ring-num { font: 800 30px var(--font-display); font-stretch: 112%; fill: var(--ink); }
+.match-ring .ring-unit { font: 600 10px var(--font-body); fill: var(--muted); letter-spacing: 0.04em; }
+.rs-summary .health { grid-template-columns: auto minmax(0, 1fr); }
+.rs-sections { display: grid; gap: 14px; }
+.rs-sec { display: grid; gap: 6px; }
+.rs-sec-head { margin: 0; font-size: var(--step-0); }
+.rs-sec .rs-hl .hl-back, .rs-sec .rs-hl textarea { min-height: 3.2rem; }
+.rs-edit-note { margin: 0; }
+.rs-cards { display: grid; gap: 8px; }
+.rs-cards:empty { display: none; }
+.rs-card { border: 1px solid var(--line); border-left: 4px solid var(--good); border-radius: 8px; background: var(--surface); padding: 9px 12px; display: grid; gap: 4px; font-size: var(--step--1); }
+.rs-card.off { border-left-color: var(--muted); background: var(--surface-2); }
+.rs-card.note { border-left-color: var(--warn); background: var(--warn-bg); }
+.rs-card p { margin: 0; overflow-wrap: anywhere; }
+.rs-card .lab { display: inline-block; min-width: 5.4rem; margin-right: 6px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.rs-card .was { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.rs-card .was .lab { text-decoration: none; display: inline-block; }
+.rs-card .now { background: var(--good-bg); border-radius: 6px; padding: 4px 6px; }
+.rs-card.off .now { background: none; opacity: 0.75; }
+.rs-card .via { font-size: 0.74rem; color: var(--muted); }
+.rs-card-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.rs-card-top .where { font-size: 0.74rem; color: var(--muted); }
+.rs-card-acts { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.rs-right .paper-frame { margin: 0; }
+#rsPaper mark.sk-hit { padding: 0 1px; border-radius: 2px; }
+#rsPaper mark.sk-hit.hard { background: #BFE8CD; color: inherit; }
+#rsPaper mark.sk-hit.soft { background: #DCCFF6; color: inherit; }
+#downloadBtn { min-width: 11rem; }
+#toCover { min-width: 14rem; }
+
+/* Fit the job's criteria: the form on the left, the job ad on the right */
+.fit-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.fit-main { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.fit-ad { display: grid; gap: 8px; min-width: 0; align-content: start; }
+.fit-ad .b-side-head h3 { margin: 0; font-size: var(--step-0); }
+.fit-adtext { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--step--1); line-height: 1.55; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; max-height: 70vh; overflow-y: auto; }
+@container main (min-width: 900px) {
+  .fit-split { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; }
+  .fit-ad { position: sticky; top: calc(var(--bar-h) + 12px); }
+  .fit-adtext { max-height: calc(100vh - var(--bar-h) - 90px); }
+}
+.fit-crit-note { font-size: var(--step--1); color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.mh-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mh-bubble { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 18px; background: var(--surface); }
+.mh-bubble .mh-dot { width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; background: var(--muted); }
+.mh-bubble .mh-top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: var(--step--1); }
+.mh-bubble .mh-state { font-size: 0.72rem; font-weight: 700; }
+.mh-bubble q { display: block; margin-top: 2px; font-size: 0.8rem; color: var(--muted); font-style: italic; }
+.mh-bubble p { margin: 2px 0 0; }
+.mh-bubble.you-yes { background: var(--good-bg); border-color: var(--good); }
+.mh-bubble.you-yes .mh-dot { background: var(--good); }
+.mh-bubble.you-yes .mh-state { color: var(--good); }
+.mh-bubble.you-check { background: var(--warn-bg); border-color: var(--warn); }
+.mh-bubble.you-check .mh-dot { background: var(--warn); }
+.mh-bubble.you-check .mh-state { color: var(--warn); }
+.mh-bubble.you-no { background: var(--bad-bg); border-color: var(--bad); }
+.mh-bubble.you-no .mh-dot { background: var(--bad); }
+.mh-bubble.you-no .mh-state { color: var(--bad); }
+.fit-q input[type="text"], .fit-q input[type="date"] { width: 100%; }
+
+/* Cover letter: the buttons run along the bottom, under the letter and the preview */
+.cl-actions { display: grid; gap: 10px; margin-top: 16px; }
+.cl-actions .dl-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cl-another { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--line); }
+.cl-flags { display: grid; gap: 6px; margin-top: 6px; }
+.cl-flags:empty { display: none; }
+.cl-two .lt-signoff { display: grid; gap: 6px; }
+.cl-two #clChecks .checks { margin: 0; }
+
+/* v23: a cleaner (i): a solid disc with a cut-out "i", drawn with a mask so it follows the light and dark colours */
+.hinfo { border: 0; background: transparent; color: transparent; font-size: 0; width: 1.05em; height: 1.05em; min-width: 15px; min-height: 15px; margin-left: 0.45em; font-size: 0.9em; line-height: 0; overflow: visible; }
+.hinfo::before { content: ""; position: absolute; inset: 0; background: var(--muted); border-radius: 50%;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21zM12 6.2a1.45 1.45 0 1 1 0 2.9 1.45 1.45 0 0 1 0-2.9zM10.6 10.8h2.2c.6 0 1 .4 1 1v5.2h.7v1.6h-4.6V17h.7v-4.5h-.7z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21zM12 6.2a1.45 1.45 0 1 1 0 2.9 1.45 1.45 0 0 1 0-2.9zM10.6 10.8h2.2c.6 0 1 .4 1 1v5.2h.7v1.6h-4.6V17h.7v-4.5h-.7z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+.hinfo:hover, .hinfo[aria-expanded="true"] { background: transparent; color: transparent; }
+.hinfo:hover::before, .hinfo[aria-expanded="true"]::before { background: var(--accent); }
+.hinfo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
+
+/* v23: every upload box centres its contents, both ways */
+.drop, .b-import-col.b-import-resume > .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 18px 14px; }
+.drop p { margin: 0; max-width: 46ch; }
+.drop .btn { max-width: 100%; }
+.drop .li-steps { text-align: left; max-width: 46ch; margin: 0; }
+.b-import-col.b-import-resume > .drop { height: 100%; min-height: 12rem; }
+.drop > .li-paste, .drop > .b-actions { width: 100%; justify-content: center; }
+.drop > .li-paste textarea { width: 100%; }
+.drop .linkish { display: inline; }
+
+/* v23: pages are separate sheets: a gap between one A4 page and the next, with the content kept whole on each */
+.paper-sheet .page-gap { position: absolute; left: 0; right: 0; height: 30px; z-index: 5; pointer-events: none; background: var(--surface-2, #eef1f6); box-shadow: inset 0 7px 7px -7px rgba(15, 23, 42, 0.35), inset 0 -7px 7px -7px rgba(15, 23, 42, 0.35); }
+.paper-sheet .page-gap span { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font: 600 11px/1 var(--font-mono); color: var(--muted, #5B6474); }
+
+/* v23: a message at the bottom of the screen (with Undo) for three seconds */
+.act-toast { position: fixed; z-index: 390; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 9px 16px; background: var(--surface); color: var(--ink); border: 1px solid var(--good); border-radius: 999px; box-shadow: 0 10px 30px rgba(8, 12, 20, 0.28); font-size: var(--step--1); font-weight: 600; max-width: min(34rem, calc(100vw - 24px)); }
+.act-toast[hidden] { display: none; }
+.act-toast .act-tick { color: var(--good); font-weight: 800; }
+.act-toast .linkish { font-weight: 700; color: var(--accent); }
+.act-toast.in { animation: actIn 0.22s ease-out; }
+@keyframes actIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .act-toast.in { animation: none; } }
+
+/* v23: card headings. The title gets the full width on its own line, and under it the badges sit in fixed columns (so "On your resume" and "Hidden" line up from card to card) with the dates at the right */
+.b-card > summary:has(> .card-tags) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-rows: auto auto; column-gap: 10px; row-gap: 6px; align-items: center; justify-content: stretch; }
+.b-card > summary:has(> .card-tags) > .drag-h { grid-column: 1; grid-row: 1 / span 2; }
+.b-card > summary:has(> .card-tags) > span:not(.drag-h):not(.card-tags):not(.meta) { grid-column: 2 / span 2; grid-row: 1; min-width: 0; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.3; }
+.b-card > summary:has(> .card-tags) > .card-tags { grid-column: 2; grid-row: 2; justify-self: start; display: grid; grid-template-columns: 7.4rem 4.2rem; gap: 6px; align-items: center; }
+.b-card > summary:has(> .card-tags) > .card-tags:empty { display: none; }
+.b-card > summary .card-slot { display: flex; align-items: center; min-height: 1.4em; }
+.b-card > summary:has(> .card-tags) > .meta { grid-column: 3; grid-row: 2; justify-self: end; margin-left: 0; white-space: nowrap; }
+.b-card > summary:has(> .card-tags)::after { grid-column: 4; grid-row: 1 / span 2; }
+@media (max-width: 720px) { .b-card > summary:has(> .card-tags) > .card-tags { grid-template-columns: auto auto; } }
+.drag-h { display: inline-flex; align-items: center; padding: 6px 8px 6px 2px; letter-spacing: 0; opacity: 0.55; transition: opacity 0.12s, color 0.12s; }
+.drag-h:hover { opacity: 1; color: var(--accent); }
+.drag-h svg { display: block; }
+
+/* v23: bullet points: a grip on the left to drag them, and a line where one will land */
+.bl-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+.bl-item > .bl-grip { align-self: start; margin-top: 8px; padding: 6px 4px; }
+.bl-item.dragging { opacity: 0.4; }
+.bl-item.drop-above { box-shadow: 0 -3px 0 0 var(--accent); }
+.bl-item.drop-below { box-shadow: 0 3px 0 0 var(--accent); }
+textarea.verb-over { outline: 2px dashed var(--accent); outline-offset: 2px; background: var(--accent-soft); }
+.verbs .opt-chip[draggable="true"] { cursor: grab; }
+.verbs .opt-chip[draggable="true"]:active { cursor: grabbing; }
+
+/* v23: relevant subjects as bubbles */
+.subj-edit { align-items: center; }
+.subj-chips { display: contents; }
+.subj-chip { cursor: pointer; user-select: none; transition: background 0.12s, opacity 0.12s; }
+.subj-chip:hover { background: var(--bad-bg); border-color: var(--bad); }
+.subj-chip .chip-x { padding: 0 2px 0 6px; opacity: 0.6; }
+.subj-chip.off { opacity: 0.55; border-style: dashed; background: transparent; }
+.subj-chip.cut { margin-right: 10px; position: relative; }
+.subj-chip.cut::after { content: ""; position: absolute; right: -9px; top: 3px; bottom: 3px; width: 1.5px; background: var(--line); }
+.subj-chip.dragging { opacity: 0.35; }
+.subj-chip.before { box-shadow: -3px 0 0 0 var(--accent); }
+.subj-chip.after { box-shadow: 3px 0 0 0 var(--accent); }
+.subj-edit .chip-in { flex: 1 1 12rem; min-width: 10rem; }
+.subj-q .pick { position: relative; }
+
+/* v23: asking the AI how to change things */
+.rw-ask { background: var(--accent-soft); }
+.rw-ask .opt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sugg-hide { font-size: 0.72rem; text-decoration: underline; color: var(--muted); margin-left: 4px; }
+.sugg-hide:hover { color: var(--accent); }
+.ch-lic .ch-sec-head { padding-left: 2px; }
+.paper-sheet .cv-ghost { opacity: 0.45; font-style: italic; }
+
+/* v23: Reword as…: opposites sit side by side as one switch each (length, tone), and a sentence can be picked */
+.lt-rw { display: grid; gap: 10px; width: 100%; }
+.lt-rw .rw-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lt-rw .rw-lab { flex: none; width: 4.2rem; font-size: var(--step--1); font-weight: 600; color: var(--muted); }
+.lt-rw .seg { flex: 1 1 14rem; max-width: 30rem; }
+.lt-rw .seg button { font-size: var(--step--1); }
+.lt-rw .seg button small { font-family: var(--font-mono); font-size: 0.68rem; opacity: 0.75; margin-left: 4px; }
+.lt-rw .rw-sents { display: grid; gap: 6px; margin-left: calc(4.2rem + 10px); }
+.lt-rw .rw-sent { text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: var(--step--1); cursor: pointer; }
+.lt-rw .rw-sent b { display: inline-grid; place-items: center; width: 1.4em; height: 1.4em; margin-right: 6px; border-radius: 50%; background: var(--surface-2); font-size: 0.72rem; }
+.lt-rw .rw-sent[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.lt-rw .rw-sent[aria-pressed="true"] b { background: var(--accent); color: var(--accent-ink); }
+.lt-rw > p.small { margin: 0 0 0 calc(4.2rem + 10px); }
+@media (max-width: 560px) { .lt-rw .rw-sents, .lt-rw > p.small { margin-left: 0; } }
+.lt-rw .seg button:hover { background: var(--surface); color: var(--ink); }
+
+/* v23: the whole-letter AI check */
+.lt-aicheck { display: grid; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.lt-aicheck .b-actions { margin: 0; }
+.lf-card { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); }
+.lf-top b { font-family: var(--font-display); }
+.lf-changes, .lf-rows { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: var(--step--1); }
+.lf-rows { list-style: none; padding: 0; }
+.lf-rows li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 6px 0; border-top: 1px dashed var(--line); }
+.lt-rw .seg button { display: inline-flex; justify-content: center; align-items: baseline; gap: 6px; }
+.drop > .hinfo.solo { display: none; }
+
+/* Developer: the new-visitor bar along the bottom, and the menu button */
+.sn-dev { font: inherit; font-size: 0.75rem; text-align: left; background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: var(--muted); }
+.sn-dev:hover { color: var(--ink); border-color: var(--accent); }
+.sn-dev[hidden] { display: none; }
+.dev-bar { position: fixed; z-index: 395; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 8px 8px 8px 16px; border-radius: 999px; background: var(--ink); color: var(--bg); box-shadow: 0 10px 30px rgba(8, 12, 20, 0.35); font-size: var(--step--1); max-width: calc(100vw - 24px); }
+.dev-bar[hidden] { display: none; }

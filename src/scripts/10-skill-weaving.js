@@ -92,8 +92,8 @@ async function describeEngine() {
   const st = await chromeAIState();
   if (!$("engineNote")) return;
   if (smallEngine()) el.textContent = `Wording by ${SMALL()}, ${smallWhere()}.${smallEngine() === "key" ? "" : " The corner shows roughly how long it takes."}`;
-  else if (st === "available") el.textContent = "Wording by Chrome's built-in AI, on this device.";
-  else if (st === "downloadable" || st === "downloading") el.textContent = `Chrome's built-in AI is tried first. The first time, Chrome downloads its model, which can take a few minutes${sample ? ". If it can't run, " + AI_NAME() + " words it instead." : "."}`;
+  else if (st === "available") el.textContent = `Wording by ${BROWSER_AI()}, on this device.`;
+  else if (st === "downloadable" || st === "downloading") el.textContent = `${BROWSER_AI()} is tried first. The first time, the browser downloads its model, which can take a few minutes${sample ? ". If it can't run, " + AI_NAME() + " words it instead." : "."}`;
   else if (sample) el.textContent = "Wording by " + AI_LONG() + ".";
   else el.textContent = "No AI on this page, so your notes are added as you wrote them.";
 }
@@ -102,6 +102,8 @@ const tidy = s => String(s).trim().replace(BULLET_RE, "").replace(/[.\s]+$/, "")
 const stripMarkup = s => typeof s === "string" ? s.replace(/\*\*|__|`/g, "").replace(/^["“]|["”]$/g, "") : s;
 // Standalone figures only: "3D", "AS4041" and "Fusion 360"-style names are part of a skill, not a claim
 const numsOf = s => (String(s).match(/(?<![A-Za-z0-9])\d[\d,.]*%?(?![A-Za-z])/g) || []).map(n => n.replace(/[.,]+$/, ""));
+// How many words of b are not in a: a wording that only swaps one word doesn't count as reworded
+const changedWords = (a, b) => { const pool = {}; for (const w of (String(a).toLowerCase().match(/[a-z0-9%$'’-]+/g) || [])) pool[w] = (pool[w] || 0) + 1; let n = 0; for (const w of (String(b).toLowerCase().match(/[a-z0-9%$'’-]+/g) || [])) { if (pool[w] > 0) pool[w]--; else n++; } return n; };
 const contentWords = s => new Set((norm(s).match(/[a-z][a-z0-9+#]{3,}/g) || []).filter(w => !STOP.has(w)).map(stem));
 const skillSet = s => new Set(findSkills(norm(s)).keys());
 const mentions = (text, skill) => findSkills(norm(text)).has(skill) || norm(text).includes(norm(skill));
@@ -246,6 +248,11 @@ function finishPlan(g, plan) {
 // The small-model path: the AI downloaded into this browser if that's the choice, otherwise Chrome's own.
 // make(rules, examples) gives a session with prompt(), clone() and destroy(), whichever it is.
 async function withChromeAI(progress, fn) {
+  const gen = aiBegin();
+  try { return await withChromeAIInner(progress, fn); }
+  finally { aiEnd(gen); }
+}
+async function withChromeAIInner(progress, fn) {
   const be = smallEngine();
   if (be) {
     try { return await fn(async (rules, examples = [], expect) => browserSession(be, rules, examples, undefined, expect)); }
@@ -482,46 +489,13 @@ function renderUpdate(newText, before, after, changes) {
   const el = $("updateOut");
   if (!el) return;
   const na = [...place.placements].filter(([, p]) => p.zoneId === "__na").map(([n]) => n);
-  const item = it => it.type === "note" ? `<span class="via">${esc(it.after)}</span>` : it.type === "edit"
-    ? `<span class="was">${esc(it.before)}</span><span class="added">${esc(it.after)}</span><span class="via">${esc(it.via)}</span>`
-    : `<span class="added">${esc(it.after)}</span><span class="via">${esc(it.via)}</span>`;
-  el.innerHTML = `
-  <div class="update-out">
-    <div class="score-change" aria-label="Score changes from ${before} to ${after}">
-      <span class="from">${before}</span><span class="arrow">→</span><span class="to" style="color:${bandColor(after)}">${after}</span>
-      <span class="small muted" style="font-family:var(--font-body)">${after > before ? `+${after - before} points from your answers` : "No change in score"}</span>
-    </div>
-    ${changes.length ? `<div class="changes">${changes.map(c => `<div class="change">
-      <span class="where">${esc(c.where)}</span>
-      ${c.items.map(item).join("")}
-      ${c.rejected && c.rejected.length ? `<span class="via">Blocked ${c.rejected.length} AI suggestion${c.rejected.length === 1 ? "" : "s"} because ${c.rejected.length === 1 ? "it" : "they"} ${esc([...new Set(c.rejected)].slice(0, 3).join("; "))}.</span>` : ""}
-    </div>`).join("")}</div>` : `<p class="empty">Nothing to add: every skill you placed went to Not applicable.</p>`}
-    ${na.length ? `<p class="small muted">Left off as not applicable: ${esc(na.join(", "))}.</p>` : ""}
-    <label class="field" for="newResume">Your updated resume. Edit anything you like. The next page shows it with your key skills highlighted.
-      <textarea id="newResume" spellcheck="false"></textarea>
-    </label>
-    <div class="sorter-foot">
-      <button class="btn primary" id="toDownload" type="button">${tailorMode === "letter" ? "Next: cover letter" : "Next: your tailored resume"}</button>
-      <button class="btn" id="useNew" type="button">Rescan with this version</button>
-      <button class="btn" id="copyNew" type="button">Copy text</button>
-    </div>
-  </div>`;
+  // The updated resume and what changed are shown on the next page, Tailor to resume, which opens now.
+  // (the text is kept in a hidden box: finalText() reads it, and so does the page after this one)
+  place.update = { before, after, changes, na };
+  el.innerHTML = `<p class="small">Your answers are saved and your resume is updated. <button class="linkish" type="button" id="toResumeAgain">Open Tailor to resume</button></p><textarea id="newResume" hidden aria-hidden="true"></textarea>`;
   $("newResume").value = newText;
-  $("newResume").addEventListener("input", () => { resumeEdit = null; updateFlow(); });
-  $("copyNew").onclick = async () => {
-    const b = $("copyNew"), ta = $("newResume");
-    try { await navigator.clipboard.writeText(ta.value); b.textContent = "Copied"; }
-    catch { ta.focus(); ta.select(); b.textContent = "Selected. Press Ctrl+C"; }
-    setTimeout(() => { b.textContent = "Copy text"; }, 2200);
-  };
-  $("toDownload").onclick = () => { resumeEdit = null; goTo(tailorMode === "letter" ? "sec-fit" : "sec-download"); };
-  $("useNew").onclick = () => {
-    els.resume.value = $("newResume").value;
-    setExample(false);
-    updateCounts();
-    runScan(true);
-  };
+  resumeEdit = null;
+  $("toResumeAgain").onclick = () => goTo("sec-download");
   updateFlow();
-  el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+  goTo("sec-download");
 }
-

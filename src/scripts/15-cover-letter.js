@@ -18,10 +18,16 @@ function letterStage(text) {
 }
 const letterRange = text => {
   const r = LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
-  return r;
+  // the words that fit one page at the chosen spacing and margins (measured from the preview), when known
+  const fit = typeof ltFitRange === "function" ? ltFitRange() : null;
+  return fit || r;
 };
 // The fewest words each paragraph should have, so none of them is thin
-const partMin = (key, range) => Math.round((range[0] - 100) * (PART_SHARE[key] || 0.2) / 5) * 5 + 20;
+// each paragraph's share of the page, in rough proportion (the shares are scaled to add up to one)
+const PART_SHARE_N = (() => { const t = Object.values(PART_SHARE).reduce((a, b) => a + b, 0); return Object.fromEntries(Object.entries(PART_SHARE).map(([k, v]) => [k, v / t])); })();
+const partMin = (key, range) => Math.round(range[0] * (PART_SHARE_N[key] || 0.2) / 5) * 5;
+// about how many words this paragraph should have for the whole letter to fill the page
+const partTarget = (key, range) => Math.round(range[1] * (PART_SHARE_N[key] || 0.2) / 5) * 5;
 const COVER_CLICHES = ["to whom it may concern", "i am writing to express my interest", "i am writing to apply", "team player", "hard-working", "hardworking", "hard working", "passionate", "perfect fit", "great fit", "ideal candidate", "think outside the box", "go-getter", "results-driven", "dynamic", "synergy", "i believe i would be", "dear sir/madam", "dear sir or madam"];
 const CL_KEY = "jobfinder.coverLetters.v1";
 const JSPDF = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
@@ -46,7 +52,6 @@ const coverReady = memoryReady.then(async () => {
 }).finally(renderLetterFiles);
 
 async function saveCoverStore() {
-  if (!$("clRemember").checked) return;
   const body = { version: 1, letters: cover.letters.slice(0, 3).map(l => ({ name: String(l.name).slice(0, 120), text: String(l.text).slice(0, 20000), added: l.added })), availability: $("clAvail").value.trim(), updated: new Date().toISOString() };
   if (cover.doc) { try { await cover.doc.set(body); cover.where = "account"; return; } catch { cover.doc = null; } }
   try { localStorage.setItem(CL_KEY, JSON.stringify(body)); cover.where = "browser"; } catch { cover.where = "none"; }
@@ -209,17 +214,24 @@ const READY_OPT = [
   ["clWhy", "Why this company", "not given, so the letter points to details in the ad. Your own reason reads better"],
   ["clAvail", "Availability", "not given, so the letter won't mention a start date"]
 ];
+// A detail being typed in the box (null: none). The details themselves live in the boxes behind the scenes (clRole, clCompany…), and every
+// one can be corrected here: select its name, or Edit.
+let readyEdit = null;
 function renderReady() {
   const el = $("clReady");
   if (!el || !lastResult) return;
   const v = id => $(id).value.trim();
   const short = t => t.length > 60 ? t.slice(0, 57) + "…" : t;
   const need = READY_NEED.filter(([id]) => !v(id));
-  const item = ([id, label, why], cls) => `<li class="${cls}"><span class="mark" aria-hidden="true">${cls === "ok" ? "✓" : cls === "need" ? "!" : "–"}</span><span>${cls === "ok" ? `<b>${esc(label)}:</b> ${esc(short(v(id)))}` : `<button class="linkish" type="button" data-focus="${id}">${esc(label)}</button>: ${esc(why)}`}</span></li>`;
+  const item = ([id, label, why], cls) => {
+    if (readyEdit === id) return `<li class="ed"><span class="mark" aria-hidden="true">✎</span><span class="ready-edit"><label for="clReadyIn">${esc(label)}</label><input type="text" id="clReadyIn" data-ready-in="${id}" autocomplete="off" value="${esc($(id).value)}"><span class="small muted">Press Enter or click away to keep it.</span></span></li>`;
+    return `<li class="${cls}"><span class="mark" aria-hidden="true">${cls === "ok" ? "✓" : cls === "need" ? "!" : "–"}</span><span>${cls === "ok" ? `<b>${esc(label)}:</b> ${esc(short(v(id)))} <button class="linkish edit" type="button" data-focus="${id}" aria-label="Edit ${esc(label)}">Edit</button>` : `<button class="linkish" type="button" data-focus="${id}">${esc(label)}</button>: ${esc(why)}`}</span></li>`;
+  };
   el.innerHTML = `<h3>${need.length ? `Add ${need.length === 1 ? "one detail" : need.length + " details"} to finish your letter` : "Ready to write"}</h3>
     <p class="muted">${need.length ? "The letter uses your real details and never makes them up, so anything missing is left out." : "Your letter will use these details. Anything left blank is left out, never made up."}</p>
     <ul>${READY_NEED.map(r => item(r, v(r[0]) ? "ok" : "need")).join("")}${READY_OPT.map(r => item(r, v(r[0]) ? "ok" : "opt")).join("")}</ul>`;
-  el.querySelectorAll("[data-focus]").forEach(b => b.addEventListener("click", () => { const f = $(b.dataset.focus); f.focus(); f.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "center" }); }));
+  const inp = $("clReadyIn");
+  if (inp) { inp.focus({ preventScroll: true }); inp.setSelectionRange(inp.value.length, inp.value.length); }
 }
 
 // --- Writing it ---
@@ -262,7 +274,7 @@ function templateLetter(ctx) {
   const reuse = (ctx.reusable || []).find(r => r.soft > 0);
   const interest = (ctx.interest || []).length ? ` What interests me most about the role is ${listJoin(ctx.interest.map(x => lowerFirst(x.replace(/[.\s]+$/, ""))))}.` : "";
   paras.push({ part: "motivation", text: `${ctx.why ? `I am particularly drawn to ${ctx.company || "your organisation"} because ${lowerFirst(ctx.why.replace(/[.\s]+$/, ""))}.` : duty ? `I am particularly drawn to this role because it would allow me to ${lowerFirst(duty)}.` : `I am particularly drawn to this role and the chance to contribute to ${ctx.company || "your team"}.`}${interest}${reuse ? " " + reuse.text : softs.length ? ` My experience${otherRole && otherRole.orgShort ? ` at ${otherRole.orgShort}` : " across my roles"} has also developed my ${listJoin(softs)}, which I would bring to your team.` : ""}`, evidence: reuse ? [reuse.text] : otherRole ? [otherRole.label] : [] });
-  paras.push({ part: "closing", text: `Thank you for considering my application. I would welcome the opportunity to discuss how my skills and experience could support ${ctx.company || "your team"}${ctx.avail ? `, and I am available ${ctx.avail.replace(/[.\s]+$/, "")}` : ""}.${ctx.cand.phone || ctx.cand.email ? ` I can be contacted ${listJoin([ctx.cand.phone && `on ${ctx.cand.phone}`, ctx.cand.email && `at ${ctx.cand.email}`].filter(Boolean)).replace(" and ", " or ")}.` : ""}`, evidence: [] });
+  paras.push({ part: "closing", text: `Thank you for considering my application. I would welcome the opportunity to discuss how my skills and experience could support ${ctx.company || "your team"}${ctx.avail ? `, and I am available ${ctx.avail.replace(/[.\s]+$/, "")}` : ""}.`, evidence: [] });
   return { salutation: ctx.recipient ? `Dear ${ctx.recipient},` : "Dear Hiring Manager,", paragraphs: paras, signoff: "Yours sincerely,", via: "Written from your resume and the ad, without AI" };
 }
 
@@ -275,11 +287,11 @@ Write exactly five paragraphs, in this order:
 2. experience: the two or three most relevant experiences from the resume, each tied to something the ad asks for, with concrete evidence and figures from the resume.
 3. education: the degree, relevant coursework, and the technical skills and tools from the resume that the ad asks for.
 4. motivation: why this company and role (use the candidate's reason if given, otherwise point to specifics in the ad), plus the soft skills the ad asks for, shown through examples from the resume.
-5. closing: thanks, availability (if given) and a confident request for an interview.
+5. closing: thanks, availability (if given) and a confident request for an interview. Do not put a phone number, email address, LinkedIn or any other contact detail in the closing (or anywhere in the paragraphs): they are already in the letter head.
 
 Getting the facts right:
 - Every experience you mention must be credited to the employer it is listed under in <experience_by_employer>. Never move a task, tool or result to a different employer, and never merge two jobs into one. When you name an employer, the sentence must describe work listed under that employer.
-- Use the candidate's real name, phone number and email from <candidate>.
+- Use the candidate's real name from <candidate>. Their phone number, email and LinkedIn are already in the letter head, so never repeat them in a paragraph.
 - Never write placeholders, square brackets or template text such as "[Start Date]" or "[Phone Number]". If a detail like a start date isn't given, leave it out of the letter.
 
 Style: formal Australian business English in the first person, confident and specific, 280 to 380 words in total, Australian spelling. Do not claim skills the resume doesn't show; you may say the candidate is keen to learn something the ad mentions.
@@ -335,7 +347,9 @@ What they want to lead with: ${(ctx.bring || []).join(", ") || "(your choice, fr
 Availability: ${ctx.avail || "(not given)"}${(ctx.fit || []).length ? `
 Selection criteria they chose to address, each with a sentence built from their resume (use these in the experience paragraph, reworded to flow, keeping every fact and the employer it belongs to):
 ${ctx.fit.map(f => `- ${f.criterion} → ${f.say}`).join("\n")}` : ""}
-Skills the ad asks for that the resume shows: ${ctx.have.map(x => x.name).join(", ") || "(none matched)"}
+${(ctx.criteria || []).length ? `Selection criteria the ad lists (address the ones the resume backs up, in the experience and education paragraphs; for the rest, never invent evidence):
+${ctx.criteria.map(c => `- ${c}`).join("\n")}
+` : ""}Skills the ad asks for that the resume shows: ${ctx.have.map(x => x.name).join(", ") || "(none matched)"}
 What the company says it values: ${(ctx.values || []).join(", ") || "(not stated)"} (link one of these to the candidate's own example in the motivation paragraph, if it fits)${ctx.guide ? `
 From ${ctx.guide.name}'s careers pages: ${ctx.guide.purpose ? `purpose "${ctx.guide.purpose}"; ` : ""}what they look for in graduates: ${ctx.guide.look.join("; ")} (use this to choose which of the candidate's real examples to lead with; don't quote it back word for word)` : ""}
 </details>
@@ -369,7 +383,7 @@ const PLACEHOLDERS = [
 ];
 // Sentences, without breaking at initials such as "R.M. Williams"
 const sentencesOf = t => t.split(/(?<!\b[A-Z]\.)(?<=[.!?])\s+/);
-const TOKEN_RE = /\[[^\]\n]{2,40}\]|\{[^}\n]{2,40}\}/g;
+const TOKEN_RE = new RegExp(GAP_SRC, "g");
 const placeholderFor = tok => PLACEHOLDERS.find(x => new RegExp(x.re.source, "i").test(tok));
 function fillPlaceholders(text, ctx) {
   let t = text;
@@ -427,6 +441,18 @@ function polishDraft(d, ctx) {
   d.salutation = fillPlaceholders(d.salutation, ctx);
   d.signoff = fillPlaceholders(d.signoff, ctx);
   d.paragraphs.forEach(p => { p.text = fillPlaceholders(p.text, ctx); });
+  dropBlankGaps(d);
+  return d;
+}
+// Anything optional the person left blank is left out: a sentence that still has a gap for it is taken out, and a greeting or sign-off with one
+// goes back to the usual words. Only the role, company and name stay as gaps to fill (the letter can't be sent without them).
+const MUST_FILL = new Set(["clRole", "clCompany", "clName"]);
+function dropBlankGaps(d) {
+  const open = t => (t.match(TOKEN_RE) || []).some(tok => { const ph = placeholderFor(tok); return !(ph && MUST_FILL.has(ph.field)); });
+  if (open(d.salutation)) d.salutation = "Dear Hiring Manager,";
+  if (open(d.signoff)) d.signoff = "Yours sincerely,";
+  d.paragraphs.forEach(p => { if (open(p.text)) p.text = sentencesOf(p.text).filter(x => !open(x)).join(" ").trim(); });
+  d.paragraphs = d.paragraphs.filter(p => p.text);
   return d;
 }
 const correctionNote = issues => `Your draft credited work to the wrong employer:\n${issues.map(i => `- ${i.ai}`).join("\n")}\nRewrite the letter so every task is credited to the employer it is listed under. Keep everything else, and reply in the same JSON shape.`;
@@ -522,87 +548,103 @@ function letterChecks(draft, ctx) {
 const todayAU = () => new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
 function letterParts(draft, ctx) {
   const contact = [ctx.cand.location, ctx.cand.phone, ctx.cand.email, ctx.cand.linkedin].filter(Boolean);
-  // a blank hiring manager or company shows as [XXX], highlighted yellow, so it can't be missed
-  const recipient = [ctx.recipient || "[XXX]", ctx.company || "[XXX]", ctx.address].filter(Boolean);
+  // a hiring manager, company or address left blank is left out, never shown as a placeholder
+  const recipient = [ctx.recipient, ctx.company, ctx.address].filter(Boolean);
   return { name: ctx.cand.name || "Your name", contact, date: todayAU(), recipient, re: `Re: Application for ${ctx.title}`, salutation: draft.salutation, paragraphs: draft.paragraphs.map(p => p.text), signoff: draft.signoff, signName: ctx.cand.name || "" };
 }
+// The letter: laid out like the Cover letter tab of Create or edit cover letter. The paragraphs to edit (each with its guide, and the ad's key
+// skills highlighted in them), the sign-off, then what to check before sending, all on the left; the breakdown above the preview on the right.
 function renderCover() {
   const out = $("clOut"), d = cover.draft, ctx = cover.ctx;
   if (!out || !d) return;
-  const L = letterParts(d, ctx);
   out.innerHTML = `
   <div id="clFinish"></div>
-  <div class="cl-layout">
-    <article class="letter" aria-label="Your cover letter">
-      <div><div class="l-name"></div><div class="l-contact"></div></div>
-      <div class="l-block l-date"></div>
-      <div class="l-block l-to"></div>
-      <div class="l-re"></div>
-      <p class="l-sal" contenteditable="true" spellcheck="true"></p>
-      ${d.paragraphs.map((p, i) => `<p class="l-para" data-i="${i}" data-n="${i + 1}" contenteditable="true" spellcheck="true"></p>`).join("")}
-      <p class="l-sign" contenteditable="true"></p>
-      <p class="l-signname"></p>
-    </article>
-    <aside class="cl-break" id="clBreak" aria-label="Breakdown of your cover letter"></aside>
-  </div>
-  <div class="sorter-foot">
-    <button class="btn primary" id="clDocx" type="button">Download as Word</button>
-    <button class="btn primary" id="clPdf" type="button">Download as PDF</button>
-    <button class="btn" id="clCopy" type="button">Copy text</button>
-    <button class="btn" id="clSave" type="button">Save to my profile…</button>
-    <button class="btn ghost" id="clAgain" type="button">Write it again</button>
-    <button class="btn ghost" id="clTrack" type="button">I've applied: add to Application tracker</button>
-    <a class="btn" href="#interview">Next: practise for the interview</a>
-  </div>
-  <p class="small muted" id="clStatus" role="status">${esc(d.via)}. Click any paragraph to edit it. The breakdown updates as you type.</p>`;
-  const q = sel => out.querySelector(sel);
-  q(".l-name").textContent = L.name;
-  q(".l-contact").textContent = L.contact.join("  |  ");
-  q(".l-date").textContent = L.date;
-  q(".l-to").innerHTML = L.recipient.map(r => gapHtml(r)).join("<br>");
-  q(".l-re").textContent = L.re;
-  // gaps are highlighted in the letter itself
-  const withTokens = t => gapHtml(t);
-  q(".l-sal").innerHTML = withTokens(L.salutation);
-  out.querySelectorAll(".l-para").forEach(el => { el.innerHTML = withTokens(d.paragraphs[+el.dataset.i].text); });
-  q(".l-sign").innerHTML = withTokens(L.signoff);
-  q(".l-signname").textContent = L.signName;
+  <section class="panel lt-form cl-edit" aria-labelledby="clEditH">
+    <div class="panel-head"><h2 id="clEditH">Your letter</h2><p>Five paragraphs, each with one job to do. Saved as you type, gaps and all: the breakdown and the preview update as you edit, and the ad's key skills are highlighted in your words. <span class="lt-target" id="clTarget"></span></p></div>
+    <div class="q-grid"><label class="field" for="clSal">Greeting<input type="text" id="clSal" autocomplete="off"></label></div>
+    <div class="lt-parts" id="clParts">${d.paragraphs.map((p, i) => `<div class="lt-part" data-cli="${i}">
+      <label class="q-label" for="clp-${i}">${i + 1}. ${esc(partOf(p.part).label)} <span class="opt" id="clw-${i}"></span></label>
+      <p class="q-hint">${esc(partOf(p.part).purpose)}</p>
+      <div id="clg-${i}">${clGuideHtml(p.part, letterStage())}</div>
+      <div class="hl-wrap"><div class="hl-back" id="clb-${i}" aria-hidden="true"></div><textarea id="clp-${i}" data-clp="${i}" rows="8" spellcheck="true" placeholder="Write this paragraph."></textarea></div>
+      <div class="cl-flags" id="clf-${i}"></div>
+    </div>`).join("")}</div>
+    <div class="lt-signoff"><label class="field" for="clSign">Sign-off<input type="text" id="clSign" autocomplete="off"></label></div>
+    <div id="clChecks"></div>
+  </section>`;
+  $("clGenRow").hidden = true;
+  $("clSal").value = d.salutation; $("clSign").value = d.signoff;
+  d.paragraphs.forEach((p, i) => { const ta = $("clp-" + i); ta.value = p.text; clBack(i); growBox(ta); });
   let t;
-  out.querySelector(".letter").addEventListener("input", e => {
-    const el = e.target.closest("[contenteditable]");
-    if (!el) return;
-    if (el.classList.contains("l-para")) d.paragraphs[+el.dataset.i].text = el.textContent.replace(/\s+/g, " ").trim();
-    if (el.classList.contains("l-sal")) d.salutation = el.textContent.trim();
-    if (el.classList.contains("l-sign")) d.signoff = el.textContent.trim();
-    clearTimeout(t); t = setTimeout(() => { renderBreakdown(); renderFinish(); }, 350);
+  const later = () => { clearTimeout(t); t = setTimeout(() => { renderBreakdown(); renderFinish(); clPreview(); }, 250); };
+  out.querySelector("#clParts").addEventListener("input", e => {
+    const ta = e.target.closest("[data-clp]"); if (!ta) return;
+    const i = +ta.dataset.clp; d.paragraphs[i].text = ta.value.replace(/\s+/g, " ").trim();
+    clBack(i); growBox(ta); later();
   });
-  // keep pasted text plain
-  out.querySelector(".letter").addEventListener("paste", e => {
-    if (!e.target.closest("[contenteditable]")) return;
-    e.preventDefault();
-    document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text/plain"));
-  });
-  $("clDocx").onclick = () => downloadCover("docx");
-  $("clPdf").onclick = () => downloadCover("pdf");
-  $("clCopy").onclick = async () => {
-    const b = $("clCopy"), text = coverPlainText();
-    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy here"; }
-    setTimeout(() => { b.textContent = "Copy text"; }, 2200);
-  };
-  $("clAgain").onclick = generateCover;
-  $("clSave").onclick = saveTailorLetter;
+  $("clSal").addEventListener("input", e => { d.salutation = e.target.value; later(); });
+  $("clSign").addEventListener("input", e => { d.signoff = e.target.value; later(); });
+  $("clActions").hidden = false;
+  $("clStatus").textContent = `${d.via}. The breakdown and the preview update as you type.`;
   renderBreakdown();
   renderFinish();
+  clPreview();
+  // the highlight behind a box is only right once the box has its final width
+  requestAnimationFrame(() => d.paragraphs.forEach((p, i) => { const ta = $("clp-" + i); if (ta) growBox(ta); }));
 }
+// The text behind a paragraph's box: the ad's key skills (green for technical, purple for soft) and any gap (yellow)
+function clBack(i) {
+  const back = $("clb-" + i), ta = $("clp-" + i);
+  if (!back || !ta) return;
+  const names = tailorKeyNames();
+  back.innerHTML = ta.value.split(new RegExp("(" + GAP_SRC + ")")).map((s, k) => k % 2 ? gapHtml(s) : skillHighlightHtml(s, names)).join("") + "\n";
+}
+// The preview of the whole letter, in the letter's design; each paragraph in it points back at its box on the left
+function clPreview() {
+  const d = cover.draft, ctx = cover.ctx;
+  if (!d || !$("clPaper")) return;
+  const st = currentLetterStyle(), L = letterParts(d, ctx);
+  mountPaper($("clPaper"), letterHtml(L, st));
+  $("clPaper").querySelectorAll(".lt-p").forEach((el, i) => { el.dataset.cli = i; el.title = "Select to edit this paragraph"; });
+  $("clDesign").textContent = `Design: ${st.name}`;
+  paperEditable($("clPaper"), clEditor);
+  // how many words fit the page at this design, spacing and margins: measured from this preview too
+  if (ltMeasureFit("#clPaper")) { ctx.range = letterRange(); renderBreakdown(); }
+}
+// The preview can be typed in: a paragraph, the greeting and the sign-off go back into the letter on the left (the letterhead, date and
+// address come from your details, so they stay as they are)
+const clEditor = {
+  note: "Select a paragraph in the preview to change it. The boxes on the left, the breakdown and the checks follow.",
+  noteId: "clEditNote", locked: ".lt-head, .lt-date, .lt-to, .lt-re, .lt-signname", label: "Your cover letter. Select any paragraph to change it.",
+  enabled: () => !!cover.draft,
+  apply(old, nw, el) {
+    const d = cover.draft, sheet = el instanceof Element && el.closest(".lt-sheet");
+    if (!d || !sheet) return false;
+    const text = nw.replace(/\s+/g, " ").trim();
+    if (el.classList.contains("lt-p")) {
+      const i = [...sheet.querySelectorAll(".lt-p")].indexOf(el), p = d.paragraphs[i];
+      if (!p) return false;
+      p.text = text;
+      const ta = $("clp-" + i); if (ta) { ta.value = text; growBox(ta); }
+      clBack(i);
+      return true;
+    }
+    if (el.classList.contains("lt-sign")) { d.signoff = text; $("clSign").value = text; return true; }
+    if (el.parentElement === sheet && el.tagName === "P" && !el.className) { d.salutation = text; $("clSal").value = text; return true; }
+    return false;
+  },
+  after() { renderBreakdown(); renderFinish(); },
+  commit() { clPreview(); }
+};
 // "To finish your letter": anything the letter still needs from you, with a box to fill each one in
 function renderFinish() {
   const box = $("clFinish"), d = cover.draft, ctx = cover.ctx;
   if (!box || !d) return;
   const gaps = missingTokens(d);
   const status = $("clStatus");
-  ["clDocx", "clPdf"].forEach(id => { const b = $(id); if (b) b.disabled = gaps.length > 0; });
+  { const b = $("clDl"); if (b) b.disabled = gaps.length > 0; }
   if (!gaps.length) {
-    if (box.innerHTML) { box.innerHTML = ""; status.textContent = `${d.via}. Click any paragraph to edit it. The breakdown updates as you type.`; }
+    if (box.innerHTML) { box.innerHTML = ""; status.textContent = `${d.via}. The breakdown and the preview update as you type.`; }
     return;
   }
   status.textContent = `Fill in the ${gaps.length === 1 ? "gap" : gaps.length + " gaps"} above to download your letter.`;
@@ -613,7 +655,7 @@ function renderFinish() {
   const clip = t => t.length > 160 ? t.slice(0, 157) + "…" : t;
   box.innerHTML = `<div class="cl-finish" role="region" aria-label="To finish your letter">
     <h3>To finish your letter</h3>
-    <p>The letter needs ${gaps.length === 1 ? "one detail" : gaps.length + " details"} it couldn't find in your resume or the details above. Add ${gaps.length === 1 ? "it" : "them"}, or leave ${gaps.length === 1 ? "it" : "them"} out.</p>
+    <p>The letter needs ${gaps.length === 1 ? "one detail" : gaps.length + " details"} it couldn't find in your resume or the details at the top. Add ${gaps.length === 1 ? "it" : "them"}, or leave ${gaps.length === 1 ? "it" : "them"} out.</p>
     ${gaps.map((g, i) => `<div class="cl-miss">
       <label class="field" for="clGap${i}">${esc(g.ph ? g.ph.label : g.tok.slice(1, -1))}<input type="text" id="clGap${i}" data-i="${i}" autocomplete="off" placeholder="${esc(g.ph && g.ph.field === "clAvail" ? "e.g. from 1 December" : "")}"></label>
       <button class="btn primary" type="button" data-fill="${i}">Add</button>
@@ -648,6 +690,7 @@ function renderFinish() {
   box.querySelectorAll("[data-drop]").forEach(b => b.addEventListener("click", () => drop(+b.dataset.drop)));
   box.querySelectorAll("input[data-i]").forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); fill(+inp.dataset.i); } }));
 }
+// The breakdown, above the preview: each card is one paragraph; point at it to see it on the left and in the preview, select it to edit it
 function renderBreakdown() {
   const el = $("clBreak"), d = cover.draft, ctx = cover.ctx;
   if (!el || !d) return;
@@ -655,8 +698,10 @@ function renderBreakdown() {
   // checked live, so edits that move work to the wrong employer are caught too
   for (const iss of attributionIssues(d, ctx)) if (checks[iss.pi]) checks[iss.pi].flags.push(iss.user);
   d.paragraphs.forEach((p, i) => { const toks = p.text.match(TOKEN_RE); if (toks && checks[i]) checks[i].flags.push(`Has a gap to fill: ${[...new Set(toks)].join(", ")}.`); });
+  d.paragraphs.forEach((p, i) => { const c = contactIn(p.text, p.part); if (c && checks[i]) checks[i].flags.push(`Includes "${c}". Your contact details are already in the letter head, so leave them out.`); });
   const text = d.paragraphs.map(p => p.text).join(" ");
-  const wc = wordCount(text);
+  const wc = wordCount(text), r = letterRange();
+  ctx.range = r;
   const inLetter = skillSet(text);
   const keySkills = ctx.have.filter(x => x.priority === "Required" || x.rel >= 0.8);
   const covered = keySkills.filter(x => inLetter.has(x.name));
@@ -664,26 +709,37 @@ function renderBreakdown() {
   // the craft rules: clichés, AI-sounding habits, sentence openings, long sentences, figures that aren't yours
   const quality = coverQuality(d.paragraphs.map(p => p.text), [ctx.resume, ...ctx.letters, ctx.why, ctx.avail, ctx.title, ctx.company, ctx.jd].join("\n"));
   const flagCount = checks.reduce((a, c) => a + c.flags.length, 0) + quality.length;
-  document.querySelectorAll(".letter .l-para").forEach((p, i) => p.classList.toggle("flagged", !!(checks[i] && checks[i].flags.length)));
+  document.querySelectorAll("#clParts .lt-part").forEach((p, i) => p.classList.toggle("flagged", !!(checks[i] && checks[i].flags.length)));
+  d.paragraphs.forEach((p, i) => { const w = $("clw-" + i); if (w) { const n = wordCount(p.text), min = partMin(p.part, r); w.textContent = `${n} words · aim for about ${partTarget(p.part, r)}${n < min ? " (a little short)" : ""}`; } });
+  const gaps = missingTokens(d).length;
+  const sc = letterScore(d.paragraphs, r, wc, gaps, quality, true), se = $("clScore");
+  if (se) se.innerHTML = `Cover letter strength: <span style="color:${sc >= 80 ? "var(--good)" : sc >= 60 ? "var(--accent)" : "var(--warn)"}">${sc}/100</span>`;
   el.innerHTML = `
     <h3>Breakdown</h3>
     <div class="cl-stats">
       <div class="cl-stat"><b>${keySkills.length ? `${covered.length}/${keySkills.length}` : "–"}</b><span>${keySkills.length ? "key skills from the ad" : "key skills matched. Place your skills in step 4 first"}</span></div>
-      <div class="cl-stat"><b>${wc}</b><span>words${wc < ctx.range[0] ? `, aim for ${ctx.range[0]} to ${ctx.range[1]}` : wc <= ctx.range[1] ? `, right for your stage (${ctx.range[0]} to ${ctx.range[1]})` : `, trim it to ${ctx.range[1]} or fewer`}</span></div>
+      <div class="cl-stat"><b>${wc}</b><span>words${wc < r[0] ? `, aim for ${r[0]} to ${r[1]}` : wc <= r[1] ? `, fits one page (${r[0]} to ${r[1]})` : `, trim it to ${r[1]} or fewer`}</span></div>
       <div class="cl-stat"><b style="color:${flagCount ? "var(--warn)" : "var(--good)"}">${flagCount}</b><span>thing${flagCount === 1 ? "" : "s"} to check</span></div>
     </div>
     ${letterSkillReview(d)}
-    <div class="cl-craft${quality.length ? "" : " ok"}"><b>Craft check</b>${quality.length ? quality.map(q => { const w = q.where || [], kind = q.fix === "dash" || q.fix === "exclaim" ? q.fix : "go"; return `<div class="cl-flag"><b>${esc(q.title)}.</b> ${esc(q.detail)}${w.length ? `<div class="ck-acts">${w.slice(0, 4).map(i => `<button class="btn" type="button" data-tk="${kind}:${i}">${kind === "dash" ? "Fix the dashes in" : kind === "exclaim" ? "Fix the marks in" : "Go to"} paragraph ${i + 1}</button>`).join("")}</div>` : ""}</div>`; }).join("") : `<div class="small muted">No clichés, dashes or repeated openings, and nothing that sounds machine-written.</div>`}</div>
-    ${d.paragraphs.map((p, i) => { const part = partOf(p.part), c = checks[i] || { ad: [], evidence: [], flags: [] }; return `
-    <div class="cl-part">
-      <div class="cl-part-head"><span class="n">${i + 1}</span><b>${esc(part.label)}</b><span class="small ${wordCount(p.text) < partMin(p.part, ctx.range) ? "warn-text" : "muted"}">${wordCount(p.text)} words${wordCount(p.text) < partMin(p.part, ctx.range) ? ` · aim for ${partMin(p.part, ctx.range)}+` : ""}</span></div>
-      <div class="purpose">${esc(part.purpose)}</div>
-      ${c.ad.length ? `<div class="row"><span>From the ad:</span>${c.ad.map(s => `<span class="chip found">${esc(s)}</span>`).join("")}</div>` : ""}
-      ${c.evidence.length ? `<div class="row"><span>Based on:</span></div>${c.evidence.slice(0, 3).map(q => `<div class="ev">“${esc(q)}”</div>`).join("")}` : ""}
-      ${p.repaired ? `<div class="cl-note">The AI credited this work to the wrong job, so this paragraph was rebuilt from your resume.</div>` : ""}
-      ${c.flags.map(f => `<div class="cl-flag">${esc(f)}</div>`).join("")}
-    </div>`; }).join("")}
     ${notYet.length ? `<div class="cl-gaps"><b>Key skills you have but haven't mentioned</b><div class="chips">${notYet.map(x => `<span class="chip missing" title="${esc(x.priority)}">${esc(x.name)}</span>`).join("")}</div><span class="small muted">Work one or two in if there's room. You don't need all of them.</span></div>` : ""}`;
+  const tg = $("clTarget"); if (tg) tg.textContent = typeof ltFitW !== "undefined" && ltFitW ? `About ${ltFitW} words fit on one page at your spacing and margins. Aim for ${r[0]} to ${r[1]} words in all, shared out between the paragraphs.` : `Aim for ${r[0]} to ${r[1]} words in all.`;
+  // what's wrong with a paragraph is shown under its box on the left
+  d.paragraphs.forEach((p, i) => { const f = $("clf-" + i); if (f) f.innerHTML = ((checks[i] && checks[i].flags) || []).map(x => `<div class="cl-flag">${esc(x)}</div>`).join("") + (p.repaired ? `<div class="cl-note">The AI credited this work to the wrong job, so this paragraph was rebuilt from your resume.</div>` : ""); });
+  // the craft check, below the sign-off
+  const ck = $("clChecks");
+  if (ck) {
+    const row = (cls, title, detail, acts) => `<li class="ck"><span class="ico ${cls}"></span><div><div class="title">${title}</div><div class="detail">${detail}</div>${acts ? `<div class="ck-acts">${acts}</div>` : ""}</div></li>`;
+    const goBtn = i => `<button class="linkish" type="button" data-tk="go:${i}">Go to paragraph ${i + 1}</button>`;
+    const flagRows = d.paragraphs.flatMap((p, i) => ((checks[i] && checks[i].flags) || []).map(f => row("warn", `Paragraph ${i + 1}: ${esc(partOf(p.part).label.toLowerCase())}`, esc(f), goBtn(i))));
+    const qualityRows = quality.map(q => { const w = q.where || [], kind = q.fix === "dash" || q.fix === "exclaim" ? q.fix : "go"; return row("warn", esc(q.title), esc(q.detail), w.slice(0, 4).map(i => kind === "go" ? goBtn(i) : `<button class="btn" type="button" data-tk="${kind}:${i}">${kind === "dash" ? "Fix the dashes in" : "Fix the marks in"} paragraph ${i + 1}</button>`).join("")); }).join("");
+    ck.innerHTML = `<h3 class="ck-head">Before you send it</h3><p class="small muted">Select a button to jump to the paragraph, or to fix just that one thing.</p><ul class="checks lt-checklist">
+      ${row(wc >= r[0] && wc <= r[1] ? "pass" : "warn", `${wc} words`, wc < r[0] ? `A little short. About ${r[0]} to ${r[1]} words fill one page at your spacing and margins.` : wc <= r[1] ? `Fits one page (${r[0]} to ${r[1]} words).` : `Trim it to ${r[1]} words or fewer so it fits on one page.`, "")}
+      ${row(gaps ? "warn" : "pass", gaps ? `${gaps} gap${gaps === 1 ? "" : "s"} to fill` : "No gaps left", gaps ? "Fill each one above before you download the letter." : "Nothing is left to fill in.", "")}
+      ${flagRows}${qualityRows}
+      ${quality.length ? "" : row("pass", "Reads like you wrote it", "No clichés, long dashes or repeated openings.", "")}
+    </ul>`;
+  }
 }
 function coverPlainText() {
   const L = letterParts(cover.draft, cover.ctx);
@@ -699,7 +755,7 @@ async function buildCoverDocx(L, st = DEFAULT_LETTER_STYLE) {
   const A = hex(st.accent), band = st.look === "band";
   const run1 = (t, o = {}) => `<w:r><w:rPr><w:rFonts w:ascii="${o.font || st.body}" w:hAnsi="${o.font || st.body}" w:cs="${o.font || st.body}"/>${o.b ? "<w:b/>" : ""}<w:color w:val="${o.color || "1E2533"}"/>${o.sp ? `<w:spacing w:val="${o.sp}"/>` : ""}<w:sz w:val="${o.sz || 22}"/>${o.hl ? '<w:highlight w:val="yellow"/>' : ""}</w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
   // any gap left in [brackets] is highlighted yellow in the Word file, so it can't be sent by accident
-  const run = (t, o = {}) => String(t).split(/(\[[^\]\n]{2,40}\]|\{[^}\n]{2,40}\})/).filter(Boolean).map(seg => run1(seg, { ...o, hl: /^[\[{].*[\]}]$/.test(seg) })).join("");
+  const run = (t, o = {}) => String(t).split(new RegExp("(" + GAP_SRC + ")")).filter(Boolean).map(seg => run1(seg, { ...o, hl: /^[\[{].*[\]}]$/.test(seg) })).join("");
   const LH = st.lh || 1, GAP = st.gap || 1;
   const para = (runs, o = {}) => `<w:p><w:pPr>${o.pbdr || ""}${o.shd ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>` : ""}<w:spacing w:before="${o.before || 0}" w:after="${Math.round((o.after ?? 0) * (o.keepGap ? 1 : GAP))}" w:line="${Math.round((o.line || 276) * LH)}" w:lineRule="auto"/>${o.ind ? `<w:ind w:left="${o.ind}" w:right="${o.ind}"/>` : ""}${o.jc ? `<w:jc w:val="${o.jc}"/>` : ""}</w:pPr>${runs}</w:p>`;
   const jc = st.align === "center" ? "center" : "";
@@ -775,14 +831,14 @@ async function buildCoverPdf(L, st = DEFAULT_LETTER_STYLE) {
   return doc.output("blob");
 }
 async function downloadCover(kind) {
-  const status = $("clStatus"), btn = $(kind === "pdf" ? "clPdf" : "clDocx");
+  const status = $("clStatus"), btn = $("clDl");
   const L = letterParts(cover.draft, cover.ctx);
   const name = `${(L.signName || "Cover").replace(/[\\/:*?"<>|]+/g, "")} - Cover Letter - ${cover.ctx.title}`.replace(/[\\/:*?"<>|]+/g, "").slice(0, 150) + "." + kind;
   btn.disabled = true;
-  status.textContent = `Preparing your ${kind === "pdf" ? "PDF" : "Word file"}…`;
+  status.textContent = `Preparing your ${{ pdf: "PDF", txt: "text file" }[kind] || "Word file"}…`;
   try {
     const st = currentLetterStyle();
-    const blob = kind === "pdf" ? await buildCoverPdf(L, st) : await buildCoverDocx(L, st);
+    const blob = kind === "txt" ? new Blob([coverPlainText()], { type: "text/plain;charset=utf-8" }) : kind === "pdf" ? await buildCoverPdf(L, st) : await buildCoverDocx(L, st);
     status.textContent = "Confirm the download in the prompt…";
     await saveFile(name, blob);
     status.textContent = `Downloaded ${name}.`;
@@ -794,11 +850,14 @@ async function downloadCover(kind) {
   } finally { btn.disabled = false; }
 }
 
-async function generateCover() {
-  const out = $("clOut"), btn = $("clGenerate");
-  if (!lastResult) return;
-  if (!$("clName").value.trim()) { $("clName").focus(); $("clEngine").textContent = "Add your name first."; return; }
-  if ($("clPaste").value.trim() && wordCount($("clPaste").value) >= 40 && $("clRemember").checked) {
+const coverJobKey = () => lastScan ? lastScan.jd + "\n" + lastScan.title : "";
+// opts.auto: the letter is being written because the page opened (not because a button was pressed)
+async function generateCover(opts) {
+  const out = $("clOut"), btn = $("clGenerate"), auto = !!(opts && opts.auto === true);
+  if (!lastResult || cover.writing) return;
+  if (!$("clName").value.trim()) { readyEdit = "clName"; renderReady(); $("clEngine").textContent = "Add your name first."; return; }
+  cover.writing = true;
+  if ($("clPaste").value.trim() && wordCount($("clPaste").value) >= 40) {
     const pasted = $("clPaste").value.trim();
     if (!cover.letters.some(l => l.text === pasted)) { cover.letters = [{ name: "Pasted letter", text: pasted, added: new Date().toISOString() }, ...cover.letters].slice(0, 3); renderLetterFiles(); }
     $("clPaste").value = "";
@@ -811,17 +870,18 @@ async function generateCover() {
   try {
     cover.ctx = ctx;
     cover.draft = await writeCover(ctx, progress);
+    cover.draftFor = coverJobKey();
     cover.downloaded = false;
     renderCover();
     updateFlow();
-    $("clOut").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
-  } finally { btn.disabled = false; }
+    if (!auto) $("clOut").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+  } finally { btn.disabled = false; cover.writing = false; }
 }
 async function describeCoverEngine() {
   const st = await chromeAIState();
   $("clEngine").textContent = smallEngine() ? `Written by ${SMALL()}, ${smallWhere()}, one short step at a time.${smallEngine() === "key" ? "" : " The corner shows roughly how long is left."}`
-    : st === "available" ? "Written by Chrome's built-in AI, on this device."
-    : (st === "downloadable" || st === "downloading") ? "Chrome's built-in AI is tried first, then " + (sample ? AI_NAME() : "the template") + "."
+    : st === "available" ? `Written by ${BROWSER_AI()}, on this device.`
+    : (st === "downloadable" || st === "downloading") ? BROWSER_AI() + " is tried first, then " + (sample ? AI_NAME() : "the template") + "."
     : sample ? "Written by " + AI_LONG() + ". Takes about a minute."
     : "No AI on this page, so the letter is assembled from your resume and the ad. You can edit every paragraph.";
 }

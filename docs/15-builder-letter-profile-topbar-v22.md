@@ -55,6 +55,16 @@ Built so a small or fast model (Gemini Flash-Lite, Chrome's built-in AI) gets ea
 
 **Letter type:** "A template for any job" is now the first (left) choice and the default, unless a letter already has a job, company or recipient typed in. **Replies cut off:** a model reached through a key (Gemini) is now told how long the answer will be, so a reword of three paragraphs gets enough room; if a reply still stops part-way it is asked again with twice the room, and if it fails the message says "the reply was cut off or broken" instead of showing a JSON error.
 
+## Cover letter: fixing, made-up details, Reword as…, page fit
+
+- **A rejected answer is fixed, not dropped.** When a paragraph, sentence or wording breaks a rule, the AI is shown the exact rule and asked to change just that part (up to three tries, "Asking the AI to fix just that part (try 2 of 3)…"). Only if it still fails does the standard version go in, with the AI's words shown. Code: `aiFixText` in `17-ai-prompts.js`, and the loop in `lwWrite` (`23e-letter-writer.js`).
+- **Made-up details are red.** Numbers and skills in AI-written text that aren't in your profile get a red highlight in the paragraph box. Hover one: **Keep and save** adds a skill to your profile (a figure to `prefs.okFacts`) so it isn't flagged again; **Discard** takes a skill out of the sentence, or turns a figure into a `[a figure]` gap. A warning row also lists them under the letter.
+- **No invented companies.** The writer, reword and expand prompts say never to name a company, employer, product or person that isn't in the facts; in a template the company stays `[the company]`.
+- **Expand with AI** is on all five paragraphs (Why this company and Close included).
+- **Reword as…** replaces Reword and Reword to the right size. It opens: Another way to say it, Shorter, Longer, More casual, More formal, To fit the page.
+- **Words that fit the page.** The preview is measured (how tall a word is at your design, spacing and margins, less the heading and sign-off) to give the words that fill one page, then shared between the paragraphs in rough proportion (`PART_SHARE`). It sets "aim for about N words" on each paragraph, the length warnings, the writer's target and the strength score. Code: `ltMeasureFit` in `23e-letter-writer.js`, `partMin` / `partTarget` in `15-cover-letter.js`.
+- AI progress and suggestions use the resume builder's moving bar and blue suggestion box. Going back to Layout refits the design thumbnails. Pages can now be up to 1840px wide.
+
 ## Profile page
 
 "What you've built" lists the names of your saved resumes under Resume and your saved letters under Cover letter. **Download my data** is now one zip with readable files. **Delete my account and all data** asks you to type "I want to delete my account and all data", offers the download first, and checks it's you (your password, or signing in again with Google, Facebook or Apple).
@@ -62,3 +72,36 @@ Built so a small or fast model (Gemini Flash-Lite, Chrome's built-in AI) gets ea
 ## Find jobs
 
 The note about posting and the talent pool is gone. On a wide screen, opening a job puts the list on the left and the whole job on the right; on a phone it opens inside the list as before.
+
+
+## Tailor to a job in four pages, a Stop button, and cover letter fixes
+
+**AI**
+- "Claude on your account" is gone (the page no longer reads `window.claude`), and so is the "If my chosen AI fails, use Claude" tick box. Without a working AI, the built-in rules fill in.
+- A **Stop** bar (`#aiStopBar`, 14-ai-engines.js) shows at the bottom of the screen while any AI call runs (`aiBegin` / `aiEnd`; counted in `aiChat`, `withChromeAI` and `aiJSON`). Stop (`aiStopAll`) aborts the request in flight and bumps `aiRun.gen`; anything that loops (Start from my profile, `aiJSON`) checks the generation and stops, so later steps don't carry on. Stopped paragraphs get the standard (no AI) version and say so.
+
+**Cover letter writing**
+- A gap is any `[bracket]` or `{brace}` pair, empty or long, never running across another bracket (`GAP_SRC` in 14a-cover-craft.js). Pasted `[]` and the long "[one specific reason…]" gaps now highlight, and what you type between the brackets stays highlighted.
+- Rewording and expanding no longer fail because the AI left out a `[gap]`.
+- The closing (and every paragraph) never repeats a phone number, email address, link or LinkedIn: those are in the letter head. This is in the prompts and checked in code (`contactIn`), and the no-AI closing no longer adds them.
+
+**Tailor to a job**
+- Page 1: the job ad box fills its sheet; the Scan button sits on the right; "Optional: AI review" and "Remember my cover letters" are gone; the cover letter part has **Use a cover letter from my profile** and takes dropped files anywhere in it, like the resume above; the "when did you show it" boxes have no (i).
+- "Save answers to profile and tailor my resume" now opens **Tailor to resume** (page 2) straight away. Half the screen is the resume to edit, with the ad's technical skills (green), soft skills (purple) and the ones not in the text (dashed chips) highlighted; under the skills sit the changes your answers made (what it said, what it says now; select one to find it in the text). The other half is the preview (it can highlight the key skills too).
+- **Fit the job's criteria** is its own page (page 3), and the **Cover letter** is its own page (page 4). The (i) under "A few quick questions" now sits on the question's heading, so it no longer shifts the layout each time you pick an answer.
+- Page 4 copies Create or edit cover letter: the letter details and paragraph boxes on the left (key skills highlighted in them), and on the right the Breakdown above the Cover letter preview, with a strength score. Point at a paragraph in the breakdown, the preview or the left and it lights up in all three; select it to jump to it.
+- Anything optional left blank is left out: no `[XXX]`, and a sentence that still has a gap for something optional (where you saw the ad, availability, the hiring manager…) is dropped, or the greeting goes back to "Dear Hiring Manager,". Only the role, company and your name remain as gaps to fill.
+
+## Version 24: Download as…, a cleaner score, and the tailor pages reworked
+
+- **Download as…** is one button everywhere (Tailor to resume, cover letter, Create or edit resume, saved resumes, Templates, Create or edit cover letter). It opens a small menu: Word, PDF or plain text. Code: `src/scripts/11a-download-menu.js` (`dlMenu(id, {docx, pdf, txt})`, `data-dlmenu` on the button).
+- **(i)** is sized in `em`, just under the text beside it.
+- **Score breakdown:** job title is no longer scored (it can't apply before the resume is tailored). Each row explains itself on hover or focus (what it is, why it matters, its weight) and is no longer a link. **Details** opens a pop-up (`<dialog id="detModal">`) holding What this job needs, the highlighted ad, ATS readability and Recruiter tips.
+- **Not relevant** is a quiet × that shows when you point at a missing skill's row.
+- **Selection criteria** no longer pick up benefits. Headings with a curly apostrophe ("What’s in it for you?") are recognised, benefit lines (salary, bonuses, probation, schedule, leave…) are treated as company info, and a line ending in "?" is never a criterion.
+- **Place your skills** is always open; the note box now asks "How did you show this? (optional)".
+- **Tailor to resume** shows the resume in parts (`rsSplit`/`rsJoin`), with the changes your answers made under the part they sit in: the old words, the suggestion, and **Revert** (and "Use the suggestion again"). The preview is the resume in the person's own design (`resumeTextModel` in `18b-resume-template-preview.js` feeds `cvHtml`), and the match ring is filled to the number in it. Download as Word keeps an uploaded Word file's layout; otherwise Word and PDF follow the preview design.
+- **Removed:** the Next buttons after the scan (except Cover letter only), Rescan with this version, Copy text on this page, and "I've applied" on this page.
+- The progress bar follows the page you are on (step 5, 6 or 7).
+- **Fit the job's criteria:** the criteria list is gone; every criterion (with its resume evidence) now goes to the cover letter prompt automatically (`fitForCover().criteria` and `.fit`). Must-haves are green, yellow or red bubbles. The pasted ad sits on the right. Answer chips write into their box and are redrawn in place (no more flicker of the (i)).
+- **Cover letter page:** laid out like Create or edit cover letter. The Craft check sits under the sign-off, the per-paragraph cards on the right are gone (their warnings sit under each paragraph box and in the Craft check), the buttons run along the bottom, and **Tailor another job** replaces "Next: practise for the interview".

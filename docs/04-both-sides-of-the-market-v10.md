@@ -45,7 +45,6 @@ Gemini Nano is small, so each prompt asks for one thing and is checked before it
 - **Actions:** apply (on Job Finder, or a link out that also marks the job as applied), tailor my resume, save to Applications, practise interview questions.
 - **Talent pool:** opt-in. Employers see name, headline, location, skills, job titles and education; never phone or email. It can be hidden at any time.
 - **Invitations** from employers show in Find jobs and on Home.
-- **Import listings:** owner and editors only, from the collector's `jobs.json`. Listings are re-merged and stored in documents of about 180 KB each.
 
 ## Applications tracker
 - Six stages: Saved, Applied, Screening, Interview, Offer, Closed, each with a tip.
@@ -112,8 +111,6 @@ Gemini Nano is small, so each prompt asks for one thing and is checked before it
   - View-only people can browse jobs but can't post, apply or join the talent pool (the page says so).
   - Applications and talent profiles are readable by every Contributor of this artifact, not only the employer. The apply form says this. A public launch would need a real backend with per-employer access.
 
-## Collector (outside the page)
-- Lives in `claude/collector/` in this project: `collect.mjs`, `dedup.cjs`, `sources.example.json` and `README.md`.
 - **Reads:** Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee, Adzuna (API key), and schema.org JobPosting pages (robots.txt checked, 1 request a second).
 - **Output:** drops closed jobs, merges duplicates with the same `dedup` code as the site, and writes `jobs.json` for "Import listings".
 - **Not used:** Seek, LinkedIn and Indeed, because their terms don't allow it.
@@ -121,7 +118,6 @@ Gemini Nano is small, so each prompt asks for one thing and is checked before it
 
 ## Testing done
 - **Two-person simulation with a shared mock database:** an employer posts, a seeker joins the pool, the employer invites, the seeker applies, the employer shortlists; then a feed import and a view-only person.
-- **Collector:** ran against saved sample responses for every source type (13 listings became 10 jobs).
 - **Aptitude:** all six formats run end to end.
 - **Learning:** plan building checked.
 - **Interviews:** the screening and story flows checked.
@@ -137,6 +133,5 @@ Parts were in `/home/claude/job-finder/src/` (session workspace only) and assemb
 For future edits, start from the published artifact.
 
 ## Open ideas
-- A scheduled task that runs the collector daily and writes `feed/collector/…` directly, once the job sites are allowed.
 - Per-employer private applications (needs a backend).
 - Email notifications for invitations.

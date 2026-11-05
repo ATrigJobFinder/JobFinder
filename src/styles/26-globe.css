@@ -1,0 +1,145 @@
+/* ===================== Home: the globe fills the first screen ===================== */
+/* The planet is drawn across the whole hero (see 36f). The words sit on top: left on a wide screen, above and below it on a narrow one.
+   When the realistic Earth is on (class gl-real), the hero is a dark space scene, so its colours are set again just inside it. */
+.gl-hero {
+  position: relative; overflow: hidden; display: grid; margin: 0 calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  min-height: max(640px, calc(100svh - var(--bar-h, 52px))); background: var(--bg);
+}
+.gl-hero.gl-real {
+  background: #02050d; color: var(--ink);
+  --ink: #EEF3FC; --muted: #A9B7D0; --line: rgba(255, 255, 255, 0.18); --surface: rgba(10, 16, 30, 0.74); --surface-2: rgba(255, 255, 255, 0.08);
+  --accent: #8FA8FF; --accent-soft: rgba(143, 168, 255, 0.18); --accent-ink: #0B1020; --hl-found: rgba(112, 214, 130, 0.38); color-scheme: dark;
+}
+.gl-stage { grid-area: 1 / 1; position: relative; margin: 0; min-width: 0; user-select: none; -webkit-user-select: none; }
+.gl-stage canvas { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; transition: opacity 0.9s ease; }
+.gl-map { position: absolute; inset: 0; z-index: 0; background: #0b1530; }
+.gl-flash { position: absolute; inset: 0; z-index: 2; background: #eef4ff; opacity: 0; pointer-events: none; }
+#globeCanvas { touch-action: none; cursor: grab; }
+#globeCanvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.gl-tip { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: none; display: grid; gap: 1px; max-width: 240px; padding: 8px 11px; border-radius: 8px; background: var(--surface); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(8, 12, 20, 0.3); font-size: var(--step--1); line-height: 1.35; }
+.gl-tip b { font-family: var(--font-display); font-stretch: 108%; }
+.gl-tip span { color: var(--muted); }
+.gl-tip em { font-style: normal; font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--good); }
+.gl-real .gl-tip em { color: #FFB84D; }
+
+/* the words, on top of the planet; only the buttons and the card catch the pointer, so dragging works everywhere else */
+.gl-over { grid-area: 1 / 1; position: relative; z-index: 1; display: flex; flex-direction: column; gap: 18px; padding: clamp(18px, 3.2vw, 44px); pointer-events: none; min-width: 0; }
+.gl-over :is(a, button, input, label, .gl-card, .gl-results) { pointer-events: auto; }
+.gl-real .gl-over::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(2, 5, 13, 0.7), rgba(2, 5, 13, 0) 38%); pointer-events: none; }
+.gl-head { display: grid; gap: 14px; max-width: 28rem; }
+.gl-real .gl-head { text-shadow: 0 2px 18px rgba(2, 5, 13, 0.7); }
+.gl-hero h1 { max-width: 14ch; }
+.gl-real h1 { color: #fff; }
+.gl-real .lp-lede { color: #C9D5EA; }
+.gl-gap { position: relative; flex: 1 1 auto; min-height: min(100vw, 440px); }
+.gl-where { max-width: 28rem; }
+.lp-hero h2 { font-size: clamp(1.8rem, 1.2rem + 2.4vw, 2.8rem); }
+
+.gl-hint { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.02em; color: var(--muted); pointer-events: none; }
+.gl-real .gl-hint { text-shadow: 0 1px 8px #000; }
+.gl-ctrl { position: absolute; right: clamp(12px, 2vw, 24px); top: 50%; transform: translateY(-50%); display: grid; gap: 8px; }
+.gl-ctrl button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: var(--ink); font: 600 1.15rem/1 var(--font-body); cursor: pointer; box-shadow: 0 2px 10px rgba(8, 12, 20, 0.25); }
+.gl-ctrl button:hover { border-color: var(--accent); color: var(--accent); }
+
+.gl-card { display: grid; gap: 10px; background: var(--surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-width: 0; box-shadow: 0 10px 40px rgba(2, 5, 13, 0.35); }
+.gl-card h2 { font-size: var(--step-2); font-weight: 800; font-stretch: 112%; letter-spacing: -0.01em; line-height: 1.1; color: var(--ink); }
+.gl-k { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.gl-card .b-actions { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.gl-jobs { list-style: none; margin: 2px 0; padding: 0; display: grid; gap: 0; }
+.gl-jobs li { display: grid; gap: 1px; padding: 7px 0; border-top: 1px solid var(--line); font-size: var(--step--1); }
+.gl-jobs li:first-child { border-top: 0; }
+.gl-jobs li span { color: var(--muted); }
+.gl-near { line-height: 2; }
+.gl-chip { font: inherit; font-size: var(--step--1); color: var(--accent); background: var(--accent-soft); border: 1px solid transparent; border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+.gl-chip:hover { border-color: var(--accent); }
+.gl-results { list-style: none; margin: 0; padding: 0; display: grid; }
+.gl-results:empty { display: none; }
+.gl-results button { width: 100%; text-align: left; font: inherit; color: var(--ink); background: transparent; border: 0; border-top: 1px solid var(--line); padding: 9px 4px; cursor: pointer; }
+.gl-results button:hover, .gl-results button:focus-visible { background: var(--accent-soft); }
+
+/* wide: the planet sits right of centre, the words and card on the left */
+@container main (min-width: 748px) {
+  .gl-over { justify-content: space-between; }
+  .gl-gap { position: static; flex: 0 0 0; min-height: 0; }
+  .gl-hint { left: 69%; right: auto; bottom: 14px; transform: translateX(-50%); white-space: nowrap; }
+  .gl-real .gl-over::before { background: linear-gradient(90deg, rgba(2, 5, 13, 0.6), rgba(2, 5, 13, 0) 48%); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .gl-card { animation: gl-in 0.35s ease-out both; }
+}
+@keyframes gl-in { from { opacity: 0; transform: translateY(8px); } }
+
+/* a phone: a shorter block of words, so the planet is in the first screen */
+@container main (max-width: 747px) {
+  .gl-head { gap: 10px; }
+  .gl-head .lp-lede { font-size: var(--step-0); line-height: 1.45; }
+  .gl-head .lp-cta { gap: 8px; }
+  .gl-head .lp-cta .btn.lg { flex: 1 1 auto; justify-content: center; padding-inline: 14px; }
+}
+
+/* the map: the globe fades away to show Google's plain map and the example job pins, which are underneath it */
+.gl-bar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: max-content; max-width: calc(100% - 24px); opacity: 0; visibility: hidden; transition: opacity 0.4s ease; }
+.gl-bar .btn { box-shadow: 0 4px 16px rgba(2, 5, 13, 0.4); }
+.gl-street .gl-bar { opacity: 1; visibility: visible; transition-delay: 0.6s; }
+.gl-street .gl-stage canvas { opacity: 0; pointer-events: none; }
+.gl-street .gl-tip { display: none; }
+.gl-street .gl-over::before { display: none; }
+.gl-diving .gl-head, .gl-diving .gl-where, .gl-diving .gl-ctrl, .gl-diving .gl-hint, .gl-street .gl-head, .gl-street .gl-where, .gl-street .gl-ctrl, .gl-street .gl-hint { opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0s 0.3s; }
+
+/* example job pins on the Google map; the summary shows on hover, keyboard focus or a tap */
+.gl-pins { position: absolute; left: 0; top: 0; }
+.gl-pin { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; padding: 0; border-radius: 50%; border: 3px solid #fff; background: #F59E0B; box-shadow: 0 2px 8px rgba(8, 12, 20, 0.45); cursor: pointer; font: inherit; color: inherit; transition: transform 0.15s ease; }
+.gl-pin::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #fff; }
+.gl-pin:hover, .gl-pin:focus-visible, .gl-pin.on { transform: scale(1.18); z-index: 5; }
+.gl-pin:focus-visible { outline: 2px solid #1D4ED8; outline-offset: 3px; }
+.gl-pin-tip { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); display: grid; gap: 3px; width: 250px; padding: 10px 12px; text-align: left; font-size: var(--step--1); line-height: 1.35; font-weight: 400; color: #EEF3FC; background: rgba(10, 16, 30, 0.95); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px; box-shadow: 0 8px 24px rgba(8, 12, 20, 0.35); pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.15s ease; cursor: default; }
+.gl-pin:hover .gl-pin-tip, .gl-pin:focus-visible .gl-pin-tip, .gl-pin.on .gl-pin-tip { opacity: 1; visibility: visible; }
+.gl-pin-tip b { font-family: var(--font-display); font-stretch: 108%; }
+.gl-pin-tip span { color: #B9C5DB; }
+.gl-pin-tip em { font-style: normal; font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: #FFB84D; }
+.gl-pin-tip p { margin: 2px 0 0; }
+.gl-pin.below .gl-pin-tip { bottom: auto; top: calc(100% + 10px); }
+.gl-pin.near-l .gl-pin-tip { left: -8px; transform: none; }
+.gl-pin.near-r .gl-pin-tip { left: auto; right: -8px; transform: none; }
+
+/* Home is the globe and nothing else: the page under it is kept in the file but not shown */
+#view-home > .wrap.lp { display: none; }
+
+/* the search box: what you're after, and where */
+.gl-find { display: grid; gap: 10px; margin-top: 4px; max-width: 26rem; }
+.gl-find .field { display: grid; gap: 4px; font-size: var(--step--1); font-weight: 600; color: var(--ink); position: relative; }
+.gl-find input[type="text"] { width: 100%; }
+.gl-real .gl-find input[type="text"] { background: rgba(10, 16, 30, 0.72); color: #fff; border-color: rgba(255, 255, 255, 0.28); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.gl-real .gl-find input::placeholder { color: #9FB0CB; }
+.gl-where-row { display: flex; gap: 8px; align-items: stretch; }
+.gl-where-row input { flex: 1 1 auto; min-width: 0; }
+.gl-loc { flex: none; white-space: nowrap; }
+.gl-real .gl-loc { background: rgba(10, 16, 30, 0.72); color: #fff; border-color: rgba(255, 255, 255, 0.28); }
+.gl-find .gl-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 4; margin-top: 4px; background: var(--surface); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(2, 5, 13, 0.4); }
+.gl-find .gl-results:empty { display: none; }
+.gl-msg { min-height: 0; margin: 0; color: var(--muted); text-shadow: 0 1px 8px rgba(2, 5, 13, 0.8); }
+.gl-msg:empty { display: none; }
+.gl-msg.err { color: #FFB4A8; }
+.gl-find .lp-cta { margin-top: 2px; }
+@container main (max-width: 747px) {
+  .gl-find { max-width: none; }
+  .gl-find .lp-cta .btn.lg { flex: 1 1 auto; justify-content: center; }
+  .gl-ctrl { top: auto; bottom: 74px; transform: none; }
+}
+.gl-hero h1 { font-size: clamp(1.9rem, 1rem + 2.6vw, 3.1rem); max-width: 15ch; }
+.gl-head { gap: 10px; }
+.gl-hero .lp-lede { font-size: var(--step-0); }
+.gl-card { padding: 14px 18px; gap: 8px; }
+.gl-jobs li { padding: 5px 0; }
+
+/* the Job or industry dropdown looks and works like Location */
+.gl-results button.on { background: var(--accent-soft); }
+.gl-what-field input { width: 100%; }
+/* along the bottom: people with no experience */
+.gl-noexp { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(4, 8, 18, 0.82), rgba(4, 8, 18, 0)); color: #fff; font-size: var(--step--1); text-align: center; pointer-events: none; }
+.gl-noexp b { font-weight: 700; }
+.gl-noexp .btn { pointer-events: auto; background: rgba(10, 16, 30, 0.72); color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.gl-noexp .btn:hover { border-color: #fff; }
+.gl-hero.gl-street .gl-noexp, .gl-hero.gl-diving .gl-noexp { display: none; }
+.gl-hero .gl-hint { bottom: 66px; }
+@container main (max-width: 747px) { .gl-hero .gl-ctrl { bottom: 130px; } .gl-noexp { padding-top: 24px; } }

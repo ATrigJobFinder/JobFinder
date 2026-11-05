@@ -10,14 +10,22 @@ const fewShot = examples => examples.flatMap(([u, a]) => [{ role: "user", conten
 const examplesAsText = examples => examples.length ? "\n\nExample.\nInput:\n" + examples.map(([u, a]) => `${u}\nOutput:\n${typeof a === "string" ? a : JSON.stringify(a)}`).join("\n\nAnother example.\nInput:\n") : "";
 // Parse, and if the model wandered off format, ask once more on the same session
 async function nanoJSON(session, text, schema) {
-  const raw = await session.prompt(text, { responseConstraint: schema });
+  const raw = await session.prompt(text, { responseConstraint: schema, signal: aiRun.ctl.signal });
   try { return parseOrThrow(raw); }
-  catch { return parseOrThrow(await session.prompt("That wasn't valid JSON. Reply again with only the JSON.", { responseConstraint: schema })); }
+  catch { if (aiRun.ctl.signal.aborted) throw aiError("cancelled"); return parseOrThrow(await session.prompt("That wasn't valid JSON. Reply again with only the JSON.", { responseConstraint: schema, signal: aiRun.ctl.signal })); }
 }
 // One task, three engines: the small model (in this browser, or Chrome's), then a bigger AI, then nothing (the caller has a fallback).
 // check(data) returns { ok: true, value } or { ok: false, why } so a bad answer gets one corrected retry.
 // The result says what happened, so the page can tell people honestly: tried (which AIs were asked), rejected (an answer broke a rule), error (one couldn't be reached).
 async function aiJSON(task) {
+  const gen = aiBegin();
+  try {
+    const r = await aiJSONInner(task, gen);
+    // Stop was pressed while this was running: say so, whatever it was part-way through
+    return aiRun.gen !== gen ? { data: null, via: null, rejected: false, tried: r.tried || [], error: aiError("cancelled"), cancelled: true } : r;
+  } finally { aiEnd(gen); }
+}
+async function aiJSONInner(task, gen) {
   const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working", noRetry = false, expect } = task;
   let rejected = false, error = null, raw = null, rawWhy = "", rawVia = null;
   const tried = [];
@@ -39,6 +47,7 @@ async function aiJSON(task) {
   });
   clearTimeout(slowT);
   if (chrome != null) return { data: chrome, via: "chrome", rejected, tried };
+  if (aiRun.gen !== gen) return { data: null, via: null, rejected, tried };
   if (smallEngine() && aiLastProblem && !error) error = aiLastProblem;
   const big = afterSmall();
   if (big) {
@@ -78,8 +87,9 @@ const viaWords = via => via === "chrome" ? SMALL() : via === "claude" ? BIG_NAME
 // Why there's no AI answer, in plain words
 function aiMissWords(r) {
   if (!r || r.data) return "";
+  if (r.cancelled) return "Stopped.";
   const who = r.tried && r.tried.includes("claude") ? BIG_NAME() : r.tried && r.tried.length ? SMALL() : "";
-  if (!who) return USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Your chosen AI isn't set up yet (see Connect your AI)." : "No AI is connected here, so this was done without it. Choose one in Connect your AI.";
+  if (!who) return USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Your chosen AI isn't set up yet (see Choose your AI)." : "No AI is connected here, so this was done without it. Pick one under Choose your AI.";
   // a reply that stopped part-way (it hit the length limit) or wasn't JSON at all
   if (r.error && (r.error instanceof SyntaxError || r.error.code === "invalid_json")) return `${who} replied, but the reply was cut off or broken, so it wasn't used. Try again.`;
   if (r.error) return `Couldn't get an answer from ${who}: ${aiErrWords(r.error)}`;
@@ -97,6 +107,29 @@ function aiMissHtml(text) {
   const t = esc(text || "");
   const m = t.replace(/\b(added|dropped)\b/, "<b class=\"ai-key\">$1</b>");
   return /ai-key/.test(m) ? `<span class="ai-red">${m}</span>` : t;
+}
+// Instead of giving up on a rejected piece of text, show the AI the rule it broke and ask it to change just that part, until it passes.
+// check(text) → "" when it's fine, otherwise the reason. → { text, res } (text is null if it still fails after the tries)
+const TEXT_FIX_NANO = `You fix one piece of writing from a cover letter. You are told which rule it broke.
+Change only the part that breaks the rule. Keep everything else word for word.
+Reply with JSON only: {"text": "..."}`;
+async function aiFixText({ text, why, check, progress = () => {}, tries = 3, context = "", expect }) {
+  let cur = text, reason = why, last = null;
+  for (let k = 1; k <= tries; k++) {
+    progress(`That didn't pass (${reason}). Asking the AI to fix just that part (try ${k} of ${tries})…`);
+    last = await aiJSON({
+      nano: TEXT_FIX_NANO, full: TEXT_FIX_NANO + (context ? "\n\n" + context : ""), label: "Fixing", progress, noRetry: true, expect: expect || Math.max(300, cur.length * 2),
+      prompt: `This broke a rule: ${reason}.\nWrite it again, changing only what breaks that rule.\nText:\n${cur}`,
+      schema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+      check: d => { const t = stripMarkup(String(d && d.text || "")).replace(/\s+/g, " ").trim(); const w = t ? check(t) : "it was empty"; return w ? { ok: false, why: w } : { ok: true, value: t }; }
+    });
+    if (last.data) return { text: last.data, res: last };
+    const rt = last.raw && last.raw.text != null ? String(last.raw.text).trim() : "";
+    if (!rt && !last.rawWhy) break;
+    if (rt) cur = rt;
+    reason = last.rawWhy || reason;
+  }
+  return { text: null, res: last };
 }
 // What the AI actually wrote when its answer wasn't used, so you can see what went wrong
 function aiRawHtml(r) {
@@ -159,12 +192,15 @@ Reply with JSON only.`;
 /* --- Cover letter, one paragraph at a time --- */
 const COVER_NANO = `You write one part of a formal Australian cover letter.
 Rules:
-1. Use only the facts given. Never invent tasks, tools, numbers, employers or dates.
-2. First person ("I"), formal, specific, Australian spelling.
-3. Never write placeholders or square brackets. If a fact is missing, leave it out.
-4. No clichés: "team player", "passionate", "hard-working", "I am writing to express my interest".
-5. Start exactly as told, and keep to the sentence count asked for.
-6. ${CL_CRAFT_SHORT}
+1. Use only the facts given. Never invent tasks, tools, numbers, employers or dates. Copy every number exactly as it appears in the facts.
+2. First person ("I"), formal, specific, Australian spelling. Sentences of 12 to 30 words.
+3. Begin a sentence with "I" only when you are told to start with it. Otherwise begin with "My", or with the job or the study, for example "At ..." or "During ...".
+4. Never write placeholders or square brackets. If a fact is missing, leave it out.
+5. No clichés or hype: "I am writing to", eager, passionate, excited, thrilled, "team player", "hard-working", "results-driven", "perfect fit", dynamic. Never write utilising, leveraging, demonstrating, showcasing, honed, or furthermore: say what you did in plain words. No dashes, no exclamation marks, and no contractions: write "I am", never "I'm".
+6. Never name a company, school, product or person that is not in the facts. Names that appear in an example are not yours.
+7. Say about the company only what the facts say. Never add its reputation, values, culture, products or work from your own knowledge.
+8. Start exactly as told, and keep to the sentence count asked for.
+9. ${CL_CRAFT_SHORT}
 Reply with JSON only: {"text": "..."}`;
 const COVER_EXAMPLES = [[
   `Write 1 sentence about this ONE job, linked to what the ad asks for.
@@ -194,7 +230,9 @@ async function nanoCover(ctx, make, progress) {
       const src = strict ? facts : resumeText + "\n" + facts;
       const sofar = before ? `\nThe letter so far (carry on from it, don't repeat it):\n${before.length > 600 ? "…" + before.slice(-600) : before}` : "";
       const write = async (prompt, mustStart) => {
-        let d = await nanoJSON(s, prompt, TEXT_SCHEMA);
+        // contractions are put back in full before checking ("I'm applying" would otherwise fail the "start with" check)
+        const full = x => { if (x && typeof x.text === "string") x.text = clNoContractions(x.text); return x; };
+        let d = full(await nanoJSON(s, prompt, TEXT_SCHEMA));
         const bad = t => {
           let why = factCheck(t, src, { years: true });
           if (!why && strict) { const other = ctx.roles.find(r => r.orgShort && !facts.includes(r.orgShort) && String(t).toLowerCase().includes(r.orgShort.toLowerCase())); if (other) why = `it mentions ${other.orgShort}, a different job`; }
@@ -202,7 +240,7 @@ async function nanoCover(ctx, make, progress) {
           return why;
         };
         let why = bad(d.text);
-        if (why) { d = await nanoJSON(s, `Your answer broke a rule: ${why}. Write it again and reply with only the JSON.`, TEXT_SCHEMA); why = bad(d.text); }
+        if (why) { d = full(await nanoJSON(s, `Your answer broke a rule: ${why}. Write it again and reply with only the JSON.`, TEXT_SCHEMA)); why = bad(d.text); }
         return why ? null : stripMarkup(String(d.text)).replace(/\s+/g, " ").trim();
       };
       if (sentences === "2 sentences") {
@@ -256,6 +294,7 @@ Rules:
 1. Use only the candidate's facts. Never invent skills, tools, numbers or achievements.
 2. 40 to 75 words. No "I", no "my".
 3. Who they are, then their strongest skills with one piece of evidence, then what they want next.
+3b. If they gave "A result they're proud of", it must be in the summary as the piece of evidence, with its numbers kept exactly.
 4. Still studying? Say their year of study, like "Penultimate-year engineering student". Never call a current student a graduate.
 5. No clichés ("hard-working", "team player", "passionate", "results-driven") and no buzzwords ("leverage", "utilise").
 Reply with JSON only: {"summary": "..."}`;

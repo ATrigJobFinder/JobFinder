@@ -1,10 +1,10 @@
 /* ===================== Page flow ===================== */
 let downloaded = false;
-// Tailor to a job is three pages: the scan (job ad, resume, results, placing skills), the tailored resume, then the cover letter
+// Tailor to a job is four pages: the scan (job ad, resume, results, placing skills), Tailor to resume, Fit the job's criteria, then the cover letter
 let tailorStage = "scan";
 // An edit made on the tailored resume page (null = use the updated resume from placing skills, or the scanned one)
 let resumeEdit = null;
-const STAGE_OF = { "step-jd": "scan", "step-resume": "scan", scanRow: "scan", "sec-place": "scan", "sec-needs": "scan", "sec-download": "resume", "sec-fit": "letter", "sec-cover": "letter" };
+const STAGE_OF = { "step-jd": "scan", "step-resume": "scan", scanRow: "scan", "sec-place": "scan", "sec-needs": "scan", "sec-jd": "scan", "sec-download": "resume", "sec-fit": "fit", "sec-cover": "letter" };
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function showInputs(on) {
   $("inputs").hidden = !on;
@@ -35,11 +35,13 @@ function updateFlow() {
   const scanned = !!lastResult && !stale;
   const missing = lastResult ? [...lastResult.hard, ...lastResult.soft].filter(x => !x.found).length : 0;
   const placed = scanned && (!!$("newResume") || missing === 0);
-  const fitDone = scanned && typeof fit !== "undefined" && (fit.done || fit.items.some(x => x.state));
+  const fitDone = scanned && typeof fit !== "undefined" && fit.done;
   const done = { 1: ok.j, 2: ok.r, 3: scanned, 4: placed, 5: scanned && downloaded, 6: fitDone, 7: scanned && cover.downloaded };
   const hiddenSteps = new Set([...document.querySelectorAll("#stepper li[hidden]")].map(li => +li.dataset.step));
-  const current = [1, 2, 3, 4, 5, 6, 7].filter(n => !hiddenSteps.has(n)).find(n => !done[n]) || 7;
-  $("toCover").classList.toggle("primary", downloaded);
+  let current = [1, 2, 3, 4, 5, 6, 7].filter(n => !hiddenSteps.has(n)).find(n => !done[n]) || 7;
+  // once you're on one of the later pages, the bar follows the page, and the steps before it count as done
+  const onStep = scanned ? { resume: 5, fit: 6, letter: 7 }[tailorStage] : 0;
+  if (onStep && !hiddenSteps.has(onStep)) { current = onStep; for (let n = 1; n < onStep; n++) done[n] = true; }
   document.querySelectorAll("#stepper li").forEach(li => {
     const n = +li.dataset.step;
     li.classList.toggle("done", !!done[n]);
@@ -60,10 +62,7 @@ function updateFlow() {
   els.results.classList.toggle("is-stale", !!(lastResult && stale));
   // Step 5 copy
   if (lastResult) {
-    const b = $("downloadBtn");
-    b.textContent = downloadLabel();
-    $("dlNote").textContent = downloadNote();
-    $("dlWhich").textContent = resumeEdit != null ? "Includes your changes from step 4 and your edits on this page." : $("newResume") ? "Includes your changes from step 4, plus any edits you made in the box." : missing ? "This is your resume as scanned. Place your missing skills in step 4 first to tailor it." : "This is your resume as scanned.";
+    $("dlWhich").textContent = resumeEdit != null ? "Includes your changes from step 4 and your edits in the preview." : $("newResume") ? "Includes your changes from step 4, plus any edits you made in the preview." : missing ? "This is your resume as scanned. Place your missing skills in step 4 first to tailor it." : "This is your resume as scanned.";
   }
 }
 

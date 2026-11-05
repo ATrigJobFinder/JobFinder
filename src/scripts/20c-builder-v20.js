@@ -1,7 +1,7 @@
 /* ===================== Version 20: resume builder additions ===================== */
 
 /* --- Date order: jobs and qualifications, newest first --- */
-const sortBtn = list => P()[list].length > 1 ? `<button class="btn" type="button" data-act="sort-date" data-list="${list}">Sort by date, newest first</button><span class="small muted sort-note" id="bSort-${list}" role="status">${sortNoteHtml(list)}</span>` : "";
+const sortBtn = list => P()[list].length > 1 ? `<button class="btn" type="button" data-act="sort-date" data-list="${list}">Sort by date, newest first</button>` : "";
 function sortNoteHtml(list) {
   const n = builder.sortNote;
   return n && n.list === list ? `${esc(n.text)}${n.before ? ' <button class="linkish" type="button" data-act="sort-undo" data-list="' + list + '">Undo</button>' : ""}` : "";
@@ -28,6 +28,7 @@ function sortByDate(list) {
     builder.open[list] = new Set(sorted.map((e, k) => openNow.has(e) ? k : -1).filter(k => k >= 0));
     builder.foldOpen = {}; builder.sugg = {}; builder.alts = {}; builder.genned = new Set(); builder.extraAlts = {};
     builder.sortNote = { list, text: "Now in date order, newest first.", before };
+    builder.animate = true;
     touchProfile("builder");
   }
   renderBuilder(false);
@@ -42,6 +43,7 @@ function sortUndo(list) {
   builder.open[list] = new Set(arr.map((e, k) => openNow.has(e) ? k : -1).filter(k => k >= 0));
   builder.foldOpen = {}; builder.sugg = {}; builder.alts = {}; builder.genned = new Set();
   builder.sortNote = { list, text: "Put back the way it was." };
+  builder.animate = true;
   touchProfile("builder"); renderBuilder(false);
 }
 
@@ -94,7 +96,7 @@ async function addOneBullet(i, btn) {
         const ok = (Array.isArray(d.bullets) ? d.bullets : []).map(b => honest(b, src, { min: 12, max: 34 })).filter(Boolean).filter(b => !overlapsAny(b, have));
         return ok.length ? { ok: true, value: ok.slice(0, 1) } : { ok: false, why: "write one bullet point of 16 to 30 words about something the existing bullet points don't mention, using only their details" };
       } });
-    if (r.data) { item = r.data[0]; via = `Written by ${viaWords(r.via)} from your answers, about something your other bullet points don't cover.`; }
+    if (r.data) { item = r.data[0]; via = ""; }
   } finally { btn.disabled = false; btn.textContent = label; }
   if (!item) {
     const c = answersToBullets(e).filter(b => !overlapsAny(b, have));

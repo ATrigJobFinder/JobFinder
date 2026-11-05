@@ -1,4 +1,4 @@
-/* ===================== Connect your own AI (v12) ===================== */
+/* ===================== Choose your own AI (v12) ===================== */
 // The person chooses which AI does the writing. Every engine answers through the same
 // sample.json() interface the tools already use, so every answer still goes through
 // factCheck / honest() / the guards before anyone sees it.
@@ -11,6 +11,30 @@
 // chrome, webllm and tfjs are small models, so they get the short one-job-at-a-time prompts
 // (see withChromeAI and the *_NANO prompts). With no AI at all, built-in rules fill in.
 let claudeSample = null;
+// The Stop button: every call to an AI counts as "working". A floating bar shows while any is running, and Stop cancels what's in flight
+// and every step that would have come after it (anything that loops checks aiRun.gen against the value it started with).
+const aiRun = { n: 0, gen: 0, ctl: new AbortController(), t: 0 };
+function aiStopUI() {
+  let el = document.getElementById("aiStopBar");
+  if (aiRun.n <= 0) { if (el) el.hidden = true; return; }
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "aiStopBar"; el.className = "ai-stopbar"; el.setAttribute("role", "status");
+    el.innerHTML = `<span class="ai-spin" aria-hidden="true"></span><span>The AI is working…</span><button class="btn" type="button" id="aiStopBtn">Stop</button>`;
+    document.body.appendChild(el);
+    el.querySelector("button").addEventListener("click", aiStopAll);
+  }
+  el.hidden = false;
+}
+function aiBegin() { aiRun.n++; clearTimeout(aiRun.t); aiStopUI(); return aiRun.gen; }
+function aiEnd(gen) { if (gen !== aiRun.gen) return; aiRun.n = Math.max(0, aiRun.n - 1); clearTimeout(aiRun.t); aiRun.t = setTimeout(aiStopUI, 800); }
+function aiStopAll() {
+  aiRun.gen++; aiRun.n = 0;
+  try { aiRun.ctl.abort(); } catch { /* already stopped */ }
+  aiRun.ctl = new AbortController();
+  aiStopUI();
+  if (typeof aiCorner === "function") aiCorner(null);
+}
 const AI_CFG_KEY = "jobfinder.ai.v1", AI_SECRET_KEY = "jobfinder.aikey.v1";
 const WEBLLM_URL = "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm";
 const TFJS_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1/+esm";
@@ -29,11 +53,14 @@ const AI_PROVIDERS = {
   gemini: { name: "Google Gemini", short: "Gemini", kind: "openai", base: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-3.5-flash-lite", free: true, keyUrl: "https://aistudio.google.com/apikey", keyWhere: "Google AI Studio", note: "Free tier with no card. On the free tier Google may use what you send to improve its products, so it suits people happy with that." },
   openrouter: { name: "OpenRouter", short: "OpenRouter", kind: "openai", base: "https://openrouter.ai/api/v1", model: "", free: true, keyUrl: "https://openrouter.ai/keys", keyWhere: "openrouter.ai", note: "One key for many models. Models ending in :free cost nothing, with a limit of about 50 requests a day (1,000 a day once you've ever bought US$10 of credits)." },
   groq: { name: "Groq", short: "Groq", kind: "openai", base: "https://api.groq.com/openai/v1", model: "", free: true, keyUrl: "https://console.groq.com/keys", keyWhere: "console.groq.com", note: "Very fast open models with a free tier that has daily limits." },
+  mistral: { name: "Mistral", short: "Mistral", kind: "openai", base: "https://api.mistral.ai/v1", model: "mistral-small-latest", free: true, keyUrl: "https://console.mistral.ai/api-keys", keyWhere: "console.mistral.ai", note: "Free \"Experiment\" plan with no card, with rate limits. Mistral may use what you send to improve its models on that plan." },
+  cerebras: { name: "Cerebras", short: "Cerebras", kind: "openai", base: "https://api.cerebras.ai/v1", model: "", free: true, keyUrl: "https://cloud.cerebras.ai", keyWhere: "cloud.cerebras.ai", note: "Very fast open models with a free tier that has daily limits." },
+  huggingface: { name: "Hugging Face", short: "Hugging Face", kind: "openai", base: "https://router.huggingface.co/v1", model: "", free: true, keyUrl: "https://huggingface.co/settings/tokens", keyWhere: "huggingface.co/settings/tokens", note: "A free monthly allowance across many open models. Make a token that is allowed to make inference calls." },
   claude: { name: "Claude (Anthropic API)", short: "Claude", kind: "anthropic", base: "https://api.anthropic.com/v1", model: "claude-haiku-5-5", free: false, keyUrl: "https://console.anthropic.com/settings/keys", keyWhere: "the Claude Console", note: "Paid per use, separate from a Claude.ai subscription. The strongest writing here. Set a monthly spend limit in the Console." },
   openai: { name: "OpenAI", short: "OpenAI", kind: "openai", base: "https://api.openai.com/v1", model: "", free: false, keyUrl: "https://platform.openai.com/api-keys", keyWhere: "platform.openai.com", note: "Paid per use. Set a monthly budget in your OpenAI settings." },
   custom: { name: "Other (OpenAI-compatible)", short: "your AI", kind: "openai", base: "", model: "", free: false, note: "Any service with an OpenAI-style /chat/completions address, such as Mistral, Together or DeepSeek." }
 };
-const AI_ENGINES = ["auto", "chrome", "webllm", "tfjs", "key", "claude"];
+const AI_ENGINES = ["auto", "chrome", "webllm", "tfjs", "key", "off"];   // "off": the person disconnected the AI, so built-in templates only
 const USER_ENGINES = new Set(["webllm", "tfjs", "key"]);
 const BROWSER_ENGINES = new Set(["webllm", "tfjs"]);
 const aiDefaultCfg = () => ({ engine: "auto", webllmModel: WEBLLM_MODELS.find(m => m.pick).id, tfjsModel: TFJS_MODELS.find(m => m.pick).id, key: { provider: "gemini", model: AI_PROVIDERS.gemini.model, base: "", remember: true, size: "auto" }, fallback: true, speed: {} });
@@ -96,14 +123,23 @@ function AI_NAME(e = aiCfg.engine) {
   if (e === "key") return aiCfg.key.provider === "claude" ? "Claude (your key)" : aiProvider().short;
   return "Claude";
 }
+// Which browser this is, so "the browser's own AI" can be called by its real name. Chrome and Edge let a website use the on-device model;
+// Opera's Aria and Brave's Leo are chat assistants inside those browsers that a website can't call.
+const BROWSER_INFO = (() => {
+  const ua = navigator.userAgent || "";
+  const id = /Edg\//.test(ua) ? "edge" : /OPR\/|Opera/.test(ua) ? "opera" : navigator.brave ? "brave" : /Vivaldi/.test(ua) ? "vivaldi" : /Firefox\//.test(ua) ? "firefox" : /Chrome\/|CriOS/.test(ua) ? "chrome" : /Safari\//.test(ua) ? "safari" : "other";
+  const t = { chrome: ["Chrome", "Gemini Nano", ""], edge: ["Edge", "Phi-4 mini", ""], opera: ["Opera", "Aria", "Aria is Opera's chat assistant, and websites can't use it."], brave: ["Brave", "Leo", "Leo is Brave's chat assistant, and websites can't use it."], vivaldi: ["Vivaldi", "", ""], firefox: ["Firefox", "", ""], safari: ["Safari", "", ""], other: ["Your browser", "", ""] }[id];
+  return { id, name: t[0], model: t[1], note: t[2] };
+})();
+const BROWSER_AI = () => BROWSER_INFO.id === "other" ? "Your browser's built-in AI" : BROWSER_INFO.name + "'s built-in AI";
 const aiChromeAllowed = () => aiCfg.engine === "auto" || aiCfg.engine === "chrome";
 
 function aiError(code, message) { const e = new Error(message || code); e.code = code; return e; }
 const AI_ERR_WORDS = {
   no_webgpu: "This browser can't run it: it needs WebGPU (Chrome or Edge on a computer, or Safari 26). Try Transformers.js, which can also run without a graphics card.",
   blocked: "Couldn't reach it. Inside Claude's preview this page can't contact other sites or download models, so this works once Job Finder is opened as its own website. Elsewhere, check your connection.",
-  bad_key: "The key was refused. Check it was copied in full and is still active, then enter it again in Connect your AI.",
-  bad_request: "The AI service refused the request (error 400). That usually means the API key is wrong, has expired or was pasted with a piece missing. Enter your key again in Connect your AI.",
+  bad_key: "The key was refused. Check it was copied in full and is still active, then enter it again in Choose your AI.",
+  bad_request: "The AI service refused the request (error 400). That usually means the API key is wrong, has expired or was pasted with a piece missing. Enter your key again in Choose your AI.",
   rate_limited: "The free limit has been reached for now. Try again later, or use a different option.",
   no_model: "Choose a model first.",
   invalid_json: "The AI answered in the wrong format. Try again, or pick a stronger model.",
@@ -367,6 +403,11 @@ async function aiWarmUp() {
 
 // Send one conversation to the chosen engine and get text back
 async function aiChat(engine, messages, signal, o = {}) {
+  const gen = aiBegin();
+  try { return await aiChatInner(engine, messages, signal || aiRun.ctl.signal, o); }
+  finally { aiEnd(gen); }
+}
+async function aiChatInner(engine, messages, signal, o = {}) {
   if (engine === "webllm") return chatBrowser("webllm", aiCfg.webllmModel, messages, signal, { expect: o.expect || 900 });
   if (engine === "tfjs") return chatBrowser("tfjs", aiCfg.tfjsModel, messages, signal, { expect: o.expect || 900 });
   if (engine === "key") {
@@ -428,7 +469,7 @@ const AI_LONG = () => AI_NAME() === "Claude" ? "Claude on your account" : AI_NAM
 // ("key" counts when the person's own model is a small one: it gets the same short prompts, one job at a time)
 const smallEngine = () => BROWSER_ENGINES.has(aiCfg.engine) ? aiCfg.engine : aiCfg.engine === "key" && aiUsable("key") && keyIsSmall() ? "key" : null;
 const smallWhere = () => smallEngine() === "key" ? "through your key" : "on this computer";
-const SMALL = () => smallEngine() ? AI_NAME() : "Chrome's built-in AI";
+const SMALL = () => smallEngine() ? AI_NAME() : BROWSER_AI();
 // After the small-model path: the next AI to try (an in-browser model isn't asked twice; Claude steps in if allowed)
 const afterSmall = () => smallEngine() ? (aiCfg.fallback !== false && claudeSample ? claudeSample : null) : sample;
 const BIG_NAME = () => smallEngine() ? "Claude" : AI_NAME();

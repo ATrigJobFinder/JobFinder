@@ -11,6 +11,12 @@
 .ch-row .q-check, .ch-sec-head .q-check { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; }
 .ch-txt { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
 .ch-row { align-items: center; }
+.ch-skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px 28px; }
+.ch-skill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: var(--step--1); cursor: pointer; }
+.ch-skill:hover { border-color: var(--accent); }
+.ch-skill.off { background: var(--surface-2); color: var(--muted); }
+.ch-skill.off span { text-decoration: line-through; }
+.ch-skill input { margin: 0; }
 .ch-row .ch-count { flex: none; }
 
 /* A tick box standing alone under other fields has no empty label above it */
@@ -27,7 +33,10 @@
 .b-fold[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 12px; }
 .b-fold[open] { padding-bottom: 12px; display: grid; }
 .b-fold > .q, .b-fold > .q-grid { margin-bottom: 12px; }
-.sort-note { margin-left: 4px; }
+.b-sortwrap { margin: 4px 0 8px; }
+.b-sortwrap .b-actions { margin: 0; }
+.sort-note { margin: 4px 0 0; min-height: 1.3em; }
+.sort-note:empty { min-height: 0; margin: 0; }
 
 /* What next: three cards worth clicking */
 .b-next.nx { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }

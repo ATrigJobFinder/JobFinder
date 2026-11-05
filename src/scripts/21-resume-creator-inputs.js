@@ -385,6 +385,7 @@ async function polishOnly(list, i, btn) {
   builder.finNote = { list, i, before, text: r.data ? `Polished by ${viaWords(r.via)}.${e.done ? "" : " Finish it to add it to your resume."}` : list === "referees" ? "Tidied the capitals, number and email." : `Tidied capitals, tense and spelling. ${aiMissWords(r)}` };
   touchProfile("builder");
   renderBuilder(false);
+  finToast();
 }
 async function finishEntry(list, i, btn, quiet) {
   const p = P(), e = entryOf(list, i);
@@ -427,15 +428,24 @@ async function finishEntry(list, i, btn, quiet) {
   touchProfile("builder");
   if (quiet) return true;
   renderBuilder(false);
+  finToast();
   const card = document.querySelector(`#bForm details[data-card="${list}"][data-i="${i}"]`);
   if (card) smoothTo(card, 90);
   const paper = $("bPaper"); if (paper) { paper.classList.remove("flash"); void paper.offsetWidth; paper.classList.add("flash"); }
   return true;
 }
-// Shown under a card that was just finished or polished, with Undo
-function finNoteHtml(list, i) {
+// Said at the bottom of the screen for 3 seconds when a card was just finished or polished, with Undo
+const finNoteHtml = () => "";
+function finToast() {
   const n = builder.finNote;
-  return n && n.list === list && n.i === i ? `<p class="b-fin" role="status">✓ ${esc(n.text)} <button class="linkish" type="button" data-act="undo-finish">Undo</button></p>` : "";
+  if (n) actToast(n.text, () => undoFin(n));
+}
+function undoFin(n) {
+  keepOpen();
+  listArr(P(), n.list)[n.i] = n.before;
+  builder.open[n.list].add(n.i);
+  if (builder.finNote === n) builder.finNote = null;
+  touchProfile("builder"); renderBuilder(false);
 }
 // Awards, publications and interests: polish the lines, and finish the section
 const TEXT_POLISH_NANO = `You polish one short section of an Australian resume.
@@ -564,6 +574,8 @@ async function fixBullet(i, j, issue, btn, number) {
   if (issue === "number" && number === undefined) { keepOpen(); builder.fixAsk = key; renderBuilder(false); const inp = document.querySelector(`[data-ask="${key}"]`); if (inp) inp.focus(); return; }
   if (issue === "number" && !number) { const inp = document.querySelector(`[data-ask="${key}"]`); if (inp) { inp.focus(); inp.placeholder = "Type the number first, e.g. 120 customers a day"; } return; }
   const b = e.bullets[j];
+  // no AI to ask: show the list of action words to start with
+  if (issue === "verb" && await aiAbsent()) { showVerbList(i, j); return; }
   keepOpen();
   builder.alts[key] = { busy: issue === "number" ? "Adding your number…" : "Fixing it…" };
   builder.fixAsk = null;
@@ -614,11 +626,23 @@ Facts: Retail Assistant at Bright Shoes.`,
   { options: ["Assisted up to 80 customers a shift, processing their sales on the POS system", "Processed sales on the POS system for up to 80 customers each shift", "Looked after up to 80 shoppers a shift, from finding the right fit to completing the sale on the POS system"] }
 ]];
 const VERB_SWAPS = { managed: ["Oversaw", "Ran", "Coordinated"], led: ["Directed", "Headed", "Guided"], developed: ["Built", "Created", "Designed"], created: ["Built", "Produced", "Designed"], built: ["Developed", "Created", "Set up"], served: ["Assisted", "Looked after", "Helped"], supported: ["Assisted", "Helped", "Backed"], handled: ["Managed", "Processed", "Resolved"], processed: ["Handled", "Completed", "Managed"], analysed: ["Examined", "Assessed", "Reviewed"], analyzed: ["Examined", "Assessed", "Reviewed"], improved: ["Strengthened", "Upgraded", "Refined"], trained: ["Coached", "Taught", "Mentored"], prepared: ["Produced", "Drafted", "Put together"], monitored: ["Tracked", "Watched over", "Oversaw"], achieved: ["Reached", "Met", "Delivered"], solved: ["Resolved", "Fixed", "Worked through"], operated: ["Ran", "Used", "Worked"], coordinated: ["Organised", "Managed", "Arranged"], assessed: ["Evaluated", "Reviewed", "Examined"], generated: ["Produced", "Created", "Built"], cleaned: ["Prepared", "Tidied", "Organised"], navigated: ["Used", "Worked in", "Operated"], secured: ["Won", "Earned", "Gained"], collaborated: ["Worked with", "Partnered with", "Teamed up with"], hit: ["Met", "Reached", "Achieved"], exceeded: ["Beat", "Topped", "Surpassed"], provided: ["Delivered", "Offered", "Gave"], completed: ["Finished", "Delivered", "Carried out"], conducted: ["Carried out", "Ran", "Completed"], organised: ["Coordinated", "Arranged", "Planned"], delivered: ["Provided", "Completed", "Carried out"] };
+// Plain swaps of a few common words and phrases, so a reworded bullet changes more than its first word
+const PHRASE_SWAPS = [
+  [/using/i, ["with", "through"]], [/to ensure/i, ["so that", "to make sure"]], [/ensuring/i, ["making sure", "so that"]], [/in order to/i, ["to"]],
+  [/a shift/i, ["each shift"]], [/per shift/i, ["every shift"]], [/daily/i, ["every day"]], [/weekly/i, ["every week"]], [/monthly/i, ["every month"]],
+  [/up to/i, ["as many as"]], [/over(?= \d)/i, ["more than"]], [/team members/i, ["colleagues"]], [/staff/i, ["team members"]], [/while/i, ["whilst"]],
+  [/improving/i, ["strengthening"]], [/resulting in/i, ["leading to"]], [/helping/i, ["supporting"]], [/key/i, ["main"]], [/across/i, ["throughout"]],
+  [/with(?= (a|the|up|over|\d))/i, ["alongside"]], [/and/i, ["as well as"]], [/fast-paced/i, ["busy"]], [/clear/i, ["straightforward"]], [/regular/i, ["routine"]]
+];
 function rewordWithoutAI(b, current) {
   const m = b.match(/^([A-Za-z]+)\s+(.*)$/s);
   if (!m) return [];
   const w = m[1].toLowerCase(), alts = VERB_SWAPS[w] || VERB_SWAPS[w.replace(/s$/, "")] || VERB_SWAPS[toPast(w)] || [];
-  return alts.map(a => `${current ? toPresentStart(a) : a} ${m[2]}`);
+  // every option changes the verb and at least one more word or phrase
+  const swaps = [];
+  for (const [re, to] of PHRASE_SWAPS) if (re.test(m[2])) for (const t of to) swaps.push(m[2].replace(re, t));
+  if (!swaps.length) return [];
+  return alts.map((a, k) => `${current ? toPresentStart(a) : a} ${swaps[k % swaps.length]}`).filter(x => changedWords(b, x) >= 2);
 }
 async function rewordBullet(i, j) {
   const e = P().experience[i], key = `${i}.${j}`, b = e.bullets[j];
@@ -632,11 +656,11 @@ async function rewordBullet(i, j) {
     check: d => {
       const seen = new Set([norm(b)]);
       const ok = (Array.isArray(d.options) ? d.options : []).map(x => stripMarkup(String(x)).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, ""))
-        .filter(x => x && !factCheck(x, src, { noFirstPerson: true, min: 5, max: 32 }) && keepsFacts(b, x) >= 0.55 && !seen.has(norm(x)) && seen.add(norm(x)));
+        .filter(x => x && !factCheck(x, src, { noFirstPerson: true, min: 5, max: 32 }) && keepsFacts(b, x) >= 0.55 && changedWords(b, x) >= 2 && !seen.has(norm(x)) && seen.add(norm(x)));
       return ok.length >= 1 ? { ok: true, value: ok.slice(0, 3).map(x => x[0].toUpperCase() + x.slice(1)) } : { ok: false, why: "write 3 different versions that keep every fact and add nothing" };
     } });
   const items = r.data || rewordWithoutAI(b, e.current);
-  builder.alts[key] = items.length ? { items, via: r.data ? r.via : null, msg: r.data ? "" : `${aiMissWords(r)} These only swap the first word.` } : { items: [], msg: `${aiMissWords(r)} Rewording this one needs AI.` };
+  builder.alts[key] = items.length ? { items, via: r.data ? r.via : null, msg: r.data ? "" : `${aiMissWords(r)} These swap the opening verb and a few words.` } : { items: [], msg: `${aiMissWords(r)} Rewording this one needs AI.` };
   renderBuilder(false);
   const box = document.querySelector(`.bl-item[data-i="${i}"][data-j="${j}"] .bl-alts`);
   if (box) box.scrollIntoView({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
@@ -681,6 +705,7 @@ async function rewordExtra(list, i) {
     if (v.length > lines.length + 1) return "it has more lines than you gave";
     for (const l of v) { const w = factCheck(l, src, awards ? { noFirstPerson: true, years: true, min: 2, max: 34 } : { noFirstPerson: true, min: 4, max: 34 }); if (w) return w; }
     if (same(lines, v) < 0.55) return "it drops or changes details you gave";
+    if (changedWords(lines.join(" "), v.join(" ")) < 2) return "it only changed one word";
     return "";
   };
   const tidyOpts = d => (Array.isArray(d && d.options) ? d.options : []).map(x => stripMarkup(String(x)).split(/\n+/).map(l => l.replace(BULLET_RE, "").replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean)).filter(v => v.length).map(v => v.map(l => l[0].toUpperCase() + l.slice(1)));
@@ -701,8 +726,8 @@ async function rewordExtra(list, i) {
   if (!items.length && !awards) {
     // without AI: swap each line's first word for another strong verb, up to three ways
     const swaps = lines.map(l => rewordWithoutAI(l, box.current));
-    for (let k = 0; k < 3; k++) { const v = lines.map((l, j) => swaps[j][k] || swaps[j][0] || l); if (v.join(" ") !== lines.join(" ") && !items.some(x => x.join(" ") === v.join(" "))) items.push(v); }
-    if (items.length) { via = null; msg = `${aiMissWords(r)} These only swap the first word of each line.`; }
+    for (let k = 0; k < 3; k++) { const v = lines.map((l, j) => swaps[j][k] || swaps[j][0] || l); if (changedWords(lines.join(" "), v.join(" ")) >= 2 && !items.some(x => x.join(" ") === v.join(" "))) items.push(v); }
+    if (items.length) { via = null; msg = `${aiMissWords(r)} These swap the opening verb and a few words in each line.`; }
   }
   builder.extraAlts[key] = items.length ? { items, via, msg } : { items: [], msg: `${aiMissWords(r)} Rewording this needs AI.` };
   renderBuilder(false);
@@ -771,7 +796,9 @@ const sortChecks = items => items.sort((a, b) => ACTION_ORDER[a.action] - ACTION
 function overflowLines() {
   const sheet = document.querySelector("#bPaper .paper-sheet");
   if (!sheet) return 0;
-  return Math.max(0, Math.ceil((sheet.offsetHeight - 1123 + 8) / 15));
+  // how far the content runs past the bottom margin of the first page, in lines
+  const last = +sheet.dataset.last || sheet.offsetHeight, m = +sheet.dataset.margin || 40;
+  return Math.max(0, Math.ceil((last - (1123 - m) + 8) / 15));
 }
 // Without AI: join short bullets in less important jobs first, then cut what matters least, always with a reason
 function checkWithoutAI(p, L, onePage, over) {
@@ -1116,7 +1143,7 @@ onInit(() => {
   f.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.defaultPrevented || e.shiftKey || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
     const t = e.target;
-    if (!t.matches || !t.matches("input, textarea, select") || t.dataset.chipIn || t.type === "checkbox" || t.type === "radio" || t.dataset.multiline) return;
+    if (!t.matches || !t.matches("input, textarea, select") || t.dataset.chipIn || t.dataset.subjIn != null || t.type === "checkbox" || t.type === "radio" || t.dataset.multiline) return;
     e.preventDefault();
     if (t.dataset.ask) { const b = t.closest(".bl-ask").querySelector("button"); if (b) b.click(); return; }
     if (t.dataset.suggEdit) { const b = t.closest(".s-row").querySelector("button"); if (b) b.click(); return; }
@@ -1128,16 +1155,7 @@ onInit(() => {
     const btn = scope.querySelector('[data-act="finish"]') || f.querySelector(".b-nav .btn.primary");
     if (btn) btn.focus();
   });
-  f.addEventListener("click", e => {
-    if (!e.target.closest('[data-act="undo-finish"]')) return;
-    const n = builder.finNote;
-    if (!n) return;
-    keepOpen();
-    listArr(P(), n.list)[n.i] = n.before;
-    builder.open[n.list].add(n.i);
-    builder.finNote = null;
-    touchProfile("builder"); renderBuilder(false);
-  });
+
 });
 
 
@@ -1149,7 +1167,7 @@ const SUGGEST_SRC = {
   employers: () => [val(P().target.company), ...P().experience.map(e => val(e.org)), ...P().volunteering.map(e => val(e.org)), ...employerNames()],
   inst: () => [...P().education.map(e => val(e.inst)), ...institutionNames()],
   licence: () => [...LICENCE_OPTS, ...licenceList().filter(x => /licen[cs]e/i.test(x))],
-  subject: inp => { const i = +(inp.dataset.path || "").split(".")[1], e = P().education[i] || {}; return subjectList(/subject2$/.test(inp.dataset.path || "") ? e.level2 : e.level); },
+  subject: inp => { const i = +(inp.dataset.subjIn != null ? inp.dataset.subjIn : (inp.dataset.path || "").split(".")[1]), e = P().education[i] || {}; return subjectList(/subject2$/.test(inp.dataset.path || "") ? e.level2 : e.level); },
   "chip-software": () => [...Object.values(COMMON_SKILLS).flatMap(x => x.software), ...SOFTWARE, ...PROGRAMMING],
   "chip-hard": () => [...Object.values(COMMON_SKILLS).flatMap(x => x.hard), ...SKILLS.filter(s => s.kind === "hard" && !SOFTWARE.has(s.name) && !PROGRAMMING.has(s.name)).map(s => s.name)],
   "chip-certs": () => [...licenceList(), ...Object.values(COMMON_CERTS).flat()],
@@ -1160,7 +1178,7 @@ const SUGGEST_OPEN_EMPTY = new Set(["subject", "licence", "chip-certs"]);
 const sugNow = { inp: null, items: [], i: -1 };
 function sugItems(inp, browse) {
   const src = SUGGEST_SRC[inp.dataset.suggest];
-  const have = inp.dataset.chipIn ? new Set(P().skills[inp.dataset.chipIn].map(s => s.toLowerCase())) : null;
+  const have = inp.dataset.chipIn ? new Set(P().skills[inp.dataset.chipIn].map(s => s.toLowerCase())) : inp.dataset.subjIn != null ? new Set(subjList(P().education[+inp.dataset.subjIn] || {}).map(s => s.toLowerCase())) : null;
   // the box's own value isn't a suggestion
   const seen = new Set([String(inp.value || "").trim().toLowerCase()]), list = [];
   for (const x of src ? src(inp) : []) { const k = String(x || "").trim(); if (!k || seen.has(k.toLowerCase()) || (have && have.has(k.toLowerCase()))) continue; seen.add(k.toLowerCase()); list.push(k); }
@@ -1191,7 +1209,7 @@ function sugShow(inp, browse) {
     // nothing in our list matches: say that what they typed will be used as it is
     const typed = inp.value.trim();
     if (!typed || browse) { sugClose(inp); return; }
-    box.innerHTML = `<li class="pick-none" role="presentation">Not in our list? That's fine: “${esc(typed)}” will be used as you typed it${inp.dataset.chipIn ? ". Press Enter to add it" : ""}.</li>`;
+    box.innerHTML = `<li class="pick-none" role="presentation">Not in our list? That's fine: “${esc(typed)}” will be used as you typed it${inp.dataset.chipIn || inp.dataset.subjIn != null ? ". Press Enter to add it" : ""}.</li>`;
     box.hidden = false; inp.setAttribute("aria-expanded", "true");
     return;
   }
@@ -1220,6 +1238,7 @@ let sugPicking = false;
 function sugPick(inp, x) {
   sugClose(inp);
   if (inp.dataset.chipIn) { inp.value = ""; inp.blur(); addChip(inp.dataset.chipIn, x); return; }
+  if (inp.dataset.subjIn != null) { inp.value = ""; subjAdd(+inp.dataset.subjIn, x, true); return; }
   sugPicking = true;
   try {
     inp.value = x;

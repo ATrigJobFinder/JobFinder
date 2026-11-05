@@ -7,10 +7,15 @@ const HELP = [
   // account and AI
   [/acctemail/, "The email you'll sign in with.", "It's how we recognise you on any device. It isn't used for marketing."],
   [/acctpass/, "A password of at least 8 characters that you don't use anywhere else.", "It protects the resume and details saved to your account."],
-  [/aickeysize|model size/, "Leave it on automatic unless Job Finder has guessed wrong.", "Small models get short, one-job-at-a-time prompts and tight answers. Large ones get fuller instructions."],
   [/aickeybase|ends in \/v1/, "The web address of the service, ending in /v1.", "Only needed for the “Other” option, so Job Finder knows where to send your requests."],
   [/aickeymodel|^model$|model\b.*load/, "The model's name, or press Load models and pick one.", "The model sets the quality, speed and cost of the writing. Small ones are quick and cheap; large ones write better."],
   [/aickey\b|api key/, "Paste the key you copied from your AI company's website.", "A key lets Job Finder use your own AI account. It stays in this browser and goes only to that company."],
+  // a referee is somebody else: their own entries before the general ones for names, phones, emails and organisations
+  [/referees\.list\.\d+\.name/, "Your referee's full name, spelled the way they write it.", "Employers contact referees by name, so a wrong spelling can mean the call never connects."],
+  [/referees\.list\.\d+\.role/, "Their job title, like Store Manager or Lecturer.", "It tells the employer how they know your work and how much weight to give what they say."],
+  [/referees\.list\.\d+\.org/, "The organisation your referee works for now.", "It lets the employer find and verify them."],
+  [/referees\.list\.\d+\.phone/, "Your referee's best number for a work call, with the area code.", "Employers usually ring referees. Ask them which number they'd like used."],
+  [/referees\.list\.\d+\.email/, "Your referee's work email, if they're happy to be emailed.", "Some employers email a reference form instead of calling."],
   // the job
   [/aiming for|job you want|role you're applying|clrole|lt-role|li-target|target\.title/, "The exact job title you're after. Copy it from the ad if you have one.", "Recruiters and tracking software search on job titles, and the AI chooses which skills to lead with from it."],
   [/paste the job ad|jobtext|target\.ad|jbaddtext|the job ad|copy and paste the whole/, "The whole ad: title, duties and requirements. Copy it from Seek, LinkedIn or the company's site.", "Job Finder compares your resume with what the ad asks for, word for word, because tracking software does the same."],
@@ -18,14 +23,16 @@ const HELP = [
   [/clcompany|lt-company|target\.company|^company$|co-name|trkf:company/, "The organisation's name as it appears in the ad.", "It personalises the letter and lets Job Finder look up what the company says it values."],
   [/clrecipient|lt-recipient|addressed to|hiring manager's name/, "The hiring manager's name from the ad or LinkedIn. Leave it blank if you can't find one.", "A letter to a named person shows effort. A wrong name is worse than “Dear Hiring Manager”."],
   [/claddress|company address/, "The employer's street address if the ad gives it.", "It goes in the letter's header, as in a formal Australian business letter. Skip it if you're unsure."],
-  [/clsource|where you saw the ad/, "Where you found the job: Seek, LinkedIn, a careers site or a person.", "Saying how you found the role makes the opening feel natural, and a referral is worth naming."],
-  [/clwhy|why this company|fitwhy/, "One or two real reasons the company draws you: a project, a product or a value.", "Employers say generic letters are the biggest turn-off. This keeps the letter specific and honest."],
-  [/clavail|fitavail|availability|days and hours|when can you start|start date|startwhen/, "When you can start, and the days and hours you can work.", "For part-time, casual and graduate roles it's often the first thing employers ask."],
+  [/clsource|fitbox-source|where you saw the ad/, "Where you found the job: Seek, LinkedIn, a careers site or a person.", "Saying how you found the role makes the opening feel natural, and a referral is worth naming."],
+  [/clwhy|why this company|fitwhy|fitbox-why/, "One or two real reasons the company draws you: a project, a product or a value.", "Employers say generic letters are the biggest turn-off. This keeps the letter specific and honest."],
+  [/b_availdays|days you can work/, "The days you can work, like “Weekends and Thursday nights”.", "For part-time, casual and student jobs, the days are often the first thing an employer needs to know."],
+  [/b_availhours|hours per week/, "About how many hours a week you can work, as a number or a range like 15 to 25.", "It shows an employer whether you fit the roster. Be realistic: it's easy to be asked to do more than you said."],
+  [/clavail|fitavail|fitbox-avail|availability|days and hours|when can you start|start date|startwhen/, "When you can start, and the days and hours you can work.", "For part-time, casual and graduate roles it's often the first thing employers ask."],
   [/clname\b|clemail|clphone|cllocation/, "The same contact details as your resume.", "Matching details look careful, and the employer needs a way to reach you."],
   [/lt-sal|greeting/, "How to open the letter, like “Dear Ms Nguyen,”.", "A greeting that uses a real name reads warmer. “Dear Hiring Manager,” is the safe fallback."],
   [/lt-sign|sign-off/, "“Yours sincerely,” if you used a name, “Yours faithfully,” if you didn't.", "It's the Australian convention, and a mismatch is something careful readers notice."],
   [/clpaste|a cover letter you've sent|clfile/, "A letter you've sent before, if you have one.", "The AI picks up your voice and real examples from it. It never copies another company's name."],
-  [/ltp-\d|data-ltp|write this paragraph/, "This paragraph of the letter, in full sentences.", "Each paragraph has one job. Starting with context makes it read as part of a letter, not a list."],
+  [/ltp-\d|clp-\d|data-ltp|data-clp|write this paragraph/, "This paragraph of the letter, in full sentences.", "Each paragraph has one job. Starting with context makes it read as part of a letter, not a list."],
   [/clgap\d/, "The missing detail the letter asked for, in a few words.", "The letter is left with a gap if it isn't given, and an invented detail would be worse."],
   // you
   [/first name|contact\.first|\bfirst\b/, "Your first name as you'd like it on the page.", "Use the name on your documents so references and checks match."],
@@ -38,7 +45,6 @@ const HELP = [
   [/co-website/, "The company's website.", "Candidates look you up before they apply."],
   [/portfolio|github|website|contact\.website/, "A link to your own work to show off: a portfolio, GitHub, a design or writing site. Not a company's website.", "It shows evidence, not just claims. Only add something you'd be happy for an employer to open."],
   [/work rights|workrights/, "Your Australian work rights: citizen, permanent resident or the visa you hold.", "Employers must check you can work here. Saying so up front avoids being filtered out."],
-  [/driver|licence/, "Your licence class (for example C for a car), if the job could use it.", "Site, field and sales roles often require it. Leave it blank if it doesn't matter."],
   [/summaryq\.who|describe yourself professionally/, "One plain line about who you are professionally, like “final-year civil engineering student who enjoys site work”.", "The AI builds your summary from your own words, so it should sound like you."],
   [/summaryq\.strengths|strongest skills/, "Two or three skills you can prove, like tools or methods.", "They lead your summary, and the job ad is likely looking for them."],
   [/summaryq\.proof|result you're proud of/, "One real result, with a number if you know it.", "Proof makes a summary believable. Job Finder never adds numbers you didn't give."],
@@ -49,13 +55,17 @@ const HELP = [
   [/interests/, "A short line of real interests.", "It adds some personality and culture fit. Keep it brief and true."],
   // work and study entries
   [/job title|data-path:.*\.title|ad-title|trkf:title/, "The job title you held, exactly as it was.", "Titles are checked in reference calls, and tracking software matches on them."],
+  [/project name|for or with|projects\.\d+\.org/, "What the project was called, and who it was for or with.", "A named project with a client or purpose reads as real work."],
   [/employer|organisation|\.org\b/, "The organisation you worked for.", "Recruiters may verify it, so use the real name."],
   [/started|finished|\.starts|\.ends|date\b|applied|follow ?up|interview on|ad-closes|closes/, "A month and year. Any of these work: Nov 2023, 12/2023, 12 2023 or November 2023. Tick “present” for something you still do.", "Dates show a clear timeline. Gaps and overlaps get noticed by people and tracking software."],
   [/main responsibilities/, "What you did day to day, in plain words. Don't worry about the wording.", "The AI turns your plain answers into strong bullet points using only what you say."],
   [/achieve, improve|recognised for|achievements and results/, "Results: something faster, cheaper, bigger or praised, with numbers if you know them.", "Results set you apart from everyone else who had the same duties."],
   [/tools, software|equipment/, "Software, machinery and methods you used.", "Skills shown in real work are more convincing than a list, and tracking software searches for them."],
   [/who did you work with|work with or for/, "Team size, customers, clients, or who you reported to.", "It shows the scale and kind of work you were trusted with."],
+  [/second degree.*subject|subject2/, "The subject of your second degree, like “Laws”. Pick from the list as you type.", "A double degree shows both disciplines. Employers match each one to what a job asks for."],
   [/second degree|^level$|\.level\b/, "The level of the qualification: Bachelor, Master, Diploma, Certificate.", "It sets the layout and how the qualification is described."],
+  [/education title|data-degree-title/, "How the qualification should read on your resume, like “Bachelor of Commerce (Finance)”. It fills in from the level and subject; change the words if your certificate reads differently.", "Employers match this line against the qualification a job asks for, so use the official wording."],
+  [/data-subj-n|how many subjects/, "How many of your subjects to show on the resume, from 1 to 8.", "A few well-chosen subjects close to the job read better than a long list. The first ones in your list are the ones shown."],
   [/relevant subjects|coursework/, "Subjects that match the kind of job you want.", "With little work history, they show you've already learned what the job needs."],
   [/thesis|major project/, "The title of your thesis or main project, with one line on what you found or built.", "It shows depth. Job Finder tidies it into “Thesis: Title”."],
   [/\bgrade\b|\bwam\b|\bgpa\b|gradetype/, "Your average mark. Type the number and we'll pick WAM, GPA or percentage for you.", "Marks below the cut-off are left off your resume automatically, because a lower grade doesn't help your application. Many graduate employers do ask for a strong one."],
@@ -66,6 +76,7 @@ const HELP = [
   [/language/, "A language you speak besides English, and how well.", "Languages can set you apart, especially in client-facing or community roles."],
   [/subject or field|field of study|\bmajor\b/, "Your main subject, like “Mechanical Engineering”. Pick from the list as you type.", "Employers match your study to the discipline a job asks for."],
   [/university, tafe|school|institution|\buniversity\b/, "Where you studied. Start typing and pick from the list.", "A recognised name is easy for employers to check and looks consistent on the page."],
+  [/driver'?s? licen[cs]e|contact\.licence/, "Tick every kind of vehicle you're licensed to drive.", "Site, field and sales roles often require it. Leave it blank if it doesn't matter."],
   [/chl_certs|chin_certs|licences and certificates/, "Licences and certificates outside your university degree: White Card, First Aid, RSA, short courses and extra-curricular courses. Your driver's licence from the Contact step is added for you.", "Many jobs need a ticket before you can start, and tracking software searches for them by name."],
   [/software and tools|chl_software|chin_software/, "Software and skills you can use, like AutoCAD, Excel, SAP or Xero.", "Tracking software matches tools word for word, and they back up your experience."],
   [/\bstrengths\b|chl_strengths/, "Two or three things you do well, like problem solving or clear writing.", "They give your summary and cover letter true points to build on."],
@@ -132,7 +143,7 @@ function helpFor(el, label = "") {
 function helpLabelText(lab, el) {
   if (!lab) return (el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").trim();
   const c = lab.cloneNode(true);
-  c.querySelectorAll("input,select,textarea,datalist,.hinfo,.opt,.q-hint,ul").forEach(n => n.remove());
+  c.querySelectorAll("input,select,textarea,datalist,.hinfo,.opt,.q-hint,.card-tag,ul").forEach(n => n.remove());
   return c.textContent.replace(/\s+/g, " ").trim();
 }
 function helpLabelOf(el) {
@@ -141,15 +152,15 @@ function helpLabelOf(el) {
   if (el.id) { const l = document.querySelector(`label[for="${(window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id}"]`); if (l) return l; }
   const w = el.closest("label");
   if (w && !w.classList.contains("q-check")) return w;
-  const q = el.closest(".q, .lt-part");
-  return q ? q.querySelector(".q-label") : null;
+  const q = el.closest(".q, .lt-part, .fit-q");
+  return q ? q.querySelector(".q-label, :scope > b") : null;
 }
 function helpEnhance(root = document) {
   for (const el of root.querySelectorAll("input,textarea,select")) {
     if (el.dataset.hi || helpSkipType.has(el.type) || el.disabled || el.closest("#chatPanel,.hinfo-pop,[data-nohelp]") || el.matches("[data-bullet],[data-sugg-edit]")) continue;
     if (el.type === "file" && el.hidden) continue;
     el.dataset.hi = "1";
-    const group = el.closest(".q, .lt-part, label.field");
+    const group = el.closest(".q, .lt-part, .fit-q, label.field");
     if (group && group.querySelector(".hinfo")) continue;   // one (i) per question, even when it has several boxes (phone code and number)
     const lab0 = helpLabelOf(el), hiddenLab = !!(lab0 && /visually-hidden|sr-only/.test(lab0.className)), lab = hiddenLab ? null : lab0;
     const text = helpLabelText(lab0, el) || el.getAttribute("aria-label") || el.getAttribute("placeholder") || (el.type === "file" ? "the file" : "this box");

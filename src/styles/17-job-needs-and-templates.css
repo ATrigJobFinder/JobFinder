@@ -48,7 +48,6 @@
 #view-scanner[data-tailor="letter"] #summary,
 #view-scanner[data-tailor="letter"] #results > .two,
 #view-scanner[data-tailor="letter"] #sec-place,
-#view-scanner[data-tailor="letter"] #sec-jd,
 #view-scanner[data-tailor="letter"] #ai,
 #view-scanner[data-tailor="letter"] #sec-download,
 #view-scanner[data-tailor="letter"] .results-head p { display: none !important; }

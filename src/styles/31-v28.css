@@ -1,0 +1,78 @@
+/* ===================== Version 28: map polish (company icons on pins, "Keen for applicants", Ask AI out of the way) ===================== */
+
+/* Pins show the company's icon (its initials on its own colour) instead of the pay */
+.gl-pin { display: grid; place-items: center; min-width: 32px; height: 32px; box-sizing: border-box; background: var(--pin-c, #1D2B64); box-shadow: 0 2px 8px rgba(8, 12, 20, 0.45); }
+.gl-pin-l { padding: 0 6px; font: 800 13px/1 var(--font-body); letter-spacing: 0.02em; }
+
+/* "Example job" and "Keen for applicants" are the two special bubbles on a card */
+.gl-job-tags i.ex { color: #8A5A00; background: #FFF4DC; border-color: #F2D9A0; }
+.gl-job-tags i.keen { font-weight: 700; color: #4A3200; background: linear-gradient(180deg, #FFE08A, #F5B301); border-color: #D99A00; }
+
+/* A paid-for advert: golden outline on the pin (and a soft golden glow so it stands out among the others) */
+.gl-pin.keen { border: 3px solid #F5B301; box-shadow: 0 0 0 2px rgba(245, 179, 1, 0.45), 0 0 14px 2px rgba(245, 179, 1, 0.55), 0 2px 8px rgba(8, 12, 20, 0.45); }
+.gl-pin.keen:hover, .gl-pin.keen:focus-visible, .gl-pin.keen.on, .gl-pin.keen.hot { border-color: #FFD24D; }
+.gl-pin-tip .gl-keen-tip { justify-self: start; margin-top: 2px; padding: 2px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; color: #4A3200; background: linear-gradient(180deg, #FFE08A, #F5B301); }
+
+/* With the map open on a wide screen, the Ask AI bubble sits left of Google's zoom buttons instead of on top of them */
+@media (min-width: 748px) {
+  body.gl-map-open .chat-fab { right: 72px; }
+}
+
+/* ===================== v28b: the card under the form, the placeholder, the list ===================== */
+
+/* "Job or industry" placeholder fades out and in as it changes */
+#gfWhat::placeholder { opacity: 1; transition: opacity 0.4s ease; }
+#gfWhat.ph-out::placeholder { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { #gfWhat::placeholder { transition: none; } }
+
+/* The message line under the Location box keeps its space, so a message appearing (or changing) never moves the page */
+.gl-find .gl-msg, .gl-find .gl-msg:empty { display: block; min-height: 1.3em; line-height: 1.3; }
+
+/* The card: the example jobs in the area scroll by on their own, and stop when the pointer is on them */
+.gl-card { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.gl-card > * { flex: none; }
+.gl-jobs-win { position: relative; flex: 1 1 150px; min-height: 64px; max-height: 190px; overflow: hidden; border-radius: 8px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 91%, transparent); }
+.gl-jobs-win:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gl-jobs-win .gl-jobs { margin: 0; will-change: transform; animation: gl-roll calc(var(--gl-n, 4) * 2.6s) linear infinite; }
+.gl-jobs-win li { border-top: 0; border-bottom: 1px solid var(--line); }
+.gl-jobs-win:hover .gl-jobs, .gl-jobs-win:focus-within .gl-jobs, .gl-jobs-win:focus .gl-jobs { animation-play-state: paused; }
+@keyframes gl-roll { to { transform: translateY(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .gl-jobs-win { overflow-y: auto; -webkit-mask-image: none; mask-image: none; }
+  .gl-jobs-win .gl-jobs { animation: none; }
+  .gl-jobs-copy { display: none; }
+}
+
+/* On a wide screen the hero is exactly one screen tall, so a card opening never makes the page longer: the card (its job window first) shrinks to fit */
+@container main (min-width: 748px) {
+  .gl-hero { height: max(640px, calc(100svh - var(--bar-h, 52px))); min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  .gl-over { min-height: 0; padding-bottom: calc(clamp(18px, 3.2vw, 44px) + 56px); }
+  .gl-where, #globePanel { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+  .gl-card { flex: 0 1 auto; overflow: hidden; }
+}
+
+/* Map list: the title first, then the pay under it */
+.gl-job-title { font-family: var(--font-display); font-stretch: 108%; font-weight: 800; font-size: var(--step-1); line-height: 1.2; }
+.gl-job-pay { font-family: var(--font-body); font-stretch: normal; font-weight: 700; font-size: var(--step-0); line-height: 1.3; color: var(--accent); }
+
+/* short screens: the "also close by" chips give way, so the jobs window keeps its room */
+@container main (min-width: 748px) {
+  @media (max-height: 820px) { .gl-card .gl-near { display: none; } }
+}
+
+/* wide: once a card is open the big heading steps down to a smaller one and the line under it goes, so the card (and its scrolling jobs) has room without making the page longer */
+@container main (min-width: 748px) {
+  .gl-hero:not(.gl-street):has(.gl-card) .gl-head h1 { font-size: clamp(1.5rem, 0.9rem + 1.6vw, 2.1rem); max-width: 22ch; }
+  .gl-hero:not(.gl-street):has(.gl-card) .gl-head .lp-lede { display: none; }
+  .gl-head h1 { transition: font-size 0.3s ease; }
+}
+
+/* shorter laptop screens: the card sheds its extra lines (and, if need be, the heading) so its button always fits */
+@container main (min-width: 748px) {
+  @media (max-height: 780px) { .gl-card > p.small { display: none; } .gl-jobs-win { min-height: 44px; } .gl-card { padding-block: 12px; } }
+  @media (max-height: 690px) { .gl-hero:not(.gl-street):has(.gl-card) .gl-head h1 { display: none; } }
+}
+
+/* a phone: the message can take two lines, so keep room for both */
+@container main (max-width: 747px) { .gl-find .gl-msg, .gl-find .gl-msg:empty { min-height: 2.6em; } }

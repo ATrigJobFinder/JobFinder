@@ -1,0 +1,61 @@
+/* ===================== Version 26: accurate highlights, editable previews, Tailor to resume and cover letter pages ===================== */
+
+/* --- Highlights behind a text box --- */
+/* The words are drawn twice: the text box on top, the same words (transparent, with a coloured background) behind it. The two only line up
+   if every highlight takes up exactly the room its words do, so the marks behind a box have no padding (a mark's usual 2px each side pushed
+   every word after it to the right, a little more with each highlight). The type settings are spelled out for both, so nothing differs. */
+.hl-wrap .hl-back, .hl-wrap textarea { font-kerning: normal; font-variant-ligatures: none; font-feature-settings: normal; text-rendering: auto; word-spacing: 0; text-indent: 0; text-transform: none; text-align: left; hyphens: manual; tab-size: 4; }
+.hl-back mark, .hl-back mark.sk-hit, .hl-back mark.gap-mark, .hl-back .gap-mark, .hl-back .made-up { padding: 0; margin: 0; border: 0; border-radius: 0; font: inherit; letter-spacing: inherit; box-shadow: none; }
+.hl-back .made-up { border-bottom: 0; box-shadow: inset 0 -2px 0 #D62828; }
+
+/* --- Previews you can type in --- */
+.paper-frame.paper-edit .paper-sheet { cursor: text; }
+.paper-frame.paper-edit .paper-sheet:focus { outline: none; }
+.paper-frame.paper-edit .ed-blk:hover { background: rgba(36, 64, 184, 0.06); box-shadow: 0 0 0 2px rgba(36, 64, 184, 0.06); border-radius: 2px; }
+.paper-frame.paper-edit .paper-sheet:focus-within .ed-blk:focus-within, .paper-frame.paper-edit .ed-blk.ed-now { background: rgba(36, 64, 184, 0.09); }
+.paper-frame .ed-bad { text-decoration: underline dotted #C0392B; text-underline-offset: 3px; }
+.paper-frame [contenteditable="false"] { cursor: default; user-select: none; -webkit-user-select: none; }
+.ed-note { margin: 0; }
+.ed-note.warn { color: var(--warn); }
+
+/* Text your answers changed, marked in the preview */
+.paper-frame ins.chg { text-decoration: none; background: #CFE0FF; box-shadow: inset 0 -2px 0 #2440B8; border-radius: 2px; color: inherit; }
+ins.chg.pulse { animation: sk-pulse 1.4s ease-out 1; }
+@media (prefers-reduced-motion: reduce) { ins.chg.pulse { animation: none; outline: 2px solid var(--accent); } }
+.sk-sw.chg { background: #CFE0FF; box-shadow: inset 0 -2px 0 #2440B8; }
+
+/* --- Tailor to resume --- */
+.rs-split { align-items: start; }
+.rs-left { gap: 14px; }
+.rs-intro { margin: 0; }
+.rs-grp { display: grid; gap: 8px; }
+.rs-grp > h4 { margin: 4px 0 0; font-size: var(--step--1); color: var(--muted); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.rs-empty { border: 1px dashed var(--line); border-radius: var(--radius); background: var(--surface-2); padding: 12px 14px; display: grid; gap: 4px; font-size: var(--step--1); }
+.rs-empty p { margin: 0; }
+.rs-right .cl-break { position: static; width: 100%; }
+.rs-right .b-score { white-space: nowrap; }
+.rs-toggles { display: flex; gap: 6px 18px; flex-wrap: wrap; align-items: center; }
+.rs-legend { margin: 0; }
+.rs-right .lt-prev-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.rs-right .lt-prev-head h2 { margin: 0; }
+.rs-right .paper-frame { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0; overflow: hidden; }
+.rs-right .sk-review .small { margin: 0; }
+
+/* --- Tailor to a job: the cover letter page, laid out like Create or edit cover letter --- */
+.cl-two .cl-ready-panel { display: grid; gap: 12px; align-content: start; }
+.cl-two .cl-ready-panel .cl-ready { margin-top: 0; }
+.cl-ready .ready-edit { display: grid; gap: 4px; width: 100%; }
+.cl-ready .ready-edit label { font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.cl-ready .ready-edit input { width: 100%; }
+.cl-ready .ready-edit .small { margin: 0; }
+.cl-ready li.ed { align-items: start; }
+.cl-ready .linkish.edit { font-weight: 400; margin-left: 6px; }
+.cl-two .cl-design { margin: 0; }
+.cl-two .lt-prev-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cl-two .lt-preview > .cl-design { width: 100%; }
+.cl-two .lt-download { display: grid; gap: 8px; }
+.cl-two .lt-download .dl-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cl-two .cl-another { padding-top: 10px; }
+.cl-two .lt-part .opt.short { color: var(--warn); }
+.cl-two .lt-part .opt.good { color: var(--good); }
+.cl-two .cl-writing { display: grid; gap: 8px; }

@@ -115,7 +115,6 @@ onInit(() => {
     trackJob({ title: detectTitle(lastScan.jd, lastScan.title) || "Job from the ad", company: companyFrom(lastScan.jd), jd: lastScan.jd, score: lastResult ? lastResult.overall : null, source: "Tailor to a job" }, "applied");
     btn.innerHTML = 'Added. <a href="#tracker">See Application tracker</a>';
   };
-  $("trackApp").addEventListener("click", e => { if (e.target.tagName !== "A") fromScan($("trackApp")); });
   document.addEventListener("click", e => { const b = e.target.closest("#clTrack"); if (b && e.target.tagName !== "A") fromScan(b); });
   viewHooks.tracker = () => trk.ready.then(renderTracker);
   trk.on(() => { if (currentView === "tracker") renderTracker(); if (currentView === "home") renderHome(); });
