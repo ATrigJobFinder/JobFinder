@@ -40,7 +40,7 @@ async function startMarket() {
   return market.ready;
 }
 let mkTimer = null;
-function marketChanged() { clearTimeout(mkTimer); mkTimer = setTimeout(() => { if (currentView === "jobs") renderJobs(); if (currentView === "employer") renderEmployer(); if (currentView === "home") renderHome(); }, 120); }
+function marketChanged() { clearTimeout(mkTimer); mkTimer = setTimeout(() => { if (currentView === "jobs") renderJobs(); if (currentView === "employer") renderEmployer(); if (currentView === "home") renderHome(); if (currentView === "companies" && typeof refreshJobTabs === "function") refreshJobTabs(); }, 120); }
 const canPost = () => market.db && market.uid && market.canWrite !== false;
 const shareNote = () => !market.db ? "Posting, the talent pool and applications need this page to be opened in Claude, where they're shared between everyone who can open Job Finder." : market.canWrite === false ? "You can browse, but your access to this page is view-only, so you can't post or apply here. Ask the owner for Contributor or Editor access." : "";
 // Status messages survive the re-renders that live updates cause
@@ -76,15 +76,80 @@ function jobMatch(j) {
   const titleBonus = p.target.title && similarity(zoneKey(p.target.title), zoneKey(j.title)) >= 0.4 ? 15 : 0;
   return { pct: Math.min(100, Math.round(have.length / want.length * 85) + titleBonus), have, missing: want.filter(s => !mine.has(s)) };
 }
-const jobsUI = { q: "", where: "", type: "", remote: "", source: "", sort: "match", open: null, applyFor: null, limit: 40 };
+const jobsUI = { by: "title", q: "", edu: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "", sort: "match", open: null, applyFor: null, limit: 40 };
+// What the "Searching by" roller picks, and which box of jobsUI the search bar writes to
+const JB_MODES = {
+  title: { field: "q", ph: "Job title, skill or company", label: "Search by job title, skill or company" },
+  education: { field: "edu", ph: "Degree or qualification, e.g. Bachelor of Engineering", label: "Search by education" },
+  geo: { field: "where", ph: "City, state or remote, e.g. Brisbane", label: "Search by place" },
+  strong: { field: "q", ph: "Jobs you're a strong fit for. Add a keyword to narrow them", label: "Narrow your strong matches by keyword" }
+};
+const STRONG_PCT = 60;   // the same line the employer side calls a strong match
+const PAY_STEPS = [40, 50, 60, 70, 80, 90, 100, 120, 150, 180, 200, 250];   // thousands a year
+// Pay is written every which way ("$75,000 to $82,000 + super", "$90k - $100k", "$26.50 an hour"), so turn it into a yearly range
+function parsePay(text) {
+  const t = String(text || ""); if (!t) return null;
+  const hits = [...t.matchAll(/(\$)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b)?/gi)].filter(m => m[1] || m[3]);
+  const nums = hits.map(m => parseFloat(m[2].replace(/,/g, "")) * (m[3] ? 1000 : 1)).filter(n => n > 0);
+  if (!nums.length) return null;
+  const per = /\b(hour|hr|p\/?h)\b/i.test(t) ? 1976 : /\b(day|daily)\b/i.test(t) ? 260 : /\b(week|wk|pw)\b/i.test(t) ? 52 : 1;
+  const yr = nums.map(n => per === 1 && n < 500 ? n * 1976 : n * per);
+  return [Math.min(...yr), Math.max(...yr)];
+}
+const workMode = j => j.remote || (/\bremote\b/i.test(j.location || "") ? "Remote" : "");
+const fmtPayStep = k => "$" + k + "k";
 function jobFilters(list) {
-  const q = jobsUI.q.toLowerCase(), w = jobsUI.where.toLowerCase();
+  const q = jobsUI.q.trim().toLowerCase(), w = jobsUI.where.trim().toLowerCase(), edu = jobsUI.edu.trim().toLowerCase();
+  const lo = jobsUI.payMin ? +jobsUI.payMin * 1000 : 0, hi = jobsUI.payMax ? +jobsUI.payMax * 1000 : Infinity;
+  const strong = jobsUI.by === "strong";
   // listings from the database were already searched there (full-text, state and type), so only the other filters apply to them
   return list.filter(j => (j.fromDb || ((!q || [j.title, j.company, j.description].join(" ").toLowerCase().includes(q))
     && (!w || [j.location, j.remote].join(" ").toLowerCase().includes(w) || (w === "remote" && /remote/i.test(j.location + " " + j.remote)))
-    && (!jobsUI.type || j.workType === jobsUI.type)
-    && (!jobsUI.remote || (j.remote || "").toLowerCase() === jobsUI.remote.toLowerCase())))
+    && (!edu || [j.title, j.description, ...(j.requirements || [])].join(" ").toLowerCase().includes(edu))
+    && (!jobsUI.type || j.workType === jobsUI.type)))
+    && (!jobsUI.remote || workMode(j).toLowerCase() === jobsUI.remote.toLowerCase())
+    && (!strong || (j.m && j.m.pct >= STRONG_PCT))
+    && (!(lo || hi < Infinity) || (p => p && p[1] >= lo && p[0] <= hi)(parsePay(j.salary)))
     && (!jobsUI.source || (jobsUI.source === "site" ? j.sourceType === "site" : jobsUI.source === "user" ? (j.sourceType === "user" || j.also.some(a => a.sourceType === "user")) : j.sourceType !== "site" && j.sourceType !== "user")));
+}
+/* --- The filter bar: the "Searching by" roller, search box, pay, where you'll work --- */
+const RO_H = 34;   // height of one roller row (matches .jb-ro in the stylesheet)
+function jbSetMode(by, scroll) {
+  if (!JB_MODES[by]) return;
+  jobsUI.by = by; jobsUI.limit = 40;
+  if (scroll) { const t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by); if (t) t.scrollTo({ top: i * RO_H, behavior: scroll === "smooth" && !reduceMotion() ? "smooth" : "auto" }); }
+  renderJobs();
+}
+function jbPaintRoller() {
+  const t = $("jbRollerTrack"); if (!t) return;
+  const pos = t.scrollTop / RO_H;
+  [...t.children].forEach((b, i) => { const d = i - pos, a = Math.abs(d); b.style.opacity = String(Math.max(0.2, 1 - 0.5 * a)); b.style.transform = `perspective(160px) rotateX(${Math.max(-70, Math.min(70, -d * 38))}deg) scale(${Math.max(0.78, 1 - 0.1 * a)})`; });
+}
+function jbSuggestions() {
+  const p = P(), by = jobsUI.by, f = JB_MODES[by].field;
+  let items = [];
+  if (by === "education") items = [...new Set([...p.education.map(e => e.degree).filter(Boolean), "Bachelor", "Diploma", "Certificate IV", "Masters", "PhD"])];
+  else if (by === "geo") items = [...new Set([p.contact.location, "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Remote"].filter(Boolean))];
+  else if (by === "title" && p.target.title) items = [p.target.title];
+  return items.slice(0, 8).map(x => `<button type="button" class="jb-sg${jobsUI[f].toLowerCase() === x.toLowerCase() ? " on" : ""}" data-sg="${esc(x)}">${esc(x)}</button>`).join("");
+}
+function syncJobFilters() {
+  const by = jobsUI.by, mode = JB_MODES[by], q = $("jbQ");
+  if (!q) return;
+  const t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by);
+  document.querySelectorAll("#jbRollerTrack .jb-ro").forEach(b => b.setAttribute("aria-checked", String(b.dataset.by === by)));
+  if (t && Math.abs(t.scrollTop - i * RO_H) > 1 && !t.matches(":active")) t.scrollTop = i * RO_H;
+  jbPaintRoller();
+  q.dataset.jbf = mode.field; q.placeholder = mode.ph; $("jbQLabel").textContent = mode.label;
+  if (document.activeElement !== q) q.value = jobsUI[mode.field];
+  for (const [id, key] of [["jbPayMin", "payMin"], ["jbPayMax", "payMax"], ["jbType", "type"], ["jbSource", "source"], ["jbSort", "sort"]]) { const el = $(id); if (el && el.value !== jobsUI[key]) el.value = jobsUI[key]; }
+  document.querySelectorAll("#jbRemote .jb-pill").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.remote === jobsUI.remote)));
+  const sg = $("jbSuggest"), html = jbSuggestions(); sg.innerHTML = html; sg.hidden = !html;
+  // searches typed under another heading stay on, shown as chips so they can be taken off
+  const chips = [["q", "Job", by !== "title" && by !== "strong"], ["edu", "Education", by !== "education"], ["where", "Place", by !== "geo"]].filter(([k, , show]) => show && jobsUI[k].trim());
+  const act = $("jbActive");
+  act.hidden = !chips.length;
+  act.innerHTML = chips.length ? chips.map(([k, l]) => `<button type="button" class="jb-chip" data-clear="${k}" aria-label="Remove ${l}: ${esc(jobsUI[k])}">${l}: ${esc(jobsUI[k])} <span aria-hidden="true">×</span></button>`).join("") + `<button type="button" class="jb-chip clear" data-clear="all">Clear all</button>` : "";
 }
 function renderJobs() {
   const box = $("jbList");
@@ -92,9 +157,10 @@ function renderJobs() {
   const merged = allJobs();
   for (const j of merged) j.m = jobMatch(j);
   const total = merged.reduce((a, j) => a + 1 + j.also.length, 0), dupes = total - merged.length;
+  syncJobFilters();
   const list = jobFilters(merged).sort((a, b) => jobsUI.sort === "new" ? String(b.posted || "").localeCompare(String(a.posted || "")) : ((b.m ? b.m.pct : -1) - (a.m ? a.m.pct : -1)));
   const examples = merged.some(j => j.example);
-  $("jbSummary").innerHTML = `${list.length} job${list.length === 1 ? "" : "s"}${dupes ? `. <b>${dupes} duplicate${dupes === 1 ? "" : "s"} merged</b> from ${total} listings` : ""}.${examples ? ' <span class="tag">Examples</span> These are made-up listings to show how it works, until employers post jobs or listings are imported.' : ""}`;
+  $("jbSummary").innerHTML = `${list.length} job${list.length === 1 ? "" : "s"}${dupes ? `. <b>${dupes} duplicate${dupes === 1 ? "" : "s"} merged</b> from ${total} listings` : ""}.${jobsUI.payMin || jobsUI.payMax ? " Jobs that don't list their pay are hidden while a pay filter is on." : ""}${examples ? ' <span class="tag">Examples</span> These are made-up listings to show how it works, until employers post jobs or listings are imported.' : ""}`;
   $("jbNote").textContent = ""; $("jbNote").hidden = true;   // (the note about posting and applications is for the hiring pages)
   const myApplied = new Set(((market.myApps || {}).items || []).map(i => i.jobKey));
   const tracked = key => T().find(i => DEDUP.same(DEDUP.prep({ title: i.title, company: i.company, location: i.location }), DEDUP.prep(key)));
@@ -116,10 +182,9 @@ function renderJobs() {
   if (openJ) {
     const k = openJ.key || openJ.id;
     box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${esc(openJ.title)}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div><button class="linkish" type="button" data-jb="open">Close</button></div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key))}</aside></div>`;
-  } else box.innerHTML = cardsHtml || `<p class="empty">No jobs match those filters.</p>`;
-  renderTalentCard();
+  } else box.innerHTML = cardsHtml || `<p class="empty">${jobsUI.by === "strong" ? "No strong matches yet. Add your skills in the resume builder, or scan your resume, and the jobs you're a strong fit for show up here." : "No jobs match those filters."}</p>`;
   renderInvites();
-  renderDbExtras(list);
+  if (typeof renderDbExtras === "function") renderDbExtras(list);   // (the database listings are not connected in this build)
 }
 function jobDetail(j, tr, applied) {
   const m = j.m;
@@ -168,16 +233,6 @@ async function submitApplication(form, j) {
     jobsUI.applyFor = null;
     renderJobs();
   }
-}
-function renderTalentCard() {
-  const box = $("jbTalent"); if (!box) return;
-  const me = market.talent.find(x => x.uid === market.uid);
-  const prof = talentFromProfile();
-  box.innerHTML = `<h2>Let employers find you</h2>
-    <p class="small">${me ? "You're in the talent pool. Employers using Job Finder can see:" : "Join the talent pool and employers using Job Finder can invite you to apply. They'll see:"}</p>
-    <ul class="small talent-preview"><li><b>${esc(prof.name || "Your name")}</b>${prof.headline ? `, ${esc(prof.headline)}` : ""}${prof.location ? ` · ${esc(prof.location)}` : ""}</li>${prof.skills.length ? `<li>Skills: ${esc(prof.skills.slice(0, 10).join(", "))}${prof.skills.length > 10 ? "…" : ""}</li>` : ""}${prof.titles.length ? `<li>Experience: ${esc(prof.titles.join("; "))}</li>` : ""}${prof.education.length ? `<li>Education: ${esc(prof.education.join("; "))}</li>` : ""}</ul>
-    <p class="small muted">Not your phone or email: employers contact you through invitations. You can hide your profile at any time.</p>
-    <div class="b-actions">${!hasProfile(P()) ? `<a class="btn" href="#builder">Add my details first</a>` : me && me.visible !== false ? `<button class="btn" type="button" data-tp="update">Update my profile</button><button class="btn ghost" type="button" data-tp="hide">Hide me</button>` : `<button class="btn primary" type="button" data-tp="join"${canPost() ? "" : " disabled"}>Join the talent pool</button>`}</div>${statusHTML("tpStatus", "status-line", "p")}`;
 }
 function renderInvites() {
   const box = $("jbInvites"); if (!box) return;
@@ -318,16 +373,31 @@ async function draftAd() {
   renderEmployer();
 }
 onInit(() => {
+  for (const id of ["jbPayMin", "jbPayMax"]) { const sel = $(id); if (sel) sel.insertAdjacentHTML("beforeend", PAY_STEPS.map(k => `<option value="${k}">${fmtPayStep(k)} a year</option>`).join("")); }
+  const track = $("jbRollerTrack"), roller = $("jbRoller");
+  if (track) {
+    // spinning the wheel picks whatever row settles in the middle
+    let settle = null, raf = 0;
+    const settleNow = () => { const by = Object.keys(JB_MODES)[Math.max(0, Math.min(3, Math.round(track.scrollTop / RO_H)))]; if (by !== jobsUI.by) jbSetMode(by); };
+    track.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; jbPaintRoller(); }); clearTimeout(settle); settle = setTimeout(settleNow, 140); }, { passive: true });
+    roller.addEventListener("keydown", e => {
+      const keys = Object.keys(JB_MODES), i = keys.indexOf(jobsUI.by);
+      const n = e.key === "ArrowDown" || e.key === "ArrowRight" ? i + 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? keys.length - 1 : null;
+      if (n === null) return;
+      e.preventDefault(); jbSetMode(keys[Math.max(0, Math.min(keys.length - 1, n))], "smooth");
+    });
+  }
   $("view-jobs").addEventListener("input", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; jobsUI.limit = 40; clearTimeout(jobsUI.t); jobsUI.t = setTimeout(renderJobs, 150); } });
   $("view-jobs").addEventListener("change", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; renderJobs(); } });
   $("view-jobs").addEventListener("click", async e => {
-    const tp = e.target.closest("[data-tp]");
-    if (tp) {
-      if (!canPost()) { say("tpStatus", shareNote(), true); return; }
-      const body = { ...talentFromProfile(), visible: tp.dataset.tp !== "hide", updated: new Date().toISOString() };
-      if (await safeWrite(() => market.db.doc("talent/" + market.uid).set(body), "tpStatus")) { const i = market.talent.findIndex(x => x.uid === market.uid); if (body.visible) { if (i >= 0) market.talent[i] = { uid: market.uid, ...body }; else market.talent.push({ uid: market.uid, ...body }); } else if (i >= 0) market.talent.splice(i, 1); say("tpStatus", body.visible ? "Done. Employers can now find you." : "Hidden. Employers can no longer see your profile."); renderTalentCard(); }
-      return;
-    }
+    const ro = e.target.closest(".jb-ro");
+    if (ro) { jbSetMode(ro.dataset.by, "smooth"); return; }
+    const pill = e.target.closest("[data-remote]");
+    if (pill) { jobsUI.remote = jobsUI.remote === pill.dataset.remote ? "" : pill.dataset.remote; jobsUI.limit = 40; renderJobs(); return; }
+    const sg = e.target.closest("[data-sg]");
+    if (sg) { const f = JB_MODES[jobsUI.by].field, v = sg.dataset.sg; jobsUI[f] = jobsUI[f].toLowerCase() === v.toLowerCase() ? "" : v; $("jbQ").value = jobsUI[f]; jobsUI.limit = 40; renderJobs(); return; }
+    const clr = e.target.closest("[data-clear]");
+    if (clr) { const k = clr.dataset.clear; if (k === "all") Object.assign(jobsUI, { q: "", edu: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "" }); else jobsUI[k] = ""; jobsUI.limit = 40; renderJobs(); return; }
     const inv = e.target.closest("[data-inv]");
     if (inv) { jobsUI.open = inv.dataset.inv; jobsUI.source = ""; renderJobs(); const el = document.querySelector(`[data-job="${CSS.escape(inv.dataset.inv)}"]`); if (el) el.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); return; }
     if (e.target.closest("#jbMore")) { jobsUI.limit += 40; renderJobs(); return; }

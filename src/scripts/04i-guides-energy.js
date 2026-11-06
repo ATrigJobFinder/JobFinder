@@ -7,7 +7,7 @@ COMPANY_GUIDES.push(
     cover: [["Connect your interest to the energy transition, with a project or subject you did", "ours"]],
     interview: [["Not published. Expect safety and teamwork questions for an energy network business", "ours"]],
     process: [], processSrc: "grads", processNote: "Jemena's announcement doesn't list the steps.",
-    elig: [["Valid Australian working rights when you start", "grads"]], timing: ["2027 roles start early 2027", "grads"],
+    elig: [["Valid Australian working rights when you start", "grads"]], timing: ["Roles start early in the year", "grads"],
     links: { grads: "https://www.jemena.com.au/media/energise-your-career-with-us--apply-for-our-2027-graduate-program/" } },
 
   { key: "hydrotas", name: "Hydro Tasmania", match: /\bHydro Tasmania\b|\bEntura\b/i, industry: "energy", size: "medium", top100: 74,
@@ -28,7 +28,7 @@ COMPANY_GUIDES.push(
     interview: [["A pre-recorded video interview and an online assessment of skills and traits", "grads"], ["A team interview (in person or on Teams) with behavioural questions", "grads"]],
     process: ["Online application: CV and questions", "Video interview", "Online assessment", "Team interview"], processSrc: "grads",
     elig: [["Studying or finished a relevant bachelor's in the past year; Australian or NZ citizen or permanent resident", "grads"]],
-    timing: ["Applications open late June 2026; interviews August to September; start the following February", "grads"],
+    timing: ["Applications open in late June; interviews run August to September; start the following February", "grads"],
     links: { grads: "https://www.alintaenergy.com.au/about-us/careers/graduate-program" } },
 
   { key: "bp", name: "bp", match: /\bbp\b|\bBP Australia\b/, minHits: 2, industry: "energy", size: "global",

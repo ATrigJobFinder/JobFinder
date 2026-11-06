@@ -41,7 +41,7 @@ COMPANY_GUIDES.push(
     cover: [["Not asked for. Prepare why that business area, in your own words", "ours"]],
     interview: [["Online assessment: personality, verbal, numerical and logical reasoning. Be distraction-free and practise first", "process"], ["Recorded video interview: prepare examples from school, work and life", "process"], ["Engagement Centre (usually May) with activities, meetings with graduates and leaders, and a behavioural interview", "process"]],
     process: ["Expression of interest", "Application form and transcript", "Online assessment", "Video interview", "Engagement Centre", "Offer by phone"], processSrc: "process",
-    elig: [["Australian or NZ citizen or Australian permanent resident; temporary visa holders aren't eligible", "process"], ["Degree finished 2025 to 2027, or due by the end of January 2028", "process"]],
+    elig: [["Australian or NZ citizen or Australian permanent resident; temporary visa holders aren't eligible", "process"], ["Degree finished in the last couple of years, or due to finish by the end of January before the program starts", "process"]],
     timing: ["Relocation is at your own cost", "process"],
     links: { process: "https://www.nab.com.au/about-us/careers/early-careers/graduate-careers/application-process", streams: "https://www.nab.com.au/about-us/careers/graduate-careers/program-streams" } },
 
@@ -64,8 +64,8 @@ COMPANY_GUIDES.push(
     cover: [["No cover letter or selection criteria needed", "apply"]],
     interview: [["Online testing with the application", "apply"], ["A recorded video interview", "apply"], ["A final interview or assessment centre; no feedback before this stage", "apply"]],
     process: ["Application form and online testing", "Video interview", "Final interview or assessment centre"], processSrc: "apply",
-    elig: [["Full working rights in Australia or NZ and study at an Australian or NZ university", "apply"], ["Undergraduate finished 2024 to 2026, or before the program starts, with at least a pass", "apply"]],
-    timing: ["2028 applications open in August 2027", "apply"],
+    elig: [["Full working rights in Australia or NZ and study at an Australian or NZ university", "apply"], ["Undergraduate finished in the last few years, or finishing before the program starts, with at least a pass", "apply"]],
+    timing: ["Applications open around August", "apply"],
     links: { apply: "https://suncorpgroup.com.au/careers/graduates/apply", faq: "https://www.suncorpgroup.com.au/careers/graduates/faqs" } }
 );
 
@@ -78,7 +78,7 @@ COMPANY_GUIDES.push(
     interview: [["Digital assessments: a cognitive test and a video interview", "ad"], ["A virtual assessment centre", "ad"]],
     process: ["Application", "Cognitive test and video interview", "Virtual assessment centre", "Welcome event", "Start in Sydney in February"], processSrc: "ad",
     elig: [["Australian citizen or permanent resident, or NZ citizen", "ad"], ["First bachelor's degree finished in the two years before the start", "ad"]],
-    timing: ["For the 2026 intake, assessments ran July to September 2025", "ad"],
+    timing: ["Assessments have run from July to September", "ad"],
     links: {}, via: { ad: "Monash Careers" } },
 
   { key: "rabobank", name: "Rabobank", match: /\bRabobank\b|\bRabo\b/i, industry: "banking", size: "global", top100: 52,
@@ -90,7 +90,7 @@ COMPANY_GUIDES.push(
     interview: [["An online assessment, then interviews", "ad"]],
     process: ["Apply", "Online assessment", "Interviews", "Offer and screening"], processSrc: "ad",
     elig: [["Final-year student, or graduated in the last three years", "ad"], ["Australian or NZ citizen or permanent resident", "ad"], ["Open to regional or rural relocation", "ad"]],
-    timing: ["The 18-month program starts in February 2027", "ad"],
+    timing: ["The 18-month program starts in February", "ad"],
     links: { ad: "https://rabobank.jobs/en/job/2027-rabo-graduate-program-rural-banking-graduate/JR_00143275/", news: "https://www.rabobank.com.au/news/media-releases/2026/applications-open-for-2027-rabobank-graduate-program" } },
 
   { key: "perpetual", name: "Perpetual & Fordham", match: /\bPerpetual\b|\bFordham\b/, industry: "banking", size: "medium", top100: 60,
@@ -113,7 +113,7 @@ COMPANY_GUIDES.push(
     interview: [["Online assessments and a short one-way video interview", "grads"], ["Virtual assessment centre: a case study, a group task and a one-on-one interview; possibly a final interview", "grads"]],
     process: ["Online application: CV and questions", "Online assessments and video interview", "Virtual assessment centre", "Possible final interview", "Offer"], processSrc: "grads",
     elig: [["Australian or NZ citizen or permanent resident; degree finished within 3 years of the start", "grads"]],
-    timing: ["Next intern and graduate rounds open July 2027; interns often get graduate offers", "grads"],
+    timing: ["Intern and graduate rounds open around July; interns often get graduate offers", "grads"],
     links: { grads: "https://www.australiansuper.com/careers/graduate-and-internship-programs" }, via: { reviews: "Prosple" } },
 
   { key: "iag", name: "IAG", match: /\bIAG\b|\bInsurance Australia Group\b/, industry: "banking", size: "large", top100: 71,
@@ -123,8 +123,8 @@ COMPANY_GUIDES.push(
     cover: [["Show your enthusiasm for learning and your drive: skills alone aren't enough", "article"]],
     interview: [["Online screening with video answers, then one work-style and aptitude assessment", "grads"], ["An engagement day. Be yourself rather than an “optimal candidate”", "grads"]],
     process: ["Apply online", "Online screening with video answers", "Work style and aptitude assessment", "Engagement day", "Offer"], processSrc: "grads",
-    elig: [["Degree finished 2025 to 2026, or graduating by the end of 2027; a credit average (65%+)", "grads"], ["Australian or NZ citizen, or work rights for the whole program", "grads"]],
-    timing: ["2028 program details are expected in early 2027", "grads"],
+    elig: [["Degree finished in the last year or two, or graduating before the program starts; a credit average (65%+)", "grads"], ["Australian or NZ citizen, or work rights for the whole program", "grads"]],
+    timing: ["Details of the next program are usually released early in the year", "grads"],
     links: { grads: "https://careers.iag.com.au/global/en/graduates" }, via: { article: "Prosple" } },
 
   { key: "allianz", name: "Allianz", match: /\bAllianz\b/i, industry: "banking", size: "global", top100: 92,

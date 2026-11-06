@@ -62,7 +62,7 @@ COMPANY_GUIDES.push(
     cover: [["Say which stream and why, with a customer or product example", "ours"]],
     interview: [["Online assessment and video interview: be yourself, and don't use scripts or AI", "grads"], ["A group assessment centre", "grads"]],
     process: ["Application and eligibility review", "Online assessment and video interview", "Group assessment centre", "Offer and checks"], processSrc: "grads",
-    elig: [], timing: ["2027 is closed; expressions of interest for 2028 open in March", "grads"],
+    elig: [], timing: ["Expressions of interest open in March", "grads"],
     links: { grads: "https://www.kmart.com.au/careers/early-careers/" } },
 
   { key: "uniqlo", name: "UNIQLO Australia", match: /\bUNIQLO\b/i, industry: "retail", size: "global", top100: 33,
@@ -73,7 +73,7 @@ COMPANY_GUIDES.push(
     interview: [["An information session and online competency test, then a first interview", "ad"], ["A 1.5-day store internship assessment, then a final interview", "ad"]],
     process: ["Online application", "Information session and competency test", "First interview", "1.5-day store assessment", "Final interview", "Background check and offer"], processSrc: "ad",
     elig: [["Bachelor's or higher; Australian or NZ citizen or Australian permanent resident", "ad"], ["Available for rostered shifts (evenings, public holidays) and willing to relocate", "ad"]],
-    timing: ["The 2027 intake took applications for one week in early May 2026", "ad"],
+    timing: ["Applications have been open for about one week in early May", "ad"],
     links: {}, via: { ad: "AUT Careers" } },
 
   { key: "coles", name: "Coles Group", match: /\bColes\b/, industry: "retail", size: "large", staff: "Over 130,000", top100: 43,
@@ -125,7 +125,7 @@ COMPANY_GUIDES.push(
     interview: [["Not published. Prepare examples of building customer relationships", "ours"]],
     process: [], processSrc: "ad", processNote: "Graduates rotate through customer service, sales and warehouse management.",
     elig: [["Recent or soon-to-be bachelor's graduate with a driver's licence and full Australian work rights", "ad"]],
-    timing: ["Applications ran August to early September 2026", "ad"],
+    timing: ["Applications have run from August to early September", "ad"],
     links: {}, via: { ad: "AUT Careers" } },
 
   { key: "csl", name: "CSL", match: /\bCSL\b|\bCSL Behring\b|\bCSL Seqirus\b/, industry: "health", size: "global", top100: 42,
@@ -135,7 +135,7 @@ COMPANY_GUIDES.push(
     cover: [["Explain your stream preferences and why you fit", "process"]],
     interview: [["A 45-minute online assessment: cognitive tests, untimed situational judgement and a timed video interview", "process"], ["The CSL Experience Centre in Melbourne: a group exercise and short interview, attended in person at your own cost", "process"]],
     process: ["Online application form", "Online assessment", "Experience Centre", "Offer by phone"], processSrc: "process",
-    elig: [["Australian or NZ citizen or Australian permanent resident; degree finished 2024 to 2026", "process"], ["Based in or willing to move to Melbourne, at your own cost", "process"]],
+    elig: [["Australian or NZ citizen or Australian permanent resident; degree finished in the last few years", "process"], ["Based in or willing to move to Melbourne, at your own cost", "process"]],
     timing: ["The application form opens in June; the Experience Centre is in late August", "process"],
     links: { process: "https://www.cslbehring.com.au/careers/graduate-program/the-selection-process", grads: "https://www.cslbehring.com.au/careers/graduate-program" } },
 
@@ -157,7 +157,7 @@ COMPANY_GUIDES.push(
     interview: [["A job-focused assessment and psychometric testing", "grads"], ["A “meet the team” interview with senior lawyers", "grads"]],
     process: ["Application", "Assessment and psychometric tests", "Meet-the-team interview", "Offer on the law society's offer day"], processSrc: "grads",
     elig: [["Law degree, in final year or finished within 12 months; not yet admitted", "grads"], ["Australian or NZ citizen or permanent resident; Canberra needs citizenship and a clearance", "grads"]],
-    timing: ["2026: Sydney and Canberra 23 Feb to 5 Apr; Melbourne 29 Jun to 6 Jul; Brisbane 10 to 21 Aug", "grads"],
+    timing: ["Each office has its own window: Sydney and Canberra late February to early April; Melbourne late June to early July; Brisbane in August", "grads"],
     links: { grads: "https://www.landers.com.au/careers/graduate-program" } },
 
   { key: "mainfreight", name: "Mainfreight", match: /\bMainfreight\b/i, industry: "transport", size: "global", top100: 53,
@@ -187,7 +187,7 @@ COMPANY_GUIDES.push(
     cover: [["A 500-word cover letter at most; an optional character reference", "ad"]],
     interview: [["An in-person assessment day in Melbourne in late August", "ad"]],
     process: ["Application", "Assessment day", "Offer and checks (Working with Children, criminal history)"], processSrc: "ad",
-    elig: [["2025 or 2026 graduates; Australian or NZ citizen, permanent resident or unrestricted work rights; full time in Melbourne", "ad"]],
+    elig: [["Recent graduates; Australian or NZ citizen, permanent resident or unrestricted work rights; full time in Melbourne", "ad"]],
     timing: ["Applications closed late June; the one-year program starts in late January", "ad"],
     links: {}, via: { ad: "Sportspeople" } }
 );

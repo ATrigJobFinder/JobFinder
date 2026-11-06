@@ -458,13 +458,14 @@ function initGlobe() {
       street.setMe(st.me); renderList();
     } catch { /* the map stays where it was */ } finally { busy = false; }
   }
-  async function dive(at, hub) {
+  async function dive(at, hub, pick) {
     if (!MAPS_ON || busy) return;
     busy = true; auto = false; tween = null; vel.x = vel.y = 0; showTip(null); hero.classList.add("gl-diving");
     const spot = at || { lat: view.lat, lng: view.lng };
     if (!hub) { const n = globeNear(spot.lat, spot.lng)[0]; if (n.km < 150) hub = n.h; }
     say("Going down to the map.");
     const mj = mapJobsFor(spot, hub);
+    if (pick && !mj.jobs.includes(pick)) mj.jobs = mj.jobs.concat([pick]);   // the job that was clicked is always on the map
     const prep = street.prepare(spot, mj.jobs, mapOpts(mj)).then(r => ({ r }), e => ({ e }));   // starts loading Google Maps straight away
     if (at) await flyP(at.lat, at.lng, ZMAX);
     const z0 = view.z;
@@ -477,7 +478,8 @@ function initGlobe() {
     street.show(got.r);
     street.setMe(st.me && globeKm(st.me.lat, st.me.lng, got.r.spot.lat, got.r.spot.lng) < 30 ? st.me : null);
     street.resize(); renderList();
-    say("Map open. Drag to move around, or zoom out to go back to the globe.");
+    if (pick) street.focus(pick);   // pan to it and open its summary
+    say("Map open. Drag to move around. Use Back to the globe to leave it.");
     await wait(1000); streetIdle = true; busy = false; hero.classList.remove("gl-diving");   // the globe stops drawing once the map has faded in
   }
   if (street) {
@@ -488,7 +490,7 @@ function initGlobe() {
   function resetView() { const m = st.me; if (m) flyTo(m.lat, m.lng, START.z); else { flyTo(START.lat, START.lng, START.z); auto = !reduceMotion(); } }
   hero.addEventListener("click", e => {
     const b = e.target.closest("[data-gl]"); if (!b) return;
-    ({ in: () => zoomBy(1.5), out: () => zoomBy(1 / 1.5), reset: resetView, locate: () => locate(), noexp: () => { if (whatBox) whatBox.value = GLOBE_NO_EXP; findNear(); } })[b.dataset.gl]();
+    ({ in: () => zoomBy(1.5), out: () => zoomBy(1 / 1.5), reset: resetView, locate: () => locate(false, true), noexp: () => { if (whatBox) whatBox.value = GLOBE_NO_EXP; findNear(); } })[b.dataset.gl]();
   });
 
   /* ---- what you're after, and where you are ---- */
@@ -511,19 +513,20 @@ function initGlobe() {
     const n = globeNear(lat, lng)[0];
     return n.km < 150 ? `${n.h.name}, ${n.h.country}` : "";
   }
-  function arrive(lat, lng, name) {
+  function arrive(lat, lng, name, go) {
     lat = Math.round(lat * 100) / 100; lng = Math.round(lng * 100) / 100; // about 1 km: approximate on purpose, but close enough to land on the right suburb
     st.me = { lat, lng, name: name || nameFor(lat, lng), hub: globeNear(lat, lng)[0].h }; st.hub = null; st.mode = "near"; st.err = "";
     if (whereBox && st.me.name) whereBox.value = st.me.name;
     if (resEl) resEl.innerHTML = "";
     setMsg("");
     render();
-    // with the map already open it moves to the place; from the globe it only turns to it (the map is opened by a dot or by zooming right in)
+    // with the map open it moves to the place; the buttons (Jobs near me, Use my location) go down through the clouds to the map; picking from the list or an automatic location only turns the globe
     if (MAPS_ON && streetOn && !busy) restreet({ lat, lng }, st.me.hub);
+    else if (go && MAPS_ON && !busy && !streetOn) dive({ lat, lng }, st.me.hub);
     else flyTo(lat, lng, 3.4);
     say(`Showing example jobs near ${st.me.name || "you"}.`);
   }
-  function locate(quiet) {
+  function locate(quiet, go) {
     if (!navigator.geolocation) { st.mode = "ask"; setMsg("This browser can't share a location. Type a place instead.", "err"); render(); if (whereBox) whereBox.focus({ preventScroll: true }); return; }
     st.mode = "asking"; st.err = ""; setMsg(""); render();
     let answered = false, waitT = 0;
@@ -534,7 +537,7 @@ function initGlobe() {
     }, 500);
     try {
       navigator.geolocation.getCurrentPosition(
-        pos => { answered = true; clearTimeout(waitT); arrive(pos.coords.latitude, pos.coords.longitude); },
+        pos => { answered = true; clearTimeout(waitT); arrive(pos.coords.latitude, pos.coords.longitude, undefined, go); },
         err => {
           answered = true; clearTimeout(waitT);
           st.mode = st.me ? "near" : "ask";
@@ -557,9 +560,9 @@ function initGlobe() {
     if (q && !(st.me && st.me.name === q)) {
       const rs = searchPlaces(q);
       if (!rs.length) { setMsg("We couldn't find that place. Try a suburb, a postcode or a city.", "err"); if (whereBox) whereBox.focus({ preventScroll: true }); return; }
-      arrive(rs[0].lat, rs[0].lng, rs[0].name || rs[0].label.replace(/ \d{4}$/, ""));
-    } else if (st.me) arrive(st.me.lat, st.me.lng, st.me.name);
-    else locate(false);
+      arrive(rs[0].lat, rs[0].lng, rs[0].name || rs[0].label.replace(/ \d{4}$/, ""), true);
+    } else if (st.me) arrive(st.me.lat, st.me.lng, st.me.name, true);
+    else locate(false, true);
   }
   let whereAt = -1;
   function showPlaces() {
@@ -640,12 +643,27 @@ function initGlobe() {
     const jobs = what ? globeSearchJobs(what, place, 12) : globeJobs(h).slice(0, 12), km = m && st.mode === "near" ? globeKm(m.lat, m.lng, h.lat, h.lng) : 0;
     const others = (m ? globeNear(m.lat, m.lng) : globeNear(h.lat, h.lng).slice(1)).filter(x => x.h !== h).slice(0, 3);
     const kicker = what ? what.label : st.mode === "near" ? "" : "Example jobs";
+    // give each job a place and pay so it can be pinned on the map (the ones made for the card have no position of their own)
+    const base = st.mode === "near" && m ? m : h;
+    panel._jobs = jobs.map((j, i) => {
+      if (j.lat != null && j.pay) return j;
+      const rnd = globeRng([...(j.title + "|" + place + "|" + i)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 3)), pays = GLOBE_PAYS[j.kind] || GLOBE_PAYS["Full-time"];
+      const r = 0.012 * Math.sqrt(rnd()), a = rnd() * Math.PI * 2;
+      return Object.assign(j, {
+        pay: j.pay || pays[Math.floor(rnd() * pays.length)], at: j.at || "Right by " + (st.mode === "near" && m ? place : h.name),
+        lat: j.lat != null ? j.lat : base.lat + r * Math.sin(a), lng: j.lng != null ? j.lng : base.lng + r * Math.cos(a) / Math.max(0.2, Math.cos(base.lat * GLOBE_D)),
+        about: j.about || GLOBE_BLURBS[i % GLOBE_BLURBS.length](j.kind)
+      });
+    });
+    const jobLi = (j, i, copy) => MAPS_ON
+      ? `<li><button type="button" class="gl-jobbtn" data-gl-card="${i}" title="See it on the map"${copy ? ' tabindex="-1"' : ""}><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></button></li>`
+      : `<li><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></li>`;
     panel.innerHTML = `<div class="gl-card">${kicker ? `<p class="gl-k">${esc(kicker)}</p>` : ""}
       <h2>${esc(place)}</h2>
       <p class="small muted">${st.mode === "near" ? `Closest hub: <b>${esc(h.name)}</b>, ${globeDist(km)} · ` : ""}${what ? `${jobs.length} example jobs` : `${globeNum(h.jobs)} example jobs`}</p>
-      <div class="gl-jobs-win" tabindex="0" role="group" aria-label="Example jobs in this area. They scroll by on their own, and stop when you point at them." style="--gl-n:${jobs.length}">
-        <ul class="gl-jobs">${jobs.map(j => `<li><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></li>`).join("")}</ul>
-        <ul class="gl-jobs gl-jobs-copy" aria-hidden="true">${jobs.map(j => `<li><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></li>`).join("")}</ul>
+      <div class="gl-jobs-win" tabindex="0" role="group" aria-label="Example jobs in this area. They scroll by on their own, and stop when you point at them. Press one to see it on the map." style="--gl-n:${jobs.length}">
+        <ul class="gl-jobs">${jobs.map((j, i) => jobLi(j, i, false)).join("")}</ul>
+        <ul class="gl-jobs gl-jobs-copy" aria-hidden="true">${jobs.map((j, i) => jobLi(j, i, true)).join("")}</ul>
       </div>
       <p class="small muted gl-near">Also close by: ${others.map(o => `<button type="button" class="gl-chip" data-gl-hub="${o.h.id}">${esc(o.h.name)}</button>`).join(" ")}</p>
       <div class="b-actions"><a class="btn primary" href="#jobs" data-gl-act="jobs">Find jobs near here</a></div></div>`;
@@ -654,8 +672,13 @@ function initGlobe() {
     if (e.target.closest("[data-gl-act=jobs]")) { const w = readWhat(), where = whereBox ? whereBox.value.trim() : ""; try { jobsUI.q = w; jobsUI.where = where; const q = $("jbQ"), wh = $("jbWhere"); if (q) q.value = w; if (wh) wh.value = where; } catch { /* the Find jobs page fills itself */ } }
   });
   panel.addEventListener("click", e => {
-    const a = e.target.closest("[data-gl-act]"), hb = e.target.closest("[data-gl-hub]");
+    const a = e.target.closest("[data-gl-act]"), hb = e.target.closest("[data-gl-hub]"), jb = e.target.closest("[data-gl-card]");
     if (hb) { choose(GLOBE_HUBS[+hb.dataset.glHub]); return; }
+    if (jb && MAPS_ON && panel._jobs) {   // a job in the card: down to the map, at that job
+      const j = panel._jobs[+jb.dataset.glCard]; if (!j) return;
+      const hub = st.mode === "hub" ? st.hub : st.me ? st.me.hub : undefined;
+      dive({ lat: j.lat, lng: j.lng }, hub, j); return;
+    }
     if (!a) return;
     const act = a.dataset.glAct;
     if (act === "jobs") { const w = readWhat(), where = whereBox ? whereBox.value.trim() : ""; try { jobsUI.q = w; jobsUI.where = where; const q = $("jbQ"), wh = $("jbWhere"); if (q) q.value = w; if (wh) wh.value = where; } catch { /* the Find jobs page fills itself */ } }

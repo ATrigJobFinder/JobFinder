@@ -7,7 +7,7 @@ COMPANY_GUIDES.push(
     cover: [["Not published. Keep it short and specific about which desk or role and why", "ours"]],
     interview: [["A 45-minute technical phone screen", "profile"], ["30 to 45 minute interviews with 4 or 5 people, on site or on Zoom", "profile"]],
     process: ["Online application", "Application review", "Technical phone screen", "Interviews with 4 to 5 people", "Offer"], processSrc: "profile",
-    elig: [], timing: ["Graduate roles open as an expression of interest for 2027", "eoi"],
+    elig: [], timing: ["Graduate roles open as an expression of interest", "eoi"],
     links: {}, via: { profile: "Prosple", eoi: "AUT Careers" } },
 
   { key: "sig", name: "Susquehanna (SIG)", match: /\bSusquehanna\b|\bSIG\b/, industry: "trading", size: "large", top100: 22,

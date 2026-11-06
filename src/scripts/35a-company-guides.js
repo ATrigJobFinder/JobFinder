@@ -92,7 +92,7 @@ const coTips = (g, items, empty) => items && items.length ? `<ul class="co-tips"
 const coValues = g => g.values.length ? `<div class="chips co-values">${g.values.map(v => `<span class="chip">${esc(v)}</span>`).join("")}</div>` : "";
 // The company menu in Tailor to a job, grouped by industry
 const guideOptions = sel => `<option value="">${sel ? "None of these" : "Choose a company"}</option>` + industryOrder(true).map(ind => `<optgroup label="${esc(indName(ind))}">${guidesRanked().filter(g => g.industry === ind).sort((a, b) => a.name.localeCompare(b.name)).map(g => `<option value="${g.key}"${g.key === sel ? " selected" : ""}>${esc(g.name)}</option>`).join("")}</optgroup>`).join("");
-const rankLine = g => `<span class="co-badge guide">Full guide</span>${g.top100 ? `<span class="co-badge top" title="Overall place in the 2026 SEEK Grad Top100, voted by students">Top100 #${g.top100}</span>` : ""}${g.eng ? `<span class="co-badge eng" title="Place among engineering employers in the 2026 SEEK Grad Top100">Engineering #${g.eng}</span>` : ""}<span class="co-badge ind" title="Place among the ${g.indCount} full guides in ${esc(indName(g.industry))}">#${g.indRank} of ${g.indCount} in ${esc(indShort(g.industry))}</span>`;
+const rankLine = g => `<span class="co-badge guide">Full guide</span>${g.top100 ? `<span class="co-badge top" title="Overall place in the SEEK Grad Top100, voted by students">Top100 #${g.top100}</span>` : ""}${g.eng ? `<span class="co-badge eng" title="Place among engineering employers in the SEEK Grad Top100">Engineering #${g.eng}</span>` : ""}<span class="co-badge ind" title="Place among the ${g.indCount} full guides in ${esc(indName(g.industry))}">#${g.indRank} of ${g.indCount} in ${esc(indShort(g.industry))}</span>`;
 const coSel = new Set();
 const pickBox = e => `<label class="co-pick"><input type="checkbox" data-pick="${esc(e.id)}"${coSel.has(e.id) ? " checked" : ""}${e.u ? "" : " disabled"}><span class="visually-hidden">Select ${esc(e.name)}</span></label>`;
 const careersBtns = (e, cls) => `${e.u ? `<a class="${cls}" href="${esc(e.u)}" target="_blank" rel="noopener">Careers page ↗</a>` : ""}${e.g ? `<a class="${cls === "btn" ? "btn" : "linkish"}" href="${esc(e.g)}" target="_blank" rel="noopener">Graduates ↗</a>` : ""}`;
@@ -103,40 +103,104 @@ function dirRow(e) {
 }
 
 function empItem(e, openNow) { return e.kind === "guide" ? guideCard(e.guide, openNow.has(e.guide.key), e) : dirRow(e); }
+/* --- A company guide: About, Advice, How to apply and Jobs --- */
+// Advice is for anyone applying. A tip that only suits recent graduates is marked "For recent graduates" and kept in its own list.
+const GRAD_WORDS = /\b(graduates?|grads?|graduate program(me)?s?|recent graduates?|university|uni|campus|transcripts?|academic|vacation(er)?s?|vacationers|interns?|internships?|penultimate|final[- ]year|cadets?|degrees?|undergraduate|student|students|early[- ]careers?|first job)\b/i;
+const isGradTip = t => GRAD_WORDS.test(String(t || ""));
+const guideTabs = {};   // the tab each guide was last on, kept when the list is redrawn
+const SOCIAL_NAMES = { linkedin: "LinkedIn", facebook: "Facebook", instagram: "Instagram", x: "X", youtube: "YouTube" };
+const SOCIAL_ICONS = {
+  linkedin: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>`,
+  facebook: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.26h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>`,
+  instagram: `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.1" fill="currentColor" stroke="none"/></svg>`,
+  x: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-7.2 8.2L23.3 22h-6.6l-5.2-6.8L5.5 22H2.4l7.7-8.8L1.9 2h6.8l4.7 6.2L18.9 2zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20z"/></svg>`,
+  youtube: `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.6V8.4l6.2 3.6-6.2 3.6z"/></svg>`
+};
+const socialLinks = g => { const p = COMPANY_PROFILES[g.key]; return p && p.social ? Object.entries(p.social).filter(([k, u]) => SOCIAL_NAMES[k] && safeUrl(u)).map(([k, u]) => `<a class="co-soc" href="${esc(u)}" target="_blank" rel="noopener" aria-label="${esc(shortName(g))} on ${SOCIAL_NAMES[k]}" title="${SOCIAL_NAMES[k]}">${SOCIAL_ICONS[k]}</a>`).join("") : ""; };
+// tips in two lists: for anyone, and for recent graduates only
+function coTipsSplit(g, items, empty) {
+  if (!items || !items.length) return `<p class="small muted">${esc(empty || "Not published.")}</p>`;
+  const all = items.filter(x => !isGradTip(x[0])), grad = items.filter(x => isGradTip(x[0]));
+  const list = l => `<ul class="co-tips">${l.map(([t, src]) => `<li>${esc(t)} ${coSrc(g, src)}</li>`).join("")}</ul>`;
+  return (all.length ? list(all) : "") + (grad.length ? `<p class="co-forgrad"><span class="co-badge grad">For recent graduates</span></p>${list(grad)}` : "");
+}
+// the pages to apply through: careers page, graduate page and any other page of theirs that helps an application
+const APPLY_LINKS = ["careers", "grads", "jobs", "program", "programs", "streams", "apply", "eoi", "guide", "process", "who", "about", "faq", "story", "ai"];   // (resume, tips, article and interview pages are in the Advice tab)
+function applyLinkList(g, e) {
+  const seen = new Set(), out = [];
+  const add = (label, u) => { u = safeUrl(u); if (u && !seen.has(u)) { seen.add(u); out.push(`<li><a class="co-apply-a" href="${esc(u)}" target="_blank" rel="noopener">${esc(label)}<span aria-hidden="true"> ↗</span></a></li>`); } };
+  if (e && e.u) add("Careers page", e.u);
+  if (e && e.g) add("Graduate page", e.g);
+  for (const k of APPLY_LINKS) if (g.links[k]) add(LINK_NAMES[k] || "Page", g.links[k]);
+  return out.length ? `<ul class="co-apply-links">${out.join("")}</ul>` : `<p class="small muted">No application pages are listed. Search for ${esc(shortName(g))}'s careers page.</p>`;
+}
+// jobs on Job Finder for a company (from employers who posted here and jobs you saved), grouped by guide
+function siteJobsFor(g) { try { return allJobs().filter(j => !j.example && g.match.test(String(j.company || ""))); } catch { return []; } }
+function jobsPane(g) {
+  const jobs = siteJobsFor(g);
+  if (!jobs.length) return `<p class="small muted">No ${esc(shortName(g))} jobs are listed on Job Finder right now. Check the Careers page under How to apply, or add one you found in <a href="#jobs">Find jobs</a>.</p>`;
+  return `<ul class="co-jobs">${jobs.map(j => `<li><button type="button" class="co-job" data-co-job="${esc(j.key || j.id)}" data-co-q="${esc(j.title)}"><b>${esc(j.title)}</b><span>${esc([j.location, j.workType, j.salary].filter(Boolean).join(" · "))}</span></button></li>`).join("")}</ul>`;
+}
+function refreshJobTabs() {
+  document.querySelectorAll("#coList .co-card").forEach(d => {
+    const g = guideByKey(d.dataset.co); if (!g) return;
+    const n = siteJobsFor(g).length, tab = d.querySelector('[data-co-tab="jobs"] .co-tabn'), pane = d.querySelector('[data-pane="jobs"]');
+    if (tab) tab.textContent = n ? " (" + n + ")" : "";
+    if (pane) pane.innerHTML = jobsPane(g);
+  });
+}
 function guideCard(g, open, e) {
-  const sec = (title, body) => `<section class="co-sec"><h4>${title}</h4>${body}</section>`;
-  const process = g.process.length ? `<ol class="co-steps">${g.process.map(s => `<li>${esc(s)}</li>`).join("")}</ol><p class="small">${coSrc(g, g.processSrc)}</p>` : `<p class="small muted">${esc(g.processNote || "Not published.")} ${coSrc(g, g.processSrc)}</p>`;
+  const prof = COMPANY_PROFILES[g.key], tab = guideTabs[g.key] || "about";
+  const sec = (title, body, tag) => `<section class="co-sec"><h4>${title}${tag ? ` <span class="co-badge grad">${tag}</span>` : ""}</h4>${body}</section>`;
+  const gradProcess = ["grads", "program", "programs", "streams", "eoi"].includes(g.processSrc) || g.process.some(isGradTip);
+  const process = g.process.length ? `<ol class="co-steps">${g.process.map(x => `<li>${esc(x)}</li>`).join("")}</ol><p class="small">${coSrc(g, g.processSrc)}</p>` : `<p class="small muted">${esc(g.processNote || "Not published.")} ${coSrc(g, g.processSrc)}</p>`;
   const who = [...g.elig, ...(g.timing ? [g.timing] : [])];
+  const staff = prof && prof.staff ? prof.staff : g.staff || "";
+  const tabs = [["about", "About"], ["advice", "Advice"], ["apply", "How to apply"], ["jobs", "Jobs"]];
+  const nJobs = siteJobsFor(g).length;
+  const soc = socialLinks(g);
+  // the company's own advice pages, as a blue link at the top of the section they belong to
+  const advLink = keys => keys.filter(k => g.links[k]).map(k => `<p class="co-adv-link"><a href="${esc(g.links[k])}" target="_blank" rel="noopener">${esc(LINK_NAMES[k] || "Read more")}<span aria-hidden="true"> ↗</span></a></p>`).join("");
+  const ADV_KEYS = ["resume", "tips", "article", "interview"];
+  const about = `<div class="co-about-pane">
+      <dl class="co-facts">
+        ${soc ? `<div class="wide"><dt>Find them online</dt><dd class="co-socials">${soc}</dd></div>` : ""}
+        <div><dt>Industry</dt><dd>${esc(indName(g.industry))}</dd></div>
+        <div><dt>Company size <span class="muted">(estimate)</span></dt><dd>${esc(GUIDE_SIZES[g.size])}${staff ? ` · ${esc(staff)}` : ""}</dd></div>
+        ${prof && prof.spec.length ? `<div class="wide"><dt>Specialties</dt><dd><span class="chips co-specs">${prof.spec.map(x => `<span class="chip">${esc(x)}</span>`).join("")}</span></dd></div>` : ""}
+      </dl>
+      ${prof ? `<p class="co-summary">${esc(prof.about)}</p>` : ""}
+    </div>`;
+  const stand = g.purpose || g.values.length || g.valuesNote || (g.goals && g.goals.length) ? `<div class="co-stand">
+      ${g.purpose ? `<p class="co-purpose"><span class="small muted">Purpose</span> ${quoteIt(g.purpose)}</p>` : ""}
+      ${g.values.length ? `<div class="co-vrow"><span class="small muted">Values</span>${coValues(g)}${coSrc(g, g.valuesSrc)}</div>` : ""}
+      ${g.valuesNote ? `<p class="small muted">${esc(g.valuesNote)}${g.values.length ? "" : " " + coSrc(g, g.valuesSrc)}</p>` : ""}
+      ${g.goals && g.goals.length ? `<p class="small"><b>Goals:</b> ${g.goals.map(esc).join(" · ")}</p>` : ""}
+    </div>` : "";
+  const advice = `${stand}<p class="small muted">Advice for anyone applying. Tips that only suit recent graduates are marked.</p>
+    <div class="co-grid">
+      ${sec("What they look for", coTipsSplit(g, g.look))}
+      ${sec("Resume", advLink(["resume", "tips", "article"]) + coTipsSplit(g, g.resume))}
+      ${sec("Cover letter", advLink(["resume"]) + coTipsSplit(g, g.cover))}
+      ${sec("Interview and assessments", advLink(["interview"]) + coTipsSplit(g, g.interview))}
+    </div>
+    <p class="small co-links">${Object.keys(g.links).filter(k => !ADV_KEYS.includes(k)).length ? `<b>Where this comes from on ${esc(shortName(g))}'s website:</b> ${Object.entries(g.links).filter(([k]) => !ADV_KEYS.includes(k)).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(LINK_NAMES[k] || "Source")}</a>`).join(" · ")}` : ""}${g.via ? `${Object.keys(g.links).length ? ". " : ""}<b>Also drawn from:</b> ${[...new Set(Object.values(g.via))].map(esc).join(", ")} (not linked)` : ""}</p>`;
+  const apply = `<div class="co-grid">
+      ${sec("Where to apply", applyLinkList(g, e))}
+      ${sec("The steps", process, gradProcess ? "Graduate program" : "")}
+      ${sec("Who can apply, and when", coTips(g, who, "No rules beyond the ad itself. Check each ad's eligibility section."), who.length ? "For recent graduates" : "")}
+    </div>`;
+  const panes = { about, advice, apply, jobs: jobsPane(g) };
   return `<li class="co-gli${e && coSel.has(e.id) ? " picked" : ""}">${e ? pickBox(e) : ""}<details class="co-card" data-co="${g.key}"${open ? " open" : ""}>
     <summary>
       <span class="co-rank" aria-label="Rank ${g.rank}">${g.rank}</span>
-      <span class="co-title"><b>${esc(g.name)}</b><small>${esc(indName(g.industry))} · ${esc(GUIDE_SIZES[g.size])}${g.staff ? ` · ${esc(g.staff)}` : ""}</small></span>
+      <span class="co-title"><b>${esc(g.name)}</b><small>${esc(indName(g.industry))} · ${esc(GUIDE_SIZES[g.size])}${staff ? ` · ${esc(staff)}` : ""}</small></span>
       <span class="co-badges">${rankLine(g)}</span>
       <svg class="co-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
     </summary>
     <div class="co-body">
-      <div class="co-top">
-        <div>
-          ${g.purpose ? `<p class="co-purpose"><span class="small muted">Purpose</span> ${quoteIt(g.purpose)}</p>` : ""}
-          ${g.values.length ? `<div class="co-vrow">${coValues(g)}${coSrc(g, g.valuesSrc)}</div>` : ""}
-          ${g.valuesNote ? `<p class="small muted">${esc(g.valuesNote)}${g.values.length ? "" : " " + coSrc(g, g.valuesSrc)}</p>` : ""}
-          ${g.goals && g.goals.length ? `<p class="small"><b>Goals:</b> ${g.goals.map(esc).join(" · ")}</p>` : ""}
-        </div>
-        <div class="b-actions co-actions">
-          <button class="btn primary" type="button" data-guide-tailor="${g.key}">Tailor my resume for ${esc(shortName(g))}</button>
-          ${e ? careersBtns(e, "btn") : ""}
-          ${g.values.length ? `<button class="btn" type="button" data-guide-copy="${g.key}">Copy their values</button>` : ""}
-        </div>
-      </div>
-      <div class="co-grid">
-        ${sec("What they look for", coTips(g, g.look))}
-        ${sec("Resume", coTips(g, g.resume))}
-        ${sec("Cover letter", coTips(g, g.cover))}
-        ${sec("Interview and assessments", coTips(g, g.interview))}
-        ${sec("How to apply", process)}
-        ${sec("Who can apply, and when", coTips(g, who, "No rules beyond the ad itself. Check each ad's eligibility section."))}
-      </div>
-      <p class="small co-links">${Object.keys(g.links).length ? `<b>Sources on ${esc(shortName(g))}'s website:</b> ${Object.entries(g.links).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(LINK_NAMES[k] || "Source")}</a>`).join(" · ")}` : ""}${g.via ? `${Object.keys(g.links).length ? ". " : ""}<b>Also drawn from:</b> ${[...new Set(Object.values(g.via))].map(esc).join(", ")} (not linked)` : ""}</p>
+      <div class="co-tabs" role="tablist" aria-label="${esc(g.name)}">${tabs.map(([k, l]) => `<button type="button" role="tab" class="co-tab" id="cotab-${g.key}-${k}" aria-controls="copane-${g.key}-${k}" aria-selected="${k === tab}" tabindex="${k === tab ? 0 : -1}" data-co-tab="${k}">${l}${k === "jobs" ? `<span class="co-tabn">${nJobs ? " (" + nJobs + ")" : ""}</span>` : ""}</button>`).join("")}</div>
+      ${tabs.map(([k]) => `<div class="co-pane" role="tabpanel" id="copane-${g.key}-${k}" aria-labelledby="cotab-${g.key}-${k}" data-pane="${k}"${k === tab ? "" : " hidden"}>${panes[k]}</div>`).join("")}
     </div>
   </details></li>`;
 }
@@ -145,7 +209,7 @@ function guidesShown() {
   const q = guideState.q.trim().toLowerCase();
   const list = employers().filter(e => (guideState.kind === "all" || e.kind === "guide") && (guideState.industry === "all" || e.industry === guideState.industry)
     && (guideState.size === "all" || e.size === guideState.size) && inState(e, guideState.state)
-    && (!q || [e.name, indName(e.industry), e.asx || "", ...(e.guide ? [e.guide.purpose, ...e.guide.values] : [])].join(" ").toLowerCase().includes(q)));
+    && (!q || [e.name, indName(e.industry), e.asx || "", ...(e.guide ? [e.guide.purpose, ...e.guide.values, ...(COMPANY_PROFILES[e.guide.key] ? [COMPANY_PROFILES[e.guide.key].about, ...COMPANY_PROFILES[e.guide.key].spec] : [])] : [])].join(" ").toLowerCase().includes(q)));
   const r = e => e.kind === "guide" ? e.guide.rank : 9999;
   if (guideState.sort === "small") list.sort((a, b) => SIZE_ORDER[a.size] - SIZE_ORDER[b.size] || r(a) - r(b) || a.name.localeCompare(b.name));
   else if (guideState.sort === "big") list.sort((a, b) => SIZE_ORDER[b.size] - SIZE_ORDER[a.size] || r(a) - r(b) || a.name.localeCompare(b.name));
@@ -218,7 +282,7 @@ function guideNeedsHtml(key) {
   }
   const two = items => coTips(g, (items || []).slice(0, 2));
   return `<div class="needs-block co-needs">
-    <h3>What ${esc(shortName(g))} asks for <span class="muted small">${esc(indName(g.industry))} · from its careers pages${g.via ? " and graduate reviews" : ""} · checked ${GUIDE_CHECKED}</span></h3>
+    <h3>What ${esc(shortName(g))} asks for <span class="muted small">${esc(indName(g.industry))} · from its careers pages${g.via ? " and graduate reviews" : ""}</span></h3>
     ${g.values.length ? `<p class="small"><b>Their values:</b></p>${coValues(g)}` : g.valuesNote ? `<p class="small muted">${esc(g.valuesNote)}</p>` : ""}
     <div class="co-needs-grid">
       <div><b>Resume</b>${two(g.resume)}</div>
@@ -282,6 +346,25 @@ onInit(() => {
   $("coTotal").textContent = `${employers().length} Australian employers across ${industryOrder().length} industries, ${COMPANY_GUIDES.length} with a full guide`;
   $("coState").addEventListener("change", () => { guideState.state = $("coState").value; saveGuideState(); renderGuides(); });
   $("coKind").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { guideState.kind = b.dataset.v; saveGuideState(); renderGuides(); } });
+  const showTab = (card, k, focus) => {
+    const key = card.dataset.co; guideTabs[key] = k;
+    card.querySelectorAll(".co-tab").forEach(t => { const on = t.dataset.coTab === k; t.setAttribute("aria-selected", String(on)); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+    card.querySelectorAll(".co-pane").forEach(p => { p.hidden = p.dataset.pane !== k; });
+    if (k === "jobs") { const g = guideByKey(key), p = card.querySelector('[data-pane="jobs"]'); if (g && p) p.innerHTML = jobsPane(g); }
+  };
+  $("coList").addEventListener("click", e => {
+    const t = e.target.closest("[data-co-tab]");
+    if (t) { e.preventDefault(); showTab(t.closest(".co-card"), t.dataset.coTab); return; }
+    const j = e.target.closest("[data-co-job]");
+    if (j) { jobsUI.q = j.dataset.coQ || ""; jobsUI.where = ""; jobsUI.open = j.dataset.coJob; openView("jobs"); }
+  });
+  $("coList").addEventListener("keydown", e => {
+    const t = e.target.closest("[data-co-tab]"); if (!t || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const tabs = [...t.closest(".co-tabs").querySelectorAll(".co-tab")], i = tabs.indexOf(t);
+    const n = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    showTab(t.closest(".co-card"), tabs[n].dataset.coTab, true);
+  });
   $("coList").addEventListener("change", e => {
     const id = e.target.dataset && e.target.dataset.pick; if (!id) return;
     if (e.target.checked) coSel.add(id); else coSel.delete(id);
@@ -314,5 +397,7 @@ onInit(() => {
       if (g && ((guideState.industry !== "all" && guideState.industry !== g.industry) || (guideState.size !== "all" && guideState.size !== g.size) || !inState({ st: GUIDE_STATES[g.key] || "National" }, guideState.state))) { guideState.industry = "all"; guideState.size = "all"; guideState.state = "all"; }
     }
     renderGuides(opts.key);
+    // the jobs on Job Finder load a moment later: bring each Jobs tab up to date when they arrive
+    if (typeof startMarket === "function") startMarket().then(() => { if (currentView === "companies") refreshJobTabs(); }, () => {});
   };
 });

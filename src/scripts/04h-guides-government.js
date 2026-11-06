@@ -73,7 +73,7 @@ COMPANY_GUIDES.push(
     interview: [["A psychometric assessment, then an assessment centre for selected applicants: show how you'd act in workplace situations", "process"]],
     process: ["Online application and resume", "Psychometric assessment", "Assessment centre", "Reference checks", "Offer by phone"], processSrc: "process",
     elig: [["Australian citizen with a relevant degree or JD, finishing before the program starts", "process"]],
-    timing: ["Applications ran 3 to 16 August 2026 for a February 2027 start: a two-week window", "process"],
+    timing: ["Applications have run for about two weeks in August for a February start", "process"],
     links: { process: "https://careers.asic.gov.au/Graduate-application-process.html?in_organId=16529", faq: "https://careers.asic.gov.au/Graduate-FAQs.html?in_organId=16529" } },
 
   { key: "dewr", name: "Department of Employment and Workplace Relations", match: /\bDepartment of Employment and Workplace Relations\b|\bDEWR\b/i, industry: "government", size: "large", top100: 69,
@@ -116,7 +116,7 @@ COMPANY_GUIDES.push(
     interview: [["An online assessment on a large screen; no feedback if you don't progress", "apply"], ["A half-day virtual assessment centre: behavioural interview and group activity. Clear the time: you must withdraw if you can't attend", "apply"]],
     process: ["Online application", "Online assessment", "Virtual assessment centre and referees", "Merit pool (18 months)", "Checks and offer"], processSrc: "apply",
     elig: [["Meet the program's minimum requirements; Indigenous Graduate Pathway and RecruitAbility are available", "apply"]],
-    timing: ["Applications opened 2 March 2026; some streams also come through the AGGP", "apply"],
+    timing: ["Applications open in early March; some streams also come through the AGGP", "apply"],
     links: { apply: "https://www.servicesaustralia.gov.au/how-to-apply-to-national-graduate-program?context=22", who: "https://www.servicesaustralia.gov.au/who-were-looking-for-national-graduate-program?context=22", values: APS_VALUES_URL } },
 
   { key: "rba", name: "Reserve Bank of Australia", match: /\bReserve Bank of Australia\b|\bRBA\b/, minHits: 2, industry: "government", size: "medium", top100: 93,

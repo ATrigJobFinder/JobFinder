@@ -41,3 +41,10 @@ Opened the built page in headless Chrome at 1440x900, 1366x650, 1280x720 and 390
 - **Map labels:** suburb names and main-road names now always show; side-street names come in from zoom 17 (`mapStyle` in 36i). Shop, landmark and transit names, and road icons, stay off.
 - **Zooming out never leaves the map.** The automatic return to the globe is gone (this replaces the "zoom out to the globe" change from part 1; the minimum zoom is back to 12). The ways back are the **Back to the globe** button and the Job Finder logo.
 - Fixed a slip from part 2: pressing Enter on a Location suggestion kept the postcode in the box's name for some places (a lost backslash in a pattern).
+
+# Version 28, part 4
+
+- **The buttons open the map again** (reverses the first point of part 3): **Jobs near me**, **Use my location** and **Show me jobs with no experience needed** go down through the clouds to the map. Picking a place from the Location list, and the automatic location on a return visit, still only turn the globe.
+- **Zooming out still never leaves the map** (part 3's change stays). Leave with **Back to the globe** or the Job Finder logo.
+- **Jobs in the Home card open the map at that job.** Each job in the scrolling list is a button: pressing it dives to the map, adds that job to the map's pins if it isn't already there, pans to it and opens its summary (`dive(at, hub, pick)` and `panel._jobs` in 36f). The card's jobs get a position near the place and a pay when they don't have one.
+- Checked in headless Chrome: all three buttons and a card job start the dive. The map itself can't open from a local file (the Google key only allows your own site), so the last step was not seen.

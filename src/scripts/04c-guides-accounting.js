@@ -8,7 +8,7 @@ COMPANY_GUIDES.push(
     cover: [["Name the service line you want (Assurance, Tax, Consulting, EY-Parthenon) and why", "profile"], ["Link one of EY's values, such as teaming or doing the right thing, to an example", "ours"]],
     interview: [["Assessment centre with a group activity and an interview", "profile"], ["Expect case-study scenarios and questions on your industry knowledge: research EY's services and recent trends", "profile"]],
     process: ["Online application and testing", "Assessment centre: group activity and interview", "Offer"], processSrc: "profile",
-    elig: [["You must stay in Australia for the whole graduate program", "profile"]], timing: ["Listings close in 2026 for February 2027 starts, and some close quickly: apply early", "profile"],
+    elig: [["You must stay in Australia for the whole graduate program", "profile"]], timing: ["Listings close months before the February start, and some close quickly: apply early", "profile"],
     links: { values: "https://www.ey.com/content/dam/ey-unified-site/ey-com/en-gl/campaigns/value-realized/documents/ey-gl-purpose-values-strategy-10-2024.pdf" }, via: { profile: "Prosple" } },
 
   { key: "kpmg", name: "KPMG", match: /\bKPMG\b/, industry: "accounting", size: "global", top100: 2,
@@ -75,8 +75,8 @@ COMPANY_GUIDES.push(
     cover: [["Optional. If you write one, explain your two service line choices", "process"]],
     interview: [["A 30 to 40 minute online assessment of cognitive ability and behavioural strengths, with feedback in 24 to 48 hours", "process"], ["A 10 to 15 minute video interview: one warm-up and three assessed questions. Keep answers clear and concise", "process"], ["A half-day assessment centre and/or interview, in person, online or both", "process"]],
     process: ["Get to know the service lines", "Apply online: CV, transcript, two preferences", "Online assessment", "Video interview", "Assessment centre and/or interview"], processSrc: "process",
-    elig: [["Graduates: finishing by mid-2027, or finished within two years. Vacationers: final or penultimate year", "process"], ["Citizens, permanent residents, or visa holders with full-time work rights; student (500) and graduate (485) visa holders use an expression of interest; working holiday visas aren't accepted", "process"]],
-    timing: ["2027 graduate and 2026/27 vacation applications ran 20 July to 14 August 2026", "process"],
+    elig: [["Graduates: finishing by mid-year of the intake, or finished within the last two years. Vacationers: final or penultimate year", "process"], ["Citizens, permanent residents, or visa holders with full-time work rights; student (500) and graduate (485) visa holders use an expression of interest; working holiday visas aren't accepted", "process"]],
+    timing: ["Graduate and vacation applications have run from late July to mid-August", "process"],
     links: { process: "https://www.grantthornton.com.au/careers/student-opportunities/the-application-process/", grads: "https://www.grantthornton.com.au/careers/student-opportunities/graduates/", faq: "https://www.grantthornton.com.au/careers/student-opportunities/faqs/" } },
 
   { key: "protiviti", name: "Protiviti", match: /\bProtiviti\b/i, industry: "accounting", size: "large", top100: 19,
@@ -99,7 +99,7 @@ COMPANY_GUIDES.push(
     interview: [["Not published. Prepare to talk through a quantitative problem step by step", "ours"]],
     process: [], processSrc: "ad", processNote: "The listing doesn't give the steps.",
     elig: [["Unrestricted Australian working rights; a bachelor's degree or higher; no experience needed", "ad"]],
-    timing: ["The 2027 Economic & Financial Consulting program closed 16 August 2026 for a 1 February 2027 start", "ad"],
+    timing: ["The Economic & Financial Consulting program has closed in mid-August for a 1 February start", "ad"],
     links: {}, via: { ad: "Prosple" } },
 
   { key: "williambuck", name: "William Buck", match: /\bWilliam Buck\b/i, industry: "accounting", size: "medium", staff: "About 1,200 across Australia and NZ", top100: 45,
@@ -109,7 +109,7 @@ COMPANY_GUIDES.push(
     cover: [["Say why a mid-tier firm, and why working with clients early appeals", "ours"]],
     interview: [["A video interview and/or online testing, then an interview", "profile"]],
     process: ["Apply through the careers page", "Video interview and/or online testing", "Interview", "Offer"], processSrc: "profile",
-    elig: [], timing: ["Pre-register now for the program starting 21 February 2028 (Melbourne)", "profile"],
+    elig: [], timing: ["Pre-register to hear when the next Melbourne program opens; it starts in late February", "profile"],
     links: {}, via: { profile: "Prosple" } },
 
   { key: "sw", name: "SW Accountants & Advisors", match: /\bSW Accountants\b|\bShineWing\b/i, industry: "accounting", size: "small", staff: "Over 400, with 41 partners", top100: 48,
@@ -130,8 +130,8 @@ COMPANY_GUIDES.push(
     cover: [["Say whether you plan to do CA or CPA, and why Findex's regional and city network appeals", "ours"]],
     interview: [["A skills-based assessment process: show analytical and problem-solving ability", "ad"]],
     process: [], processSrc: "ad", processNote: "Findex describes a “skills-based assessment process” without the steps.",
-    elig: [["Bachelor's degree or higher in accounting, commerce, economics, engineering, IT and similar", "ad"], ["Citizens, permanent residents and listed visa holders; international applicants need two years of full-time work rights from February 2027", "ad"]],
-    timing: ["Applications for February 2027 closed 30 April 2026", "ad"],
+    elig: [["Bachelor's degree or higher in accounting, commerce, economics, engineering, IT and similar", "ad"], ["Citizens, permanent residents and listed visa holders; international applicants need two years of full-time work rights from the February start", "ad"]],
+    timing: ["Applications for the February start close at the end of April", "ad"],
     links: {}, via: { ad: "Prosple" } },
 
   { key: "kordamentha", name: "KordaMentha", match: /\bKordaMentha\b/i, industry: "accounting", size: "medium", top100: 77,
@@ -142,7 +142,7 @@ COMPANY_GUIDES.push(
     interview: [["Phone screen, then a half-day assessment centre: two 30-minute interviews and a coffee with analysts (Restructuring adds a group case study)", "faq"], ["Final interview with a partner. Use specific examples and bring questions", "faq"]],
     process: ["Application", "Phone screen", "Half-day assessment centre", "Partner interview", "Offer"], processSrc: "faq",
     elig: [["Australian roles: Australian citizens or permanent residents only", "faq"], ["Graduates: final year, or finished within 24 months", "faq"]],
-    timing: ["Graduate applications ran late February to 31 March in 2025; starts are in early February", "faq"],
+    timing: ["Graduate applications have run from late February to 31 March; starts are in early February", "faq"],
     links: { faq: "https://kordamentha.com/careers/graduate-and-student-careers/student-graduate-program-faq", grads: "https://kordamentha.com/students-and-graduates" } },
 
   { key: "mcgrathnicol", name: "McGrathNicol", match: /\bMcGrath ?Nicol\b/i, industry: "accounting", size: "medium", top100: 82,
@@ -153,13 +153,13 @@ COMPANY_GUIDES.push(
     interview: [["An online cognitive test and video interview", "grads"], ["Face-to-face interview with a partner and a senior team member; feedback usually within a week", "grads"]],
     process: ["Online application", "Cognitive test and video interview", "Interview with a partner", "Feedback or offer"], processSrc: "grads",
     elig: [["Australian or NZ citizens or Australian permanent residents; Canberra roles need Australian citizenship", "grads"]],
-    timing: ["2028 applications open in February 2027", "grads"],
+    timing: ["Applications open each February", "grads"],
     links: { grads: "https://www.mcgrathnicol.com/students/" } },
 
   { key: "pitcher", name: "Pitcher Partners", match: /\bPitcher Partners\b/i, industry: "accounting", size: "medium", top100: 88,
     purpose: "“We believe success is better shared”", values: [], valuesNote: "Part of the Baker Tilly network; independent firms in Adelaide, Brisbane, Melbourne, Newcastle, Perth and Sydney.", valuesSrc: "grads",
     look: [["Personality and cultural fit more than technical knowledge", "reviews"]],
-    resume: [["Each city firm runs its own program (Ignite in 2027): apply to the city you want", "grads"]],
+    resume: [["Each city firm runs its own program (called Ignite): apply to the city you want", "grads"]],
     cover: [["Explain why mid-market work interests you, and what sets Pitcher apart", "reviews"]],
     interview: [["Phone call, psychometric tests, then an assessment centre with a group case study (sometimes accounting-technical)", "reviews"], ["Questions included an internal-controls case, the firm's challenges, why join, and whether AI will replace accountants", "reviews"], ["Research the firm's history; ask curious questions; be yourself", "reviews"]],
     process: ["Phone call with HR or a partner", "Psychometric tests", "Assessment centre", "Interviews with a partner and manager"], processSrc: "reviews",

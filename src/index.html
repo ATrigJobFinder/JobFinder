@@ -500,7 +500,7 @@
   <header class="view-head">
     <div>
       <h1 id="coTitle">Company guides</h1>
-      <p><span id="coTotal">Australian employers</span>, from small firms to global ones. Every link goes to the employer's own careers page. Companies with a full guide also show what they ask for in a resume and cover letter, how they interview, and what they value. Tick the ones you want and add them to your Application tracker in one go.</p>
+      <p><span id="coTotal">Australian employers</span>, from small firms to global ones. Every link goes to the employer's own careers page. Companies with a full guide also have an About page, advice for applying, how to apply, and the jobs they have listed here. Tick the ones you want and add them to your Application tracker in one go.</p>
     </div>
     <div class="top-actions"><button class="btn" id="coSelAll" type="button">Select all shown</button><button class="btn" id="coOpenAll" type="button">Open all guides</button></div>
   </header>
@@ -519,7 +519,7 @@
     <details class="co-about">
       <summary class="small">How they're ranked, and how Job Finder uses this</summary>
       <p class="small muted co-how"><b>Links:</b> every company link goes to the employer's own website, usually its careers page and, where it has one, its graduate or early-careers page. Tips taken from graduate review sites are named but not linked.</p>
-      <p class="small muted co-how"><b>Ranking:</b> companies with a full guide are ranked by the 2026 SEEK Grad Top100, the student vote run by GradConnection (now SEEK Grad), from #1 EY down. Guides that weren't in it follow, biggest first, then every other employer, biggest first.</p>
+      <p class="small muted co-how"><b>Ranking:</b> companies with a full guide are ranked by the SEEK Grad Top100, the student vote run by GradConnection (now SEEK Grad), from #1 down. Guides that weren't in it follow, biggest first, then every other employer, biggest first.</p>
       <p class="small muted co-how"><b>Sizes:</b> small is under 500 staff, medium 500 to 5,000, large over 5,000, and global means a large firm working in many countries. <b>States:</b> “National” means offices or roles across Australia.</p>
       <p class="small muted co-how"><b>Sending your resume to many employers:</b> tick each company, then <b>Add to Application tracker</b>. Each one is saved with its careers link, so you can work through them, tailor your resume for each, and record when you applied.</p>
       <p class="small muted co-how"><b>In your applications:</b> scan an ad from one of these companies in Tailor to a job and its values and tips appear in “What this job needs”, and go into your cover letter. “Our tip” marks our suggestion, based on what the company says it wants.</p>
@@ -533,7 +533,7 @@
     <button class="btn ghost" id="coBulkClear" type="button">Clear</button>
   </div>
   <p class="status-line" id="coBulkStatus" role="status"></p>
-  <p class="small muted">Careers links checked October 2026 on each employer's own website. Guide tips come from company careers pages, plus graduate reviews where named. Programs, dates and rules change, so open the careers page before you apply.</p>
+  <p class="small muted">Careers links were checked on each employer's own website. Guide tips come from company careers pages, plus graduate reviews where named. Programs, dates and rules change, so open the careers page before you apply.</p>
 </div>
 </section>
 
@@ -915,19 +915,44 @@
   <section class="panel jb-invites" id="jbInvites" hidden aria-live="polite"></section>
   <div class="jb-layout">
     <div class="jb-main">
-      <div class="jb-filters" role="search" aria-label="Filter jobs">
-        <label class="field jb-q" for="jbQ">Keywords<input type="search" id="jbQ" data-jbf="q" placeholder="Job title, skill or company" autocomplete="off"></label>
-        <label class="field" for="jbWhere">Where<input type="text" id="jbWhere" data-jbf="where" placeholder="City, state or remote" autocomplete="off"></label>
-        <label class="field" for="jbType">Work type<select id="jbType" data-jbf="type"><option value="">Any</option><option>Full time</option><option>Part time</option><option>Casual</option><option>Contract</option><option>Internship</option><option>Graduate program</option></select></label>
-        <label class="field" for="jbSource">From<select id="jbSource" data-jbf="source"><option value="">Everywhere</option><option value="site">Posted on Job Finder</option><option value="user">Saved by you</option></select></label>
-        <label class="field" for="jbSort">Sort<select id="jbSort" data-jbf="sort"><option value="match">Best match</option><option value="new">Newest</option></select></label>
+      <div class="jb-filters" role="search" aria-label="Filter jobs" data-nohelp>
+        <div class="jb-by">
+          <span class="jb-by-label" id="jbByLabel">Searching by:</span>
+          <div class="jb-roller" id="jbRoller" role="radiogroup" aria-labelledby="jbByLabel" tabindex="0">
+            <div class="jb-roller-band" aria-hidden="true"></div>
+            <div class="jb-roller-track" id="jbRollerTrack">
+              <button type="button" class="jb-ro" role="radio" data-by="title" aria-checked="true" tabindex="-1">Job Title</button>
+              <button type="button" class="jb-ro" role="radio" data-by="education" aria-checked="false" tabindex="-1">Education</button>
+              <button type="button" class="jb-ro" role="radio" data-by="geo" aria-checked="false" tabindex="-1">Geography</button>
+              <button type="button" class="jb-ro" role="radio" data-by="strong" aria-checked="false" tabindex="-1">Strong applicant</button>
+            </div>
+          </div>
+        </div>
+        <div class="jb-search">
+          <label class="jb-sbar" for="jbQ">
+            <svg class="jb-sicon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <span class="visually-hidden" id="jbQLabel">Search</span>
+            <input type="search" id="jbQ" data-jbf="q" placeholder="Job title, skill or company" autocomplete="off" aria-labelledby="jbQLabel">
+          </label>
+          <div class="jb-suggest" id="jbSuggest" hidden></div>
+        </div>
+        <div class="jb-opts">
+          <label class="jb-sel" for="jbPayMin"><span>Pay from</span><select id="jbPayMin" data-jbf="payMin" aria-label="Minimum pay"><option value="">No minimum</option></select></label>
+          <label class="jb-sel" for="jbPayMax"><span>Pay up to</span><select id="jbPayMax" data-jbf="payMax" aria-label="Maximum pay"><option value="">No maximum</option></select></label>
+          <div class="jb-where" id="jbRemote" role="group" aria-label="Where you'll work">
+            <button type="button" class="jb-pill" data-remote="On-site" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 21V5l8-2v18M12 9l8 2v10M8 8h.01M8 12h.01M8 16h.01M16 15h.01M16 18h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>On-site</button>
+            <button type="button" class="jb-pill" data-remote="Hybrid" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Hybrid</button>
+            <button type="button" class="jb-pill" data-remote="Remote" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Remote</button>
+          </div>
+          <label class="jb-sel" for="jbType"><span>Work type</span><select id="jbType" data-jbf="type"><option value="">Any</option><option>Full time</option><option>Part time</option><option>Casual</option><option>Contract</option><option>Internship</option><option>Graduate program</option></select></label>
+          <label class="jb-sel" for="jbSource"><span>From</span><select id="jbSource" data-jbf="source"><option value="">Everywhere</option><option value="site">Posted on Job Finder</option><option value="user">Saved by you</option></select></label>
+          <label class="jb-sel" for="jbSort"><span>Sort</span><select id="jbSort" data-jbf="sort"><option value="match">Best match</option><option value="new">Newest</option></select></label>
+        </div>
+        <div class="jb-active" id="jbActive" hidden></div>
       </div>
       <p class="small" id="jbSummary" aria-live="polite"></p>
       <div class="jb-list" id="jbList"></div>
     </div>
-    <aside class="jb-aside">
-      <section class="panel" id="jbTalent" aria-label="Talent pool"></section>
-    </aside>
   </div>
 </div>
 </section>

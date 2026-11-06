@@ -135,7 +135,7 @@ function locQ(path, label, o = {}) {
   const [sub, st] = x && x.kind === "au" ? [x.n, x.s] : x && x.kind === "world" ? [`${x.n}, ${x.s}`, ""] : splitLoc(saved);
   const known = !saved || !!x;
   return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${/suburb|town/i.test(String(label)) ? label : label + " (suburb)"}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
-    <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Start typing a suburb or town")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : "off"}" spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
+    <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Start typing a suburb or town")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : o.nofill ? "nope" : "off"}"${o.nofill ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" data-lpignore="true" data-1p-ignore data-form-type="other" readonly` : ""} spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
     <p class="pick-msg${known ? "" : " err"}" id="${id}-msg" role="status">${known ? "" : "We don't know that place. Pick it from the list as you type, so employers (and Job Finder) know where it is."}</p>${o.hint ? `<p class="q-hint">${o.hint}</p>` : ""}</div></div>`;
 }
 
@@ -176,13 +176,17 @@ function splitPhone(s, code) {
   return [c, fmtNational(n, c)];
 }
 const countryLabel = c => `${c[1]} +${c[2]}`;
-function phoneQ() {
-  const ct = P().contact, [code, nat] = splitPhone(ct.phone, ct.phoneCode || "+61");
-  const c = (countryByIso(ct.phoneIso) && "+" + countryByIso(ct.phoneIso)[2] === code ? countryByIso(ct.phoneIso) : countryByCode(code)) || countryByIso("AU");
-  return `<div class="q"><label class="q-label" for="b_phone">Mobile number</label><div class="q-body"><div class="seg-in phone">
+// The same country-and-number box is used for your own number (Contact) and for each referee's (o.path = where the number is saved)
+function phoneQ(o = {}) {
+  const ref = o.path, ct = P().contact;
+  const [code, nat] = ref ? splitPhone(val(getPath(P(), ref)), "+61") : splitPhone(ct.phone, ct.phoneCode || "+61");
+  const iso0 = ref ? getPath(P(), ref + "Iso") : ct.phoneIso;
+  const c = (countryByIso(iso0) && "+" + countryByIso(iso0)[2] === code ? countryByIso(iso0) : countryByCode(code)) || countryByIso("AU");
+  const id = ref ? fid(ref) : "b_phone";
+  return `<div class="q"><label class="q-label" for="${id}">${o.label || "Mobile number"}</label><div class="q-body"><div class="seg-in phone">
     <div class="pick cc"><button type="button" class="cc-btn" data-cc-open="1" aria-haspopup="listbox" aria-expanded="false" aria-label="Country: ${esc(countryLabel(c))}. Change"><span class="flag" aria-hidden="true">${flagOf(c[0])}</span><span class="cc-code">+${esc(c[2])}</span><span class="cc-caret" aria-hidden="true">▾</span></button>
-      <div class="cc-pop" hidden><input type="search" class="cc-search" placeholder="Search country or code" aria-label="Search countries" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="ccList" aria-autocomplete="list"><ul class="pick-list" id="ccList" role="listbox" aria-label="Countries"></ul></div></div>
-    <input type="tel" id="b_phone" data-phone="1" data-code="+${esc(c[2])}" data-iso="${esc(c[0])}" value="${esc(nat)}" placeholder="${c[0] === "AU" ? "412 345 678" : "Number"}" autocomplete="tel-national" inputmode="tel"></div></div></div>`;
+      <div class="cc-pop" hidden><input type="search" class="cc-search" placeholder="Search country or code" aria-label="Search countries" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="ccList-${id}" aria-autocomplete="list"><ul class="pick-list" id="ccList-${id}" role="listbox" aria-label="Countries"></ul></div></div>
+    <input type="tel" id="${id}" data-phone="1"${ref ? ` data-phone-path="${ref}"` : ""} data-code="+${esc(c[2])}" data-iso="${esc(c[0])}" value="${esc(nat)}" placeholder="${c[0] === "AU" ? "412 345 678" : "Number"}" autocomplete="${ref ? "nope" : "tel-national"}"${ref ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" data-lpignore="true" data-1p-ignore data-form-type="other" readonly` : ""} inputmode="tel"></div></div></div>`;
 }
 function countryOptions(q) {
   const k = placeKey(q).replace(/^\+/, ""), digits = String(q || "").replace(/\D/g, "");
@@ -996,6 +1000,7 @@ function ccOpen(btn) {
 function ccClose(pop, focusBtn) {
   if (!pop || pop.hidden) return;
   pop.hidden = true;
+  pop.querySelector(".pick-list").innerHTML = "";   // (several phone boxes can be on the page: keep option ids unique)
   const btn = pop.parentElement.querySelector(".cc-btn"); btn.setAttribute("aria-expanded", "false");
   if (focusBtn) btn.focus();
 }

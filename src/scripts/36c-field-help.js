@@ -206,8 +206,14 @@ function helpHide() { clearTimeout(helpState.timer); helpState.pinned = false; i
 function helpHideSoon() { clearTimeout(helpState.timer); if (!helpState.pinned) helpState.timer = setTimeout(helpHide, 160); }
 function helpInit() {
   helpEnhance();
-  let queued = 0;
-  new MutationObserver(() => { if (queued) return; queued = setTimeout(() => { queued = 0; helpEnhance(); }, 80); }).observe(document.body, { childList: true, subtree: true });
+  // New boxes get their (i) in the same frame they appear. (A delay here made every icon vanish and pop back whenever the form redrew, like when you tick a licence.)
+  let queued = false;
+  const isBox = n => n.nodeType === 1 && (n.matches("input,textarea,select") || !!n.querySelector("input,textarea,select"));
+  new MutationObserver(recs => {
+    if (queued || !recs.some(r => [...r.addedNodes].some(isBox))) return;
+    queued = true;
+    queueMicrotask(() => { queued = false; helpEnhance(); });
+  }).observe(document.body, { childList: true, subtree: true });
   const hinfo = e => e.target.closest && e.target.closest(".hinfo");
   document.addEventListener("mouseover", e => { const b = hinfo(e); if (b && !helpState.pinned) { clearTimeout(helpState.hover); clearTimeout(helpState.timer); helpState.hover = setTimeout(() => helpShow(b), HELP_DELAY); } });
   document.addEventListener("mouseout", e => { if (hinfo(e)) { clearTimeout(helpState.hover); if (!helpState.pinned) helpHideSoon(); } });

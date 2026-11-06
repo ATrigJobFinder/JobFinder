@@ -59,7 +59,7 @@ const EXTRA_KEYS = [
 const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyRef = () => ({ name: "", role: "", org: "", phone: "", email: "", done: false, polished: "" });
+const emptyRef = () => ({ name: "", role: "", org: "", phone: "", phoneIso: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
   v: 2,
   // ad and company: filled when the resume is for one particular job
