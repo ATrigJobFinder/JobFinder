@@ -1,0 +1,37 @@
+/* ===================== Find jobs: location beside every search, Level and Type for education, bell, save icon ===================== */
+.jb-right { display: grid; gap: 10px; min-width: 0; }
+.jb-searchrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; min-width: 0; }
+.jb-searchrow > .jb-search { flex: 1.5 1 240px; }
+.jb-searchrow > .jb-loc { flex: 1 1 200px; min-width: 0; }
+.jb-edu { display: flex; flex-wrap: wrap; gap: 10px; flex: 1.5 1 280px; min-width: 0; }
+.jb-edu .jb-sel { flex: 1 1 140px; max-width: none; }
+.jb-search[hidden], .jb-edu[hidden], .jb-strong[hidden], .jb-suggest[hidden] { display: none; }
+.jb-strong { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: flex-end; }
+.jb-strong .jb-sel { max-width: 18rem; flex: 0 1 18rem; }
+.jb-strong p { margin: 0 0 6px; flex: 1 1 14rem; }
+.jb-sg-l { align-self: center; margin-right: 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+
+/* the sort drop-down sits right above the jobs */
+.jb-listbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
+.jb-listbar #jbSummary { margin: 0; flex: 1 1 16rem; min-width: 0; }
+.jb-sort { flex: 0 0 auto; min-width: 150px; max-width: 200px; }
+.jb-sort select { padding: 7px 34px 7px 12px; }
+
+/* the bell: saved applications waiting to be filled out */
+.jb-bell { position: relative; padding: 9px 12px; text-decoration: none; }
+.jb-bell.has { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.jb-bell-n { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: var(--bad, #C0392B); color: #fff; font: 700 0.7rem/19px var(--font-body); text-align: center; border: 2px solid var(--surface); }
+.jb-bell-n[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) { .jb-bell.has svg { animation: jb-ring 1.6s ease 0.4s 2; transform-origin: 50% 10%; } }
+@keyframes jb-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(8deg); } 60% { transform: rotate(-5deg); } 75% { transform: rotate(0); } }
+
+/* the save symbol in the open job (it used to be a Close link) */
+.jb-bm { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.jb-bm:hover { border-color: var(--accent); color: var(--accent); }
+.jb-bm.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.jb-bm:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@container main (max-width: 700px) {
+  .jb-listbar { align-items: stretch; }
+  .jb-sort { flex: 1 1 100%; max-width: none; }
+}

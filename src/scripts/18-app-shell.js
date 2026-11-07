@@ -1,5 +1,5 @@
 /* ===================== App shell: sidebar and tabs ===================== */
-const VIEWS = { support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
+const VIEWS = { "advice-resume": "Resume advice", "advice-letter": "Cover letter advice", "advice-linkedin": "LinkedIn advice", support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
 const NAV_KEY = "jobfinder.nav.v1", VIEW_KEY = "jobfinder.view.v1", MODE_KEY = "jobfinder.mode.v1";
 const EMPLOYER_VIEWS = new Set(["employer", "jobs", "connect"]);
 const appEl = $("app");
@@ -124,6 +124,11 @@ function openView(name, opts = {}) {
 }
 let pendingViewOpts = null;
 window.addEventListener("hashchange", () => { const o = pendingViewOpts || {}; pendingViewOpts = null; showView(location.hash.slice(1), o); });
+// "Job map" in the Find work menu: the home page, then down into the map
+document.querySelectorAll('[data-act="job-map"]').forEach(a => a.addEventListener("click", e => {
+  e.preventDefault(); closeDrawer(false);
+  if (currentView === "home") globeOpenMap(); else { openView("home"); setTimeout(() => globeOpenMap(), 400); }
+}));
 document.querySelectorAll(".sn-item").forEach(a => a.addEventListener("click", e => {
   // the same tab again: just close the drawer
   if (a.dataset.view === currentView) { e.preventDefault(); closeDrawer(false); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" }); }

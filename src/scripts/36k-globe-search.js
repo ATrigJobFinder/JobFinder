@@ -69,8 +69,8 @@ const GLOBE_BLURBS = [
   t => `Example only: a ${t.toLowerCase()} role placed near here. Real jobs are in Find jobs.`,
   t => `Shows what a ${t.toLowerCase()} listing looks like on the map. Not a live job.`
 ];
-function globeLocalJobs(spot, place, hub, what, n = 36, radiusKm = 3.2) {
-  const rnd = globeRng([...(place + "|" + (what ? what.label : ""))].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 17));
+function globeLocalJobs(spot, place, hub, what, n = 36, radiusKm = 3.2, salt = "") {
+  const rnd = globeRng([...(place + "|" + (what ? what.label : "") + (salt ? "|" + salt : ""))].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 17));
   const fams = hub && hub.mix && hub.mix.length ? hub.mix : ["retail", "hospitality", "health", "trades"], list = [];
   for (let i = 0; i < n; i++) {
     const fam = what && what.key ? what.key : fams[i % fams.length];

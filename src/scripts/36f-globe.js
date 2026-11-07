@@ -3,6 +3,7 @@
 // The land is dots from the map in 36e. The jobs are examples made up here to show how it works, not live listings.
 const GLOBE_D = Math.PI / 180;
 let globeToGlobe = () => {};   // set by initGlobe; the header logo (18) calls it
+let globeOpenMap = () => {};   // set by initGlobe; "Job map" in the menu (18) calls it
 // name, country, lat, lng, example jobs, mix of industries (see GLOBE_ROLES)
 const GLOBE_HUBS = [
   ["Sydney", "Australia", -33.87, 151.21, 1840, "finance,tech,health,gov"], ["Melbourne", "Australia", -37.81, 144.96, 1710, "tech,health,education,creative"],
@@ -111,9 +112,9 @@ const globeNum = n => n.toLocaleString("en-AU");
 const globeDist = km => km < 15 ? "right here" : km < 100 ? `${Math.round(km / 5) * 5} km away` : `${globeNum(Math.round(km / 10) * 10)} km away`;
 
 function initGlobe() {
-  const cv = $("globeCanvas"), stage = $("globeStage"), panel = $("globePanel");
+  const cv = $("globeCanvas"), stage = $("globeStage");
   const ctx = cv && cv.getContext("2d");
-  if (!ctx || !stage || !panel) { if (stage) stage.hidden = true; return; }
+  if (!ctx || !stage) { if (stage) stage.hidden = true; return; }
   const tip = $("globeTip"), live = $("globeStatus"), hero = $("globeHero"), gap = $("globeGap");
   const earth = $("globeGL") ? globeGL($("globeGL")) : { ok: false }; // the realistic Earth, if this browser can draw it (36h)
   let real = false, RB = 1, PC = null, ui = [], uiAt = -1e9;
@@ -143,11 +144,11 @@ function initGlobe() {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
     layout(); mapFlag(); kick();
   }
-  // the words and the card are drawn over the planet, so pins under them are left out
+  // the words are drawn over the planet, so pins under them are left out
   function measureUI() {
     const hr = hero.getBoundingClientRect(), pad = 8, box = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width ? [b.left - hr.left - pad, b.top - hr.top - pad, b.right - hr.left + pad, b.bottom - hr.top + pad] : null; };
     const head = $("globeHead"), cta = head && head.querySelector(".lp-cta"), lede = head && head.querySelector(".lp-lede");
-    ui = [box(head && head.querySelector("h1")), box(lede), box(cta), box(panel.firstElementChild)].filter(Boolean);
+    ui = [box(head && head.querySelector("h1")), box(lede), box(cta)].filter(Boolean);
   }
   const covered = (x, y) => ui.some(b => x > b[0] && x < b[2] && y > b[1] && y < b[3]);
   // where the planet sits: to the right of the words on a wide screen, in the gap between the words and the card on a narrow one
@@ -371,7 +372,7 @@ function initGlobe() {
   const flyP = (lat, lng, z) => new Promise(res => { flyTo(lat, lng, z); if (tween) tween.onEnd = res; else res(); });
   // back up through the clouds to the globe, above where you were
   async function surface(why) {
-    hero.classList.remove("gl-street"); streetIdle = false; streetOn = false; mapFlag(); if (street) street.hide(); sideOn(false); kick();
+    hero.classList.remove("gl-street"); streetIdle = false; streetOn = false; mapFlag(); if (street) street.hide(); sideOn(false); clearOpen(); hideTour(); kick();
     await wait(700);
     const z0 = view.z, z1 = 3.4;
     await run(1500, p => { const e = 1 - (1 - p) * (1 - p); view.z = z0 * Math.pow(z1 / z0, e); brk = 1 - p; });
@@ -400,45 +401,33 @@ function initGlobe() {
   globeToGlobe = () => {
     if (!street || !streetOn || busy) return;
     if (currentView === "home") { busy = true; surface(); return; }
-    hero.classList.remove("gl-street", "gl-diving"); streetIdle = false; streetOn = false; mapFlag(); street.hide(); sideOn(false);
+    hero.classList.remove("gl-street", "gl-diving"); streetIdle = false; streetOn = false; mapFlag(); street.hide(); sideOn(false); clearOpen(); hideTour();
     brk = 0; view.z = 3.4; auto = false; touch(); kick();
   };
   const mapFlag = () => document.body.classList.toggle("gl-map-open", streetOn && W >= 748);
   const listBox = $("globeList");
+  let sel = null;   // the job that is open on the left
   function renderList() {
     if (!listBox || !street || !streetOn) return;
-    const jobs = street.inView(), total = street.jobs().length;
+    const jobs = street.inView().filter(j => j !== sel), total = street.jobs().length;
     $("glListTitle").textContent = st.me ? "Jobs near you" : "Jobs in this area";
-    $("glCount").textContent = `${jobs.length} example job${jobs.length === 1 ? "" : "s"} in this map area${total > jobs.length ? ` of ${total} nearby` : ""}`;
+    $("glCount").textContent = `${jobs.length + (sel && street.inView().includes(sel) ? 1 : 0)} example job${jobs.length === 1 && !sel ? "" : "s"} in this map area${total > jobs.length ? ` of ${total} nearby` : ""}`;
     listBox._jobs = jobs;
-    listBox.innerHTML = jobs.length ? jobs.map((j, i) => `<li class="gl-job" data-i="${i}"><button type="button" class="gl-job-b" data-gl-job="${i}">
+    listBox.innerHTML = jobs.length ? jobs.map((j, i) => `<li class="gl-job${isSaved(j) ? " saved" : ""}" data-i="${i}"><button type="button" class="gl-job-b" data-gl-job="${i}">
       <b class="gl-job-title">${esc(j.title)}</b><span class="gl-job-pay">${esc(j.pay || j.kind)}</span>
       <span class="gl-job-org">${esc(j.org)} · ${esc(j.at)}</span>
-      <span class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}</span>
+      <span class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${isSaved(j) ? `<i class="sv">Saved</i>` : ""}</span>
       <span class="gl-job-about">${esc(j.about)}</span></button></li>`).join("")
-      : `<li class="gl-empty"><b>No example jobs in this part of the map</b><span>Zoom out or drag the map to see more.</span><button type="button" class="btn" data-gl-act="recentre">Back to the middle</button></li>`;
+      : `<li class="gl-empty"><b>${sel ? "No other example jobs in this part of the map" : "No example jobs in this part of the map"}</b><span>Zoom out or drag the map to see more.</span><button type="button" class="btn" data-gl-act="recentre">Back to the middle</button></li>`;
   }
-  let viewT = 0, scrollT = 0;
-  const SCROLL_WAIT = 200;   // ms to rest on a pin before the list scrolls to its job (so sweeping the mouse across pins does not make the list jump about)
-  // scroll the list so this card sits at the top, just under the search boxes that stay in place above it
-  function listToTop(li) {
-    const side = $("globeSide"), top = $("globeSideTop"); if (!side || !li) return;
-    const y = side.scrollTop + li.getBoundingClientRect().top - side.getBoundingClientRect().top - (top ? top.offsetHeight : 0) - 8;
-    side.scrollTo({ top: Math.max(0, y), behavior: reduceMotion() ? "auto" : "smooth" });
-  }
-  const hotItem = (j, scroll) => {
-    clearTimeout(scrollT);
-    if (!listBox || !listBox._jobs) return;
-    let target = null;
-    listBox.querySelectorAll(".gl-job").forEach(li => { const on = !!j && listBox._jobs[+li.dataset.i] === j; li.classList.toggle("hot", on); if (on) target = li; });
-    if (target && scroll) scrollT = setTimeout(() => { if (target.isConnected) listToTop(target); }, SCROLL_WAIT);
-  };
+  let viewT = 0;
   if (listBox) {
     listBox.addEventListener("click", e => {
       const b = e.target.closest("[data-gl-job]"), r = e.target.closest("[data-gl-act=recentre]");
       if (r && street) street.recentre();
-      else if (b && street) street.focus(listBox._jobs[+b.dataset.glJob]);
+      else if (b && street) selectJob(listBox._jobs[+b.dataset.glJob], true);
     });
+    // pointing at a card lights up its pin on the map (the left side itself never changes on hover)
     listBox.addEventListener("mouseover", e => { const li = e.target.closest(".gl-job"); if (li && street) street.hot(listBox._jobs[+li.dataset.i]); });
     listBox.addEventListener("mouseleave", () => { if (street) street.hot(null); });
     listBox.addEventListener("focusin", e => { const li = e.target.closest(".gl-job"); if (li && street) street.hot(listBox._jobs[+li.dataset.i]); });
@@ -446,8 +435,9 @@ function initGlobe() {
   }
   if (street) {
     street.onView = () => { clearTimeout(viewT); viewT = setTimeout(renderList, 120); };
-    street.onHot = j => hotItem(j, true);
-    street.onPick = j => hotItem(j, true);
+    street.onPick = j => selectJob(j, false);   // one tap on a pin
+    street.onSave = j => saveJob(j);            // two taps on a pin
+    street.isSaved = j => isSaved(j);
   }
   // already looking at the map and someone picked another place: move the map there
   async function restreet(spot, hub) {
@@ -478,7 +468,8 @@ function initGlobe() {
     street.show(got.r);
     street.setMe(st.me && globeKm(st.me.lat, st.me.lng, got.r.spot.lat, got.r.spot.lng) < 30 ? st.me : null);
     street.resize(); renderList();
-    if (pick) street.focus(pick);   // pan to it and open its summary
+    if (pick) selectJob(pick, true);   // pan to it and open it on the left
+    if (!lsGet(TOUR_KEY)) showTour();   // somebody new to the map gets a quick tour the first time
     say("Map open. Drag to move around. Use Back to the globe to leave it.");
     await wait(1000); streetIdle = true; busy = false; hero.classList.remove("gl-diving");   // the globe stops drawing once the map has faded in
   }
@@ -486,11 +477,16 @@ function initGlobe() {
     street.onBad = () => { if (streetOn && !busy) { busy = true; surface("Google turned the Maps key down."); } };
   }
   if (backBtn) backBtn.addEventListener("click", () => { if (streetOn && !busy) { busy = true; surface(); } });
-  const cbdBtn = $("globeCbd"); if (cbdBtn) cbdBtn.addEventListener("click", () => { if (streetOn && !busy && street) street.toCbd(); });
+  globeOpenMap = () => {
+    if (!MAPS_ON || streetOn || busy || !street) return;
+    const at = st.me ? { lat: st.me.lat, lng: st.me.lng } : { lat: GLOBE_CBD.lat, lng: GLOBE_CBD.lng };
+    dive(at, st.me ? st.me.hub : undefined);
+  };
+  const refreshBtn = $("globeCbd"); if (refreshBtn) refreshBtn.addEventListener("click", refreshJobs);
   function resetView() { const m = st.me; if (m) flyTo(m.lat, m.lng, START.z); else { flyTo(START.lat, START.lng, START.z); auto = !reduceMotion(); } }
   hero.addEventListener("click", e => {
     const b = e.target.closest("[data-gl]"); if (!b) return;
-    ({ in: () => zoomBy(1.5), out: () => zoomBy(1 / 1.5), reset: resetView, locate: () => locate(false, true), noexp: () => { if (whatBox) whatBox.value = GLOBE_NO_EXP; findNear(); } })[b.dataset.gl]();
+    ({ in: () => zoomBy(1.5), out: () => zoomBy(1 / 1.5), reset: resetView, locate: () => locate(false, false), noexp: () => { if (whatBox) whatBox.value = GLOBE_NO_EXP; findNear(); } })[b.dataset.gl]();
   });
 
   /* ---- what you're after, and where you are ---- */
@@ -501,10 +497,10 @@ function initGlobe() {
   // a dot was clicked on the globe: down into Google's map there (or, with no map, the card for that city)
   function pinGo(p) {
     if (!MAPS_ON) { choose(p.hub); return; }
-    st.mode = "hub"; st.hub = p.hub; st.err = ""; render();
+    st.mode = "hub"; st.hub = p.hub; st.err = "";
     dive(p.job ? { lat: p.job.lat, lng: p.job.lng } : { lat: p.hub.lat, lng: p.hub.lng }, p.hub);
   }
-  function choose(h) { st.mode = "hub"; st.hub = h; st.err = ""; flyTo(h.lat, h.lng, Math.max(view.z, 3)); render(); say(`${h.name}: ${globeNum(h.jobs)} example jobs.`); }
+  function choose(h) { st.mode = "hub"; st.hub = h; st.err = ""; flyTo(h.lat, h.lng, Math.max(view.z, 3)); say(`${h.name}: ${globeNum(h.jobs)} example jobs.`); }
   // a name for a spot: the nearest Australian suburb if it's close, otherwise the nearest city on the globe
   function nameFor(lat, lng) {
     let best = null, bd = 0.12;
@@ -519,7 +515,6 @@ function initGlobe() {
     if (whereBox && st.me.name) whereBox.value = st.me.name;
     if (resEl) resEl.innerHTML = "";
     setMsg("");
-    render();
     // with the map open it moves to the place; the buttons (Jobs near me, Use my location) go down through the clouds to the map; picking from the list or an automatic location only turns the globe
     if (MAPS_ON && streetOn && !busy) restreet({ lat, lng }, st.me.hub);
     else if (go && MAPS_ON && !busy && !streetOn) dive({ lat, lng }, st.me.hub);
@@ -527,8 +522,8 @@ function initGlobe() {
     say(`Showing example jobs near ${st.me.name || "you"}.`);
   }
   function locate(quiet, go) {
-    if (!navigator.geolocation) { st.mode = "ask"; setMsg("This browser can't share a location. Type a place instead.", "err"); render(); if (whereBox) whereBox.focus({ preventScroll: true }); return; }
-    st.mode = "asking"; st.err = ""; setMsg(""); render();
+    if (!navigator.geolocation) { st.mode = "ask"; setMsg("This browser can't share a location. Type a place instead.", "err"); if (whereBox) whereBox.focus({ preventScroll: true }); return; }
+    st.mode = "asking"; st.err = ""; setMsg("");
     let answered = false, waitT = 0;
     if (!quiet) waitT = setTimeout(() => {   // only if the browser has not answered straight away, and location is not already allowed
       if (answered) return;
@@ -537,16 +532,16 @@ function initGlobe() {
     }, 500);
     try {
       navigator.geolocation.getCurrentPosition(
-        pos => { answered = true; clearTimeout(waitT); arrive(pos.coords.latitude, pos.coords.longitude, undefined, go); },
+        pos => { answered = true; clearTimeout(waitT); arrive(pos.coords.latitude, pos.coords.longitude, undefined, go); if (!quiet && !go && !streetOn) setMsg("Your location is in focus on the globe. Press Jobs near me to see jobs around you."); },
         err => {
           answered = true; clearTimeout(waitT);
           st.mode = st.me ? "near" : "ask";
           setMsg(quiet ? "" : err && err.code === 1 ? "Your browser has location turned off for this page. Type a place instead." : "Couldn't find your location. Type a place instead.", quiet ? "" : "err");
-          render(); if (!quiet && whereBox) whereBox.focus({ preventScroll: true });
+          if (!quiet && whereBox) whereBox.focus({ preventScroll: true });
         },
         { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 }
       );
-    } catch { st.mode = "ask"; setMsg("Location isn't available here. Type a place instead.", "err"); render(); }
+    } catch { st.mode = "ask"; setMsg("Location isn't available here. Type a place instead.", "err"); }
   }
   function searchPlaces(q) {
     const k = placeKey(q); if (!k) return [];
@@ -590,7 +585,7 @@ function initGlobe() {
   }
   // The placeholder in the box cycles through a few prompts, so people see the kinds of thing they can type. It rests while there is text in the box or the box is being used.
   if (whatBox) {
-    const prompts = ["No experience", "Retail", "Hospo", "Barista", "Warehouse", "Nurse", "Trades", "Software", "Teacher"];
+    const prompts = ["No experience", "Retail", "Hospitality", "Barista", "Warehouse", "Nurse", "Trades", "Software", "Teacher"];
     let pi = 0;
     setInterval(() => {
       if (document.hidden || whatBox.value || document.activeElement === whatBox) return;
@@ -635,57 +630,167 @@ function initGlobe() {
   });
   if (resEl) resEl.addEventListener("click", e => { const pk = e.target.closest("[data-gl-pick]"); const r = pk && resEl._rs && resEl._rs[+pk.dataset.glPick]; if (r) arrive(r.lat, r.lng, r.name || r.label.replace(/ \d{4}$/, "")); });
 
-  /* ---- the card under the form ---- */
-  function render() {
-    const m = st.me, h = st.mode === "hub" ? st.hub : st.mode === "near" && m ? m.hub : null;
-    if (!h) { panel.innerHTML = ""; return; }
-    const what = st.mode === "near" ? globeWhat(readWhat()) : null, place = st.mode === "near" ? (m.name || "Your area") : `${h.name}, ${h.country}`;
-    const jobs = what ? globeSearchJobs(what, place, 12) : globeJobs(h).slice(0, 12), km = m && st.mode === "near" ? globeKm(m.lat, m.lng, h.lat, h.lng) : 0;
-    const others = (m ? globeNear(m.lat, m.lng) : globeNear(h.lat, h.lng).slice(1)).filter(x => x.h !== h).slice(0, 3);
-    const kicker = what ? what.label : st.mode === "near" ? "" : "Example jobs";
-    // give each job a place and pay so it can be pinned on the map (the ones made for the card have no position of their own)
-    const base = st.mode === "near" && m ? m : h;
-    panel._jobs = jobs.map((j, i) => {
-      if (j.lat != null && j.pay) return j;
-      const rnd = globeRng([...(j.title + "|" + place + "|" + i)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 3)), pays = GLOBE_PAYS[j.kind] || GLOBE_PAYS["Full-time"];
-      const r = 0.012 * Math.sqrt(rnd()), a = rnd() * Math.PI * 2;
-      return Object.assign(j, {
-        pay: j.pay || pays[Math.floor(rnd() * pays.length)], at: j.at || "Right by " + (st.mode === "near" && m ? place : h.name),
-        lat: j.lat != null ? j.lat : base.lat + r * Math.sin(a), lng: j.lng != null ? j.lng : base.lng + r * Math.cos(a) / Math.max(0.2, Math.cos(base.lat * GLOBE_D)),
-        about: j.about || GLOBE_BLURBS[i % GLOBE_BLURBS.length](j.kind)
-      });
-    });
-    const jobLi = (j, i, copy) => MAPS_ON
-      ? `<li><button type="button" class="gl-jobbtn" data-gl-card="${i}" title="See it on the map"${copy ? ' tabindex="-1"' : ""}><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></button></li>`
-      : `<li><b>${esc(j.title)}</b><span>${esc(j.org)} · ${esc(j.kind)}</span></li>`;
-    panel.innerHTML = `<div class="gl-card">${kicker ? `<p class="gl-k">${esc(kicker)}</p>` : ""}
-      <h2>${esc(place)}</h2>
-      <p class="small muted">${st.mode === "near" ? `Closest hub: <b>${esc(h.name)}</b>, ${globeDist(km)} · ` : ""}${what ? `${jobs.length} example jobs` : `${globeNum(h.jobs)} example jobs`}</p>
-      <div class="gl-jobs-win" tabindex="0" role="group" aria-label="Example jobs in this area. They scroll by on their own, and stop when you point at them. Press one to see it on the map." style="--gl-n:${jobs.length}">
-        <ul class="gl-jobs">${jobs.map((j, i) => jobLi(j, i, false)).join("")}</ul>
-        <ul class="gl-jobs gl-jobs-copy" aria-hidden="true">${jobs.map((j, i) => jobLi(j, i, true)).join("")}</ul>
-      </div>
-      <p class="small muted gl-near">Also close by: ${others.map(o => `<button type="button" class="gl-chip" data-gl-hub="${o.h.id}">${esc(o.h.name)}</button>`).join(" ")}</p>
-      <div class="b-actions"><a class="btn primary" href="#jobs" data-gl-act="jobs">Find jobs near here</a></div></div>`;
-  }
   $("globeSide").addEventListener("click", e => {
     if (e.target.closest("[data-gl-act=jobs]")) { const w = readWhat(), where = whereBox ? whereBox.value.trim() : ""; try { jobsUI.q = w; jobsUI.where = where; const q = $("jbQ"), wh = $("jbWhere"); if (q) q.value = w; if (wh) wh.value = where; } catch { /* the Find jobs page fills itself */ } }
   });
-  panel.addEventListener("click", e => {
-    const a = e.target.closest("[data-gl-act]"), hb = e.target.closest("[data-gl-hub]"), jb = e.target.closest("[data-gl-card]");
-    if (hb) { choose(GLOBE_HUBS[+hb.dataset.glHub]); return; }
-    if (jb && MAPS_ON && panel._jobs) {   // a job in the card: down to the map, at that job
-      const j = panel._jobs[+jb.dataset.glCard]; if (!j) return;
-      const hub = st.mode === "hub" ? st.hub : st.me ? st.me.hub : undefined;
-      dive({ lat: j.lat, lng: j.lng }, hub, j); return;
+
+  /* ---- saving a job to apply to later ---- */
+  const jobKey = (t, c) => norm((t || "") + "|" + (c || "")).replace(/[^a-z0-9|]/g, "");
+  const tracked = j => { try { const k = jobKey(j.title, j.org); return T().find(x => jobKey(x.title, x.company) === k) || null; } catch { return null; } };
+  const isSaved = j => !!tracked(j);
+  const isApplied = j => { const t = tracked(j); return !!t && t.stage !== "saved"; };
+  function saveJob(j) {
+    if (!j) return;
+    if (isSaved(j)) { toast(`${j.title} at ${j.org} is already saved.`, "warn"); return; }
+    if (trk.where === "loading") { toast("Your saved jobs are still loading. Try again in a moment.", "warn"); return; }
+    trackJob({ title: j.title, company: j.org, location: j.at, salary: j.pay || "", jd: j.about || "", source: "Job Finder map (example job)" }, "saved");
+    toast(`Saved ${j.title} at ${j.org}. Find it in your Application tracker.`);
+    say(`Saved ${j.title} at ${j.org} to apply to later.`);
+    if (street) street.refreshSaved();
+    renderOpen(); renderList();
+  }
+  // the save icon on the open job: saves it, or takes it back out if it is still only "Saved" (once you have applied, the tracker is where to change it)
+  function toggleSave(j) {
+    const t = j && tracked(j);
+    if (!t) { saveJob(j); return; }
+    if (t.stage !== "saved") { toast("It's in your Application tracker as " + (STAGES_T.find(x => x.key === t.stage) || { label: t.stage }).label.toLowerCase() + ". Change it there.", "warn"); return; }
+    trk.data.items = T().filter(x => x !== t); trk.save();
+    toast(`Removed ${j.title} from your saved jobs.`);
+    if (street) street.refreshSaved();
+    renderOpen(); renderList();
+  }
+  // Apply: puts the job in the tracker as Applied (these are example jobs, so there is no real application to send)
+  function applyJob(j) {
+    if (!j) return;
+    if (isApplied(j)) { toast("You've already marked this one as applied.", "warn"); return; }
+    if (trk.where === "loading") { toast("Your saved jobs are still loading. Try again in a moment.", "warn"); return; }
+    trackJob({ title: j.title, company: j.org, location: j.at, salary: j.pay || "", jd: j.about || "", source: "Job Finder map (example job)" }, "applied");
+    toast(`Marked ${j.title} at ${j.org} as applied. Follow it up in the Application tracker.`);
+    say(`Marked ${j.title} at ${j.org} as applied.`);
+    if (street) street.refreshSaved();
+    renderOpen(); renderList();
+  }
+
+  /* ---- the job that is open on the left ---- */
+  const openBox = $("globeOpen");
+  const HOURS = { "Full-time": "Ongoing, usually around 38 hours a week", "Part-time": "Fewer hours than full-time, set by a regular roster", Contract: "Fixed term, then it ends or is renewed", Casual: "Shifts as rostered, with a casual loading in place of leave" };
+  const MODES = [["TRANSIT", "Public transport"], ["DRIVING", "Drive"], ["WALKING", "Walk"], ["BICYCLING", "Cycle"]];
+  const TRAVEL = { TRANSIT: "transit", DRIVING: "driving", WALKING: "walking", BICYCLING: "bicycling" };
+  let collapsed = false;   // the open job shrunk down to its title
+  let commute = null;   // { mode, state: "loading" | "done" | "error", data, msg, from }
+  function renderOpen() {
+    if (!openBox) return;
+    if (!sel) { openBox.hidden = true; openBox.innerHTML = ""; return; }
+    const j = sel, saved = isSaved(j), applied = isApplied(j);
+    let trip = "";
+    if (commute) {
+      trip = `<div class="gl-trip-box"><div class="gl-modes" role="group" aria-label="How you would travel">${MODES.map(([k, l]) => `<button type="button" data-gl-mode="${k}" aria-pressed="${commute.mode === k}" class="${commute.mode === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+      if (commute.state === "loading") trip += `<p class="small" role="status">Working out the trip…</p>`;
+      else if (commute.state === "error") trip += `<p class="small gl-err" role="alert">${esc(commute.msg)}</p>`;
+      else {
+        const d = commute.data;
+        trip += `<p class="gl-trip"><b>${esc(d.duration)}</b>${d.distance ? ` · ${esc(d.distance)}` : ""}${d.leave ? ` · leave ${esc(d.leave)}, arrive ${esc(d.arrive)}` : ""}</p>
+          <p class="small muted">From ${esc((commute.from && commute.from.name) || "your location")}</p>
+          <ol class="gl-steps">${d.steps.map(x => `<li${x.transit ? ' class="tr"' : ""}>${esc(x.text)}${x.time ? ` <span>${esc(x.time)}</span>` : ""}</li>`).join("")}</ol>`;
+      }
+      const f = commute.from;
+      trip += `<p class="small"><a href="https://www.google.com/maps/dir/?api=1${f ? `&origin=${f.lat},${f.lng}` : ""}&destination=${j.lat},${j.lng}&travelmode=${TRAVEL[commute.mode]}" target="_blank" rel="noopener">Open in Google Maps</a> · This is an example job, so its address is made up.</p></div>`;
     }
-    if (!a) return;
-    const act = a.dataset.glAct;
-    if (act === "jobs") { const w = readWhat(), where = whereBox ? whereBox.value.trim() : ""; try { jobsUI.q = w; jobsUI.where = where; const q = $("jbQ"), wh = $("jbWhere"); if (q) q.value = w; if (wh) wh.value = where; } catch { /* the Find jobs page fills itself */ } }
-  });
+    openBox.hidden = false;
+    openBox.innerHTML = `<article class="gl-open-in${collapsed ? " collapsed" : ""}" aria-label="${esc(j.title)} at ${esc(j.org)}">
+      <div class="gl-open-top"><span class="gl-open-k">Open job</span><span class="gl-open-tools">
+        <button type="button" class="gl-ic gl-save${saved ? " on" : ""}" data-gl-open="save" aria-pressed="${saved}" aria-label="${saved ? "Saved. Press to remove from your saved jobs" : "Save this job for later"}" title="${saved ? "Saved" : "Save for later"}"><svg viewBox="0 0 24 24" width="18" height="18" fill="${saved ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z"/></svg></button>
+        <button type="button" class="gl-ic gl-fold" data-gl-open="collapse" aria-expanded="${!collapsed}" aria-label="${collapsed ? "Expand this job" : "Collapse this job"}" title="${collapsed ? "Expand" : "Collapse"}"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></button></span></div>
+      <h3>${esc(j.title)}</h3>
+      <p class="gl-open-pay">${esc(j.pay || j.kind)}</p>
+      <p class="gl-open-org">${esc(j.org)} · ${esc(j.at)}</p>
+      <p class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${saved ? `<i class="sv">Saved</i>` : ""}</p>
+      <h4>About the job</h4><p>${esc(j.about)}</p>
+      <dl class="gl-facts"><dt>Type</dt><dd>${esc(j.kind)}</dd><dt>Hours</dt><dd>${esc(HOURS[j.kind] || "")}</dd><dt>Pay</dt><dd>${esc(j.pay || "Not listed")}</dd><dt>Where</dt><dd>${esc(j.at)}</dd></dl>
+      <p class="small muted">This is an example, made up to show how the map works. Real jobs are in <a href="#jobs" data-gl-act="jobs">Find jobs</a>.</p>
+      <div class="gl-open-act">
+        <button type="button" class="btn ${applied ? "" : "primary"}" data-gl-open="apply">${applied ? "&#10003; Applied" : "Apply"}</button>
+        <button type="button" class="btn" data-gl-open="commute">Calculate commute</button>
+      </div>${trip}
+    </article>`;
+  }
+  function clearOpen() { sel = null; commute = null; collapsed = false; if (street) street.clearRoute(); renderOpen(); }
+  function selectJob(j, pan) {
+    if (!j) return;
+    if (sel !== j) { sel = j; commute = null; collapsed = false; if (street) street.clearRoute(); }
+    renderOpen(); renderList();
+    const side = $("globeSide"); if (side) side.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+    if (pan && street) street.focus(j);
+    say(`${j.title} at ${j.org} is open on the left.`);
+  }
+  // where the trip starts: the place in the Location box, else where you are
+  async function commuteOrigin() {
+    const q = whereBox ? whereBox.value.trim() : "";
+    if (st.me && (!q || st.me.name === q)) return st.me;
+    if (q) { const r = searchPlaces(q)[0]; if (r) return { lat: r.lat, lng: r.lng, name: r.name || r.label.replace(/ \d{4}$/, "") }; }
+    if (st.me) return st.me;
+    if (!navigator.geolocation) return null;
+    return new Promise(res => navigator.geolocation.getCurrentPosition(p => res({ lat: p.coords.latitude, lng: p.coords.longitude }), () => res(null), { timeout: 12000, maximumAge: 600000 }));
+  }
+  async function calcCommute(mode) {
+    const j = sel; if (!j || !street) return;
+    const mine = commute = { mode: mode || (commute && commute.mode) || "TRANSIT", state: "loading", from: commute && commute.from };
+    renderOpen();
+    const from = await commuteOrigin();
+    if (sel !== j || commute !== mine) return;
+    if (!from) { mine.state = "error"; mine.msg = "We need a starting point. Type your suburb in Location above, or allow your location, then try again."; renderOpen(); return; }
+    mine.from = from;
+    try { const d = await street.route(j, from, mine.mode); if (sel !== j || commute !== mine) return; mine.state = "done"; mine.data = d; }
+    catch (e) {
+      if (sel !== j || commute !== mine) return;
+      street.clearRoute(); mine.state = "error";
+      mine.msg = e && e.message === "none" ? `No ${(MODES.find(m => m[0] === mine.mode) || ["", "such"])[1].toLowerCase()} route was found. Try another way of travelling.` : "Directions aren't available here right now. Use Open in Google Maps below.";
+    }
+    renderOpen();
+  }
+  if (openBox) {
+    openBox.addEventListener("click", e => {
+      const a = e.target.closest("[data-gl-open]"), m = e.target.closest("[data-gl-mode]");
+      if (m) { calcCommute(m.dataset.glMode); return; }
+      if (!a) return;
+      if (a.dataset.glOpen === "collapse") { collapsed = !collapsed; renderOpen(); const f = openBox.querySelector(".gl-fold"); if (f) f.focus({ preventScroll: true }); }
+      else if (a.dataset.glOpen === "save") { toggleSave(sel); const f = openBox.querySelector(".gl-save"); if (f) f.focus({ preventScroll: true }); }
+      else if (a.dataset.glOpen === "apply") applyJob(sel);
+      else if (a.dataset.glOpen === "commute") calcCommute();
+    });
+    openBox.addEventListener("click", e => {
+      if (e.target.closest("[data-gl-act=jobs]")) { const w = readWhat(), where = whereBox ? whereBox.value.trim() : ""; try { jobsUI.q = w; jobsUI.where = where; const q = $("jbQ"), wh = $("jbWhere"); if (q) q.value = w; if (wh) wh.value = where; } catch { /* the Find jobs page fills itself */ } }
+    });
+  }
+
+  /* ---- Refresh Jobs: a new set of example jobs for the part of the map you are looking at ---- */
+  let refreshN = 0;
+  function refreshJobs() {
+    if (!streetOn || busy || !street) return;
+    const c = street.centre(); if (!c) return;
+    refreshN++;
+    const near = globeNear(c.lat, c.lng)[0], hub = near.km < 150 ? near.h : undefined, place = nameFor(c.lat, c.lng) || (hub ? hub.name : "here");
+    const what = globeWhat(readWhat()), cbd = globeKm(c.lat, c.lng, GLOBE_CBD.lat, GLOBE_CBD.lng) < 1.5 && !what;
+    const fresh = globeLocalJobs(c, place, hub, what, cbd ? 14 : 36, cbd ? 1.2 : 3.2, "refresh" + refreshN);
+    clearOpen();
+    street.setJobs((cbd ? GLOBE_CBD_JOBS : []).concat(fresh));
+    renderList();
+    toast("Jobs refreshed for this part of the map.");
+    say("Jobs refreshed for this part of the map.");
+  }
+
+  /* ---- a quick tour the first time someone opens the map (the ? button brings it back) ---- */
+  const TOUR_KEY = "jobfinder.maptour.v1", tour = $("globeTour");
+  function showTour() { if (!tour) return; tour.hidden = false; const ok = $("globeTourOk"); if (ok) ok.focus({ preventScroll: true }); }
+  function hideTour() { if (tour && !tour.hidden) { tour.hidden = true; } }
+  if (tour) {
+    $("globeTourOk").addEventListener("click", () => { lsSet(TOUR_KEY, "1"); hideTour(); const h = $("globeHelp"); if (h) h.focus({ preventScroll: true }); });
+    tour.addEventListener("keydown", e => { if (e.key === "Escape") { lsSet(TOUR_KEY, "1"); hideTour(); } });
+  }
+  const helpBtn = $("globeHelp"); if (helpBtn) helpBtn.addEventListener("click", () => { if (tour && tour.hidden) showTour(); else { lsSet(TOUR_KEY, "1"); hideTour(); } });
 
   /* ---- start ---- */
-  readColors(); render(); resize();
+  readColors(); resize();
   if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener("resize", resize);
   if (window.IntersectionObserver) new IntersectionObserver(es => { inView = es[0].isIntersecting; if (inView) kick(); }, { threshold: 0.05 }).observe(stage);
   document.addEventListener("visibilitychange", kick);

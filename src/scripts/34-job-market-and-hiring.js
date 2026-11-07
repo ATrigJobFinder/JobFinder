@@ -67,23 +67,29 @@ function allJobs() {
   const list = site.length ? [...site, ...mine] : [...EXAMPLE_JOBS, ...mine];
   return DEDUP.cluster(list);
 }
+// Which of your details strong matches are worked out from: your profile (the resume builder) or your resume (the one in Tailor to a job)
+const jbFromNow = () => jobsUI.from || (hasProfile(P()) ? "profile" : "resume");
 function jobMatch(j) {
-  const p = P();
-  const mine = new Set([...skillSet(hasProfile(p) ? profileToText(p) : els.resume.value), ...[...p.skills.hard, ...p.skills.software].flatMap(s => [...skillSet(s)])]);
+  const p = P(), fromProfile = jbFromNow() === "profile";
+  const mine = fromProfile
+    ? new Set([...skillSet(hasProfile(p) ? profileToText(p) : ""), ...[...p.skills.hard, ...p.skills.software].flatMap(s => [...skillSet(s)])])
+    : new Set([...skillSet(els.resume.value || "")]);
   const want = (j.skills && j.skills.length ? j.skills : [...skillSet([j.title, j.description].join("\n"))]).filter(s => (SKILLS.find(k => k.name === s) || {}).kind === "hard");
   if (!want.length || !mine.size) return null;
   const have = want.filter(s => mine.has(s));
   const titleBonus = p.target.title && similarity(zoneKey(p.target.title), zoneKey(j.title)) >= 0.4 ? 15 : 0;
   return { pct: Math.min(100, Math.round(have.length / want.length * 85) + titleBonus), have, missing: want.filter(s => !mine.has(s)) };
 }
-const jobsUI = { by: "title", q: "", edu: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "", sort: "match", open: null, applyFor: null, limit: 40 };
+const jobsUI = { by: "title", q: "", eduLevel: "", eduType: "", from: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "", sort: "match", open: null, applyFor: null, limit: 40 };
 // What the "Searching by" roller picks, and which box of jobsUI the search bar writes to
 const JB_MODES = {
   title: { field: "q", ph: "Job title, skill or company", label: "Search by job title, skill or company" },
-  education: { field: "edu", ph: "Degree or qualification, e.g. Bachelor of Engineering", label: "Search by education" },
-  geo: { field: "where", ph: "City, state or remote, e.g. Brisbane", label: "Search by place" },
+  education: { field: "", ph: "", label: "Search by education" },   // two drop-downs, Level and Type, instead of a search box
   strong: { field: "q", ph: "Jobs you're a strong fit for. Add a keyword to narrow them", label: "Narrow your strong matches by keyword" }
 };
+// Education: the level and the type (field of study). A job matches if its words mention both.
+const EDU_LEVELS = { "Certificate III or IV": /\bcert(?:ificate)?\.?\s*(?:iii|iv|3|4)\b/i, Diploma: /\bdiploma\b/i, "Bachelor degree": /\b(?:bachelor|undergraduate|degree)\b/i, Honours: /\bhonou?rs\b|\bhons\b/i, "Graduate certificate or diploma": /\bgraduate (?:certificate|diploma)\b/i, Masters: /\bmaster'?s?\b/i, PhD: /\bph\.?d\b|\bdoctora/i };
+const EDU_TYPES = { Engineering: /\bengineer/i, "IT and computer science": /\b(?:it|information technology|computer|computing|software|cyber ?security|data science)\b/i, Business: /\b(?:business|commerce|management|marketing)\b/i, "Accounting and finance": /\b(?:accounting|finance|economics|actuarial)\b/i, Health: /\b(?:health|nursing|medical|pharmacy|physiotherapy|allied)\b/i, Education: /\b(?:education|teaching)\b/i, Law: /\b(?:law|legal|juris)/i, Science: /\b(?:science|biology|chemistry|physics|environmental)\b/i, "Arts and design": /\b(?:arts?|design|media|communication|creative)\b/i, "Construction and trades": /\b(?:construction|building|architecture|surveying|trade|apprentice)/i };
 const STRONG_PCT = 60;   // the same line the employer side calls a strong match
 const PAY_STEPS = [40, 50, 60, 70, 80, 90, 100, 120, 150, 180, 200, 250];   // thousands a year
 // Pay is written every which way ("$75,000 to $82,000 + super", "$90k - $100k", "$26.50 an hour"), so turn it into a yearly range
@@ -99,13 +105,14 @@ function parsePay(text) {
 const workMode = j => j.remote || (/\bremote\b/i.test(j.location || "") ? "Remote" : "");
 const fmtPayStep = k => "$" + k + "k";
 function jobFilters(list) {
-  const q = jobsUI.q.trim().toLowerCase(), w = jobsUI.where.trim().toLowerCase(), edu = jobsUI.edu.trim().toLowerCase();
+  const q = jobsUI.q.trim().toLowerCase(), w = jobsUI.where.trim().toLowerCase(), lvl = EDU_LEVELS[jobsUI.eduLevel], typ = EDU_TYPES[jobsUI.eduType];
+  const eduText = j => [j.title, j.description, ...(j.requirements || [])].join(" ");
   const lo = jobsUI.payMin ? +jobsUI.payMin * 1000 : 0, hi = jobsUI.payMax ? +jobsUI.payMax * 1000 : Infinity;
   const strong = jobsUI.by === "strong";
   // listings from the database were already searched there (full-text, state and type), so only the other filters apply to them
   return list.filter(j => (j.fromDb || ((!q || [j.title, j.company, j.description].join(" ").toLowerCase().includes(q))
     && (!w || [j.location, j.remote].join(" ").toLowerCase().includes(w) || (w === "remote" && /remote/i.test(j.location + " " + j.remote)))
-    && (!edu || [j.title, j.description, ...(j.requirements || [])].join(" ").toLowerCase().includes(edu))
+    && (!lvl || lvl.test(eduText(j))) && (!typ || typ.test(eduText(j)))
     && (!jobsUI.type || j.workType === jobsUI.type)))
     && (!jobsUI.remote || workMode(j).toLowerCase() === jobsUI.remote.toLowerCase())
     && (!strong || (j.m && j.m.pct >= STRONG_PCT))
@@ -113,43 +120,174 @@ function jobFilters(list) {
     && (!jobsUI.source || (jobsUI.source === "site" ? j.sourceType === "site" : jobsUI.source === "user" ? (j.sourceType === "user" || j.also.some(a => a.sourceType === "user")) : j.sourceType !== "site" && j.sourceType !== "user")));
 }
 /* --- The filter bar: the "Searching by" roller, search box, pay, where you'll work --- */
+let jbRest = () => {};   // set up below: tucks the roller away a moment after it's used
 const RO_H = 34;   // height of one roller row (matches .jb-ro in the stylesheet)
 function jbSetMode(by, scroll) {
   if (!JB_MODES[by]) return;
-  jobsUI.by = by; jobsUI.limit = 40;
+  jobsUI.by = by; jobsUI.limit = 40; jbRest();
   if (scroll) { const t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by); if (t) t.scrollTo({ top: i * RO_H, behavior: scroll === "smooth" && !reduceMotion() ? "smooth" : "auto" }); }
   renderJobs();
 }
-function jbPaintRoller() {
-  const t = $("jbRollerTrack"); if (!t) return;
+function jbPaintWheel(t) {
+  if (!t) return;
   const pos = t.scrollTop / RO_H;
   [...t.children].forEach((b, i) => { const d = i - pos, a = Math.abs(d); b.style.opacity = String(Math.max(0.2, 1 - 0.5 * a)); b.style.transform = `perspective(160px) rotateX(${Math.max(-70, Math.min(70, -d * 38))}deg) scale(${Math.max(0.78, 1 - 0.1 * a)})`; });
 }
-function jbSuggestions() {
-  const p = P(), by = jobsUI.by, f = JB_MODES[by].field;
-  let items = [];
-  if (by === "education") items = [...new Set([...p.education.map(e => e.degree).filter(Boolean), "Bachelor", "Diploma", "Certificate IV", "Masters", "PhD"])];
-  else if (by === "geo") items = [...new Set([p.contact.location, "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Remote"].filter(Boolean))];
-  else if (by === "title" && p.target.title) items = [p.target.title];
-  return items.slice(0, 8).map(x => `<button type="button" class="jb-sg${jobsUI[f].toLowerCase() === x.toLowerCase() ? " on" : ""}" data-sg="${esc(x)}">${esc(x)}</button>`).join("");
+const jbPaintRoller = () => jbPaintWheel($("jbRollerTrack"));
+const jbDragging = t => !!t && t.classList.contains("drag");
+// A mouse can drag a wheel up and down (a finger already can). It snaps to the nearest row when let go.
+function jbDragWheel(track) {
+  let id = null, y0 = 0, s0 = 0;
+  const move = e => {
+    if (e.pointerId !== id) return;
+    const dy = e.clientY - y0;
+    if (!track._moved) { if (Math.abs(dy) < 4) return; track._moved = true; track.style.scrollSnapType = "none"; track.classList.add("drag"); }   // (only now, so a plain click still reaches the row)
+    track.scrollTop = s0 - dy;
+  };
+  const end = e => {
+    if (e.pointerId !== id) return;
+    id = null; window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", end, true); window.removeEventListener("pointercancel", end, true);
+    if (!track.classList.contains("drag")) return;
+    track.classList.remove("drag"); track.style.scrollSnapType = "";
+    track.scrollTo({ top: Math.max(0, Math.min(track.children.length - 1, Math.round(track.scrollTop / RO_H))) * RO_H, behavior: reduceMotion() ? "auto" : "smooth" });
+    setTimeout(() => { track._moved = false; }, 0);
+  };
+  track.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch" || e.button) return;   // (a finger already scrolls it)
+    id = e.pointerId; y0 = e.clientY; s0 = track.scrollTop; track._moved = false;
+    window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", end, true); window.addEventListener("pointercancel", end, true);
+  });
+  track.addEventListener("click", e => { if (track._moved) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
+// Pay: one drop-down holding two wheels, From and To
+const PAY_ITEMS = ["", ...PAY_STEPS.map(String)];
+const jbPayText = () => { const a = jobsUI.payMin, b = jobsUI.payMax; return a && b ? `${fmtPayStep(a)} – ${fmtPayStep(b)}` : a ? `From ${fmtPayStep(a)}` : b ? `Up to ${fmtPayStep(b)}` : "Any pay"; };
+function jbPaySync() {
+  const txt = $("jbPayText"); if (!txt) return;
+  txt.textContent = jbPayText(); $("jbPayBtn").classList.toggle("on", !!(jobsUI.payMin || jobsUI.payMax));
+  const open = !$("jbPayPop").hidden;
+  document.querySelectorAll("#jbPay .jb-wheel").forEach(w => {
+    const t = w.querySelector(".jb-roller-track"), i = Math.max(0, PAY_ITEMS.indexOf(jobsUI[w.dataset.w]));
+    [...t.children].forEach((b, n) => b.setAttribute("aria-selected", String(n === i)));
+    if (open && !jbDragging(t) && Math.abs(t.scrollTop - i * RO_H) > 1) t.scrollTop = i * RO_H;
+    jbPaintWheel(t);
+  });
+}
+function jbSetPay(key, v) {
+  if (jobsUI[key] === v) return;
+  jobsUI[key] = v;
+  if (+jobsUI.payMin && +jobsUI.payMax && +jobsUI.payMin > +jobsUI.payMax) jobsUI[key === "payMin" ? "payMax" : "payMin"] = v;   // From can't be above To
+  jobsUI.limit = 40; renderJobs();
+}
+// Education: read your level and type from your profile or resume (highest qualification wins)
+const EDU_RANK = [["PhD", /\bph\.?d\b|\bdoctor(?:ate|al)?\b/i], ["Masters", /\bmaster(?:'?s)?\b|\bm\.?(?:eng|sc|ba|com)\b/i], ["Graduate certificate or diploma", /\bgraduate (?:certificate|diploma)\b|\bgrad\.? ?(?:cert|dip)/i], ["Bachelor degree", /\bbachelor|\bundergraduate\b|\bb\.?(?:eng|sc|com|bus)\b/i], ["Honours", /\bhonou?rs\b|\bhons\b/i], ["Diploma", /\bdiploma\b/i], ["Certificate III or IV", /\bcert(?:ificate)?\.?\s*(?:iii|iv|3|4)\b/i]];
+function jbEduFromMe() {
+  const p = P();
+  const fromProfile = () => p.education.map(e => [e.degree, e.level, e.subject, e.level2, e.subject2].filter(Boolean).join(" ")).filter(Boolean);
+  const fromResume = () => { try { return parseResume(els.resume.value || "").zones.filter(z => z.kind === "education").map(z => z.label || "").filter(Boolean); } catch { return []; } };
+  const order = jbFromNow() === "resume" ? [["resume", fromResume], ["profile", fromProfile]] : [["profile", fromProfile], ["resume", fromResume]];
+  for (const [src, get] of order) {
+    let best = null;
+    for (const line of get()) {
+      const rank = EDU_RANK.findIndex(([, re]) => re.test(line));
+      let type = "", at = Infinity;
+      for (const [k, re] of Object.entries(EDU_TYPES)) { const m = re.exec(line); if (m && m.index < at) { at = m.index; type = k; } }
+      if ((rank >= 0 || type) && (!best || (rank >= 0 && (best.rank < 0 || rank < best.rank)))) best = { rank, level: rank >= 0 ? EDU_RANK[rank][0] : "", type };
+    }
+    if (best) return { level: best.level, type: best.type, src };
+  }
+  return null;
+}
+function jbEduAssist() {
+  const note = $("jbEduNote"); if (!note) return;
+  const s = jbEduFromMe();
+  if (s && !jobsUI.eduTried) { jobsUI.eduTried = true; if (!jobsUI.eduLevel && !jobsUI.eduType) { jobsUI.eduLevel = s.level; jobsUI.eduType = s.type; } }   // fills itself in once; after that it's yours to change
+  note.hidden = false;
+  if (!s) { note.textContent = "Add your education to your profile or resume and we'll suggest your level and type here."; return; }
+  const words = [s.level, s.type].filter(Boolean).join(", "), src = s.src === "resume" ? "resume" : "profile";
+  note.innerHTML = jobsUI.eduLevel === s.level && jobsUI.eduType === s.type
+    ? `Filled in from your ${src}: ${esc(words)}. Change it if that's not right.`
+    : `Your ${src} suggests ${esc(words)}. <button type="button" class="linkish" data-edu-fill>Use this</button>`;
+}
+// Recommended searches: what you typed before, then jobs and industries from your profile or resume
+const JB_HIST_KEY = "jobfinder.jobsearches.v1";
+const jbHistory = () => { try { const h = JSON.parse(lsGet(JB_HIST_KEY) || "[]"); return Array.isArray(h) ? h.filter(x => typeof x === "string") : []; } catch { return []; } };
+function jbRemember(q) {
+  q = String(q || "").trim(); if (q.length < 3) return;
+  const h = [q, ...jbHistory().filter(x => x.toLowerCase() !== q.toLowerCase())].slice(0, 8);
+  lsSet(JB_HIST_KEY, JSON.stringify(h));
+}
+// industries (from the home page's list) that a person's experience points to: any role in the industry that their resume or profile names, or shares a word with their job titles
+function jbIndustries(text, titles) {
+  const words = new Set(titles.flatMap(t => String(t).toLowerCase().split(/[^a-z]+/)).filter(w => w.length >= 5));
+  const scored = GLOBE_TREE.map(([name, key, subs]) => {
+    const roles = [...new Set([...(GLOBE_ROLES[key] || []), ...Object.values(subs).flat()])];
+    const score = roles.reduce((n, r) => n + (text.includes(r.toLowerCase()) ? 2 : 0) + (r.toLowerCase().split(/[^a-z]+/).some(w => words.has(w)) ? 1 : 0), 0);
+    return [name, score];
+  }).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  return scored.slice(0, 3).map(x => x[0]);
+}
+function jbRecommended() {
+  const p = P(), has = hasProfile(p);
+  const text = (has ? profileToText(p) : els.resume.value || "").toLowerCase();
+  const titles = has ? p.experience.map(e => e.title).filter(Boolean) : [];
+  const out = [], seen = new Set(), add = x => { x = String(x || "").trim(); const k = x.toLowerCase(); if (x && !seen.has(k)) { seen.add(k); out.push(x); } };
+  jbHistory().slice(0, 4).forEach(add);
+  if (has && p.target.title) add(p.target.title);
+  titles.slice(0, 3).forEach(add);
+  if (text) jbIndustries(text, titles).forEach(add);
+  return out.slice(0, 8);
 }
 function syncJobFilters() {
   const by = jobsUI.by, mode = JB_MODES[by], q = $("jbQ");
   if (!q) return;
-  const t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by);
+  const edu = by === "education", t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by);
   document.querySelectorAll("#jbRollerTrack .jb-ro").forEach(b => b.setAttribute("aria-checked", String(b.dataset.by === by)));
-  if (t && Math.abs(t.scrollTop - i * RO_H) > 1 && !t.matches(":active")) t.scrollTop = i * RO_H;
+  if (t && Math.abs(t.scrollTop - i * RO_H) > 1 && !t.matches(":active") && !jbDragging(t)) t.scrollTop = i * RO_H;
   jbPaintRoller();
-  q.dataset.jbf = mode.field; q.placeholder = mode.ph; $("jbQLabel").textContent = mode.label;
-  if (document.activeElement !== q) q.value = jobsUI[mode.field];
-  for (const [id, key] of [["jbPayMin", "payMin"], ["jbPayMax", "payMax"], ["jbType", "type"], ["jbSource", "source"], ["jbSort", "sort"]]) { const el = $(id); if (el && el.value !== jobsUI[key]) el.value = jobsUI[key]; }
-  document.querySelectorAll("#jbRemote .jb-pill").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.remote === jobsUI.remote)));
-  const sg = $("jbSuggest"), html = jbSuggestions(); sg.innerHTML = html; sg.hidden = !html;
+  const now = document.querySelector(`#jbRollerTrack .jb-ro[data-by="${by}"]`); if (now) { $("jbByNowText").textContent = now.textContent; $("jbByNow").classList.toggle("on", by !== "title"); }
+  if (edu) jbEduAssist(); else $("jbEduNote").hidden = true;
+  jbPaySync();
+  // the field it says: a search box, or for education the Level and Type drop-downs; the location box is always to the right
+  $("jbSearchBox").hidden = edu; $("jbEdu").hidden = !edu; $("jbStrong").hidden = by !== "strong";
+  if (mode.field) { q.dataset.jbf = mode.field; q.placeholder = mode.ph; $("jbQLabel").textContent = mode.label; if (document.activeElement !== q) q.value = jobsUI[mode.field]; }
+  const w = $("jbWhere"); if (w && document.activeElement !== w) w.value = jobsUI.where;
+  for (const [id, key] of [["jbType", "type"], ["jbSource", "source"], ["jbSort", "sort"], ["jbRemote", "remote"], ["jbEduLevel", "eduLevel"], ["jbEduType", "eduType"]]) { const el = $(id); if (el && el.value !== jobsUI[key]) el.value = jobsUI[key]; }
+  if (by === "strong") {
+    const f = $("jbFrom"), now = jbFromNow(); if (f && f.value !== now) f.value = now;
+    const p = P(), empty = now === "profile" ? !hasProfile(p) : !String(els.resume.value || "").trim();
+    $("jbFromNote").textContent = empty ? (now === "profile" ? "Your profile is empty. Add your details in Create or edit resume, or switch to your resume." : "No resume yet. Paste or upload one in Tailor to a job, or switch to your profile.") : now === "profile" ? "Using the skills and experience in your profile." : "Using the resume you added in Tailor to a job.";
+  }
+  const rec = by === "education" ? [] : jbRecommended(), cur = (jobsUI.q || "").toLowerCase();
+  const sg = $("jbSuggest");
+  sg.innerHTML = rec.length ? `<span class="jb-sg-l">Recommended searches</span>` + rec.map(x => `<button type="button" class="jb-sg${cur === x.toLowerCase() ? " on" : ""}" data-sg="${esc(x)}">${esc(x)}</button>`).join("") : "";
+  sg.hidden = !rec.length;
   // searches typed under another heading stay on, shown as chips so they can be taken off
-  const chips = [["q", "Job", by !== "title" && by !== "strong"], ["edu", "Education", by !== "education"], ["where", "Place", by !== "geo"]].filter(([k, , show]) => show && jobsUI[k].trim());
+  const chips = [["q", "Job", by === "education"], ["eduLevel", "Level", !edu], ["eduType", "Education type", !edu]].filter(([k, , show]) => show && jobsUI[k].trim());
   const act = $("jbActive");
   act.hidden = !chips.length;
   act.innerHTML = chips.length ? chips.map(([k, l]) => `<button type="button" class="jb-chip" data-clear="${k}" aria-label="Remove ${l}: ${esc(jobsUI[k])}">${l}: ${esc(jobsUI[k])} <span aria-hidden="true">×</span></button>`).join("") + `<button type="button" class="jb-chip clear" data-clear="all">Clear all</button>` : "";
+}
+// The bell: how many saved applications are waiting to be filled out (jobs in the tracker still at "Saved")
+function jbBell() {
+  const b = $("jbBell"), n = $("jbBellN"); if (!b || !n) return;
+  const c = (T() || []).filter(i => i.stage === "saved").length;
+  n.hidden = !c; n.textContent = c > 9 ? "9+" : String(c);
+  b.classList.toggle("has", c > 0);
+  b.setAttribute("aria-label", c ? `${c} saved application${c === 1 ? "" : "s"} waiting to be filled out. Open the Application tracker` : "No saved applications waiting. Open the Application tracker");
+  b.title = c ? `${c} saved application${c === 1 ? "" : "s"} waiting to be filled out` : "Application tracker: nothing saved is waiting";
+}
+// the tracker entry for a job, if it's in there
+const jobTracked = j => T().find(i => DEDUP.same(DEDUP.prep({ title: i.title, company: i.company, location: i.location }), DEDUP.prep(j)));
+// the employer's own careers page: the listing if it came from the company, else the company directory, else a search for it
+function careerLink(j) {
+  const own = [j, ...(j.also || [])].find(x => x.sourceType === "company" && safeUrl(x.url) && !/\/\/(?:www\.)?example\.com\b/i.test(x.url));
+  if (own) return { url: safeUrl(own.url), exact: true };
+  const nm = s => norm(String(s || "")).replace(/\b(pty|ltd|limited|group|australia|the)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const co = nm(j.company);
+  const hit = co.length > 3 && COMPANY_DIRECTORY.find(c => { const d = nm(c.n); return d && (d === co || ((co.startsWith(d) || d.startsWith(co)) && Math.min(d.length, co.length) > 3)); });
+  if (hit && hit.u) return { url: hit.u, exact: true };
+  return { url: "https://www.google.com/search?q=" + encodeURIComponent(`${j.company || ""} careers jobs Australia`), exact: false };
 }
 function renderJobs() {
   const box = $("jbList");
@@ -163,12 +301,14 @@ function renderJobs() {
   $("jbSummary").innerHTML = `${list.length} job${list.length === 1 ? "" : "s"}${dupes ? `. <b>${dupes} duplicate${dupes === 1 ? "" : "s"} merged</b> from ${total} listings` : ""}.${jobsUI.payMin || jobsUI.payMax ? " Jobs that don't list their pay are hidden while a pay filter is on." : ""}${examples ? ' <span class="tag">Examples</span> These are made-up listings to show how it works, until employers post jobs or listings are imported.' : ""}`;
   $("jbNote").textContent = ""; $("jbNote").hidden = true;   // (the note about posting and applications is for the hiring pages)
   const myApplied = new Set(((market.myApps || {}).items || []).map(i => i.jobKey));
-  const tracked = key => T().find(i => DEDUP.same(DEDUP.prep({ title: i.title, company: i.company, location: i.location }), DEDUP.prep(key)));
+  const tracked = jobTracked;
+  jbBell();
   // keep the open job on the page even if it's past the limit
   const openIx = list.findIndex(j => (j.key || j.id) === jobsUI.open);
   if (openIx >= jobsUI.limit) jobsUI.limit = openIx + 1;
   // on a wide screen an opened job shows beside the list, not inside it
   const wide = matchMedia("(min-width: 900px)").matches;
+  const warn = `<p class="job-warn" role="note"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></svg><span><b>Be careful:</b> don't supply credit card details or bank details when applying to a job.</span></p>`;
   const cardsHtml = list.slice(0, jobsUI.limit).map(j => {
     const tr = tracked(j), m = j.m, open = jobsUI.open === (j.key || j.id);
     return `<article class="job${open ? " open" : ""}" data-job="${esc(j.key || j.id)}">
@@ -176,18 +316,19 @@ function renderJobs() {
         <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span></button>
       <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${j.srcUrl ? `<a href="${esc(j.srcUrl)}" target="_blank" rel="noopener">${esc(j.source)}</a>` : esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
       ${open && !wide ? jobDetail(j, tr, myApplied.has(j.key)) : ""}
+      ${warn}
     </article>`;
   }).join("") + (list.length > jobsUI.limit ? `<button class="btn" type="button" id="jbMore">Show more (${list.length - jobsUI.limit} left)</button>` : "");
   const openJ = wide ? list.find(j => (j.key || j.id) === jobsUI.open) : null;
   if (openJ) {
     const k = openJ.key || openJ.id;
-    box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${esc(openJ.title)}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div><button class="linkish" type="button" data-jb="open">Close</button></div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key))}</aside></div>`;
+    box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${esc(openJ.title)}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div>${(t => `<button class="jb-bm${t ? " on" : ""}" type="button" data-jb="bookmark" aria-pressed="${!!t}" aria-label="${t ? "Saved to your Application tracker. Press to remove it" : "Save to your Application tracker"}" title="${t ? "Saved" : "Save to Application tracker"}"><svg viewBox="0 0 24 24" width="20" height="20" fill="${t ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z"/></svg></button>`)(tracked(openJ))}</div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key), true)}${warn}</aside></div>`;
   } else box.innerHTML = cardsHtml || `<p class="empty">${jobsUI.by === "strong" ? "No strong matches yet. Add your skills in the resume builder, or scan your resume, and the jobs you're a strong fit for show up here." : "No jobs match those filters."}</p>`;
   renderInvites();
   if (typeof renderDbExtras === "function") renderDbExtras(list);   // (the database listings are not connected in this build)
 }
-function jobDetail(j, tr, applied) {
-  const m = j.m;
+function jobDetail(j, tr, applied, split) {
+  const m = j.m, cl = j.sourceType === "site" ? null : careerLink(j), dupe = cl && cl.exact && cl.url === safeUrl(j.url);
   return `<div class="job-detail">
     ${m ? `<div class="job-skills">${m.have.length ? `<span class="small">You have:</span>${m.have.map(s => `<span class="chip found">${esc(s)}</span>`).join("")}` : ""}${m.missing.length ? `<span class="small">You're missing:</span>${m.missing.map(s => `<span class="chip missing">${esc(s)}</span>`).join("")}` : ""}</div>` : ""}
     <p class="job-desc">${esc(j.description || "No description.")}</p>
@@ -196,9 +337,9 @@ function jobDetail(j, tr, applied) {
     ${j.example ? `<p class="small muted">This is a made-up example listing.</p>` : ""}
     <div class="b-actions">
       ${j.sourceType === "site" ? (applied ? `<span class="chip found">You've applied</span>` : `<button class="btn primary" type="button" data-jb="apply">Apply on Job Finder</button>`) : j.url && !j.example ? `<a class="btn primary" href="${esc(j.url)}" target="_blank" rel="noopener" data-jb="ext">Apply on ${esc(j.source)} ↗</a>` : ""}
+      ${cl && !dupe ? `<a class="btn${j.url && !j.example ? "" : " primary"}" href="${esc(cl.url)}" target="_blank" rel="noopener"${cl.exact ? ' data-jb="ext"' : ""}>${cl.exact ? "Apply on career page ↗" : "Find their careers page ↗"}</a>` : ""}
       <button class="btn" type="button" data-jb="tailor">Tailor my resume to it</button>
-      ${tr ? `<a class="btn" href="#tracker">In Application tracker: ${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</a>` : `<button class="btn" type="button" data-jb="save">Save to Application tracker</button>`}
-      <button class="btn ghost" type="button" data-jb="prep">Practise interview questions</button>
+      ${tr ? `<a class="btn" href="#tracker">In Application tracker: ${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</a>` : split ? "" : `<button class="btn" type="button" data-jb="save">Save to Application tracker</button>`}
     </div>
     ${jobsUI.applyFor === (j.key || j.id) ? applyForm(j) : ""}
   </div>`;
@@ -373,31 +514,76 @@ async function draftAd() {
   renderEmployer();
 }
 onInit(() => {
-  for (const id of ["jbPayMin", "jbPayMax"]) { const sel = $(id); if (sel) sel.insertAdjacentHTML("beforeend", PAY_STEPS.map(k => `<option value="${k}">${fmtPayStep(k)} a year</option>`).join("")); }
-  const track = $("jbRollerTrack"), roller = $("jbRoller");
+  $("jbEduLevel").insertAdjacentHTML("beforeend", Object.keys(EDU_LEVELS).map(k => `<option>${k}</option>`).join(""));
+  $("jbEduType").insertAdjacentHTML("beforeend", Object.keys(EDU_TYPES).map(k => `<option>${k}</option>`).join(""));
+  trk.on(jbBell); jbBell();
+  const track = $("jbRollerTrack"), roller = $("jbRoller"), pick = $("jbByPick"), nowBtn = $("jbByNow");
   if (track) {
+    // the wheel stays out of sight until you hover, tap, focus or arrow-key the "Searching by" choice
+    let closeT = 0;
+    const showRoller = on => {
+      clearTimeout(closeT);
+      pick.classList.toggle("open", on); nowBtn.setAttribute("aria-expanded", String(on)); roller.setAttribute("aria-hidden", String(!on));
+      if (on) { track.scrollTop = Math.max(0, Object.keys(JB_MODES).indexOf(jobsUI.by)) * RO_H; jbPaintRoller(); }
+    };
+    jbRest = () => { clearTimeout(closeT); if (!pick.classList.contains("open")) return; closeT = setTimeout(() => { if (!(pick.matches(":hover") && matchMedia("(hover: hover)").matches) && !jbDragging(track)) showRoller(false); }, 1100); };
+    pick.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") showRoller(true); });
+    pick.addEventListener("pointerleave", () => { if (pick.classList.contains("open") && !jbDragging(track)) { clearTimeout(closeT); closeT = setTimeout(() => { if (!jbDragging(track)) showRoller(false); }, 300); } });
+    nowBtn.addEventListener("click", () => showRoller(true));
+    pick.addEventListener("focusout", e => { if (!pick.contains(e.relatedTarget)) showRoller(false); });
+    jbDragWheel(track);
     // spinning the wheel picks whatever row settles in the middle
     let settle = null, raf = 0;
-    const settleNow = () => { const by = Object.keys(JB_MODES)[Math.max(0, Math.min(3, Math.round(track.scrollTop / RO_H)))]; if (by !== jobsUI.by) jbSetMode(by); };
+    const settleNow = () => { if (jbDragging(track)) return; const by = Object.keys(JB_MODES)[Math.max(0, Math.min(Object.keys(JB_MODES).length - 1, Math.round(track.scrollTop / RO_H)))]; if (by !== jobsUI.by) jbSetMode(by); else jbRest(); };
     track.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; jbPaintRoller(); }); clearTimeout(settle); settle = setTimeout(settleNow, 140); }, { passive: true });
-    roller.addEventListener("keydown", e => {
+    pick.addEventListener("keydown", e => {
+      if (e.key === "Escape" && pick.classList.contains("open")) { e.preventDefault(); showRoller(false); return; }
       const keys = Object.keys(JB_MODES), i = keys.indexOf(jobsUI.by);
       const n = e.key === "ArrowDown" || e.key === "ArrowRight" ? i + 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? keys.length - 1 : null;
       if (n === null) return;
-      e.preventDefault(); jbSetMode(keys[Math.max(0, Math.min(keys.length - 1, n))], "smooth");
+      e.preventDefault(); showRoller(true); jbSetMode(keys[Math.max(0, Math.min(keys.length - 1, n))], "smooth");
     });
+    document.addEventListener("click", e => { if (pick.classList.contains("open") && !e.target.closest("#jbByPick")) showRoller(false); });
   }
-  $("view-jobs").addEventListener("input", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; jobsUI.limit = 40; clearTimeout(jobsUI.t); jobsUI.t = setTimeout(renderJobs, 150); } });
+  // pay: a drop-down with a From wheel and a To wheel
+  const payBtn = $("jbPayBtn"), payPop = $("jbPayPop");
+  const showPay = on => { payPop.hidden = !on; payBtn.setAttribute("aria-expanded", String(on)); if (on) jbPaySync(); };
+  document.querySelectorAll("#jbPay .jb-wheel").forEach(w => {
+    const t = w.querySelector(".jb-roller-track"), key = w.dataset.w;
+    t.innerHTML = PAY_ITEMS.map(v => `<button type="button" class="jb-wo" role="option" tabindex="-1" aria-selected="false">${v ? fmtPayStep(v) : key === "payMin" ? "No minimum" : "No maximum"}</button>`).join("");
+    let st = 0, raf = 0;
+    t.addEventListener("scroll", () => {
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; jbPaintWheel(t); });
+      clearTimeout(st); st = setTimeout(() => { if (!jbDragging(t) && !payPop.hidden) jbSetPay(key, PAY_ITEMS[Math.max(0, Math.min(PAY_ITEMS.length - 1, Math.round(t.scrollTop / RO_H)))]); }, 140);
+    }, { passive: true });
+    t.addEventListener("click", e => { const b = e.target.closest(".jb-wo"); if (b) t.scrollTo({ top: [...t.children].indexOf(b) * RO_H, behavior: reduceMotion() ? "auto" : "smooth" }); });
+    jbDragWheel(t);
+  });
+  payBtn.addEventListener("click", () => showPay(payPop.hidden));
+  $("jbPayDone").addEventListener("click", () => { showPay(false); payBtn.focus(); });
+  $("jbPayClear").addEventListener("click", () => { jobsUI.payMin = ""; jobsUI.payMax = ""; jobsUI.limit = 40; renderJobs(); });
+  $("jbPay").addEventListener("keydown", e => { if (e.key === "Escape" && !payPop.hidden) { e.preventDefault(); showPay(false); payBtn.focus(); } });
+  document.addEventListener("click", e => { if (!payPop.hidden && !e.target.closest("#jbPay")) showPay(false); });
+  // the Find jobs button (Enter in a search box does the same)
+  const findJobs = () => {
+    clearTimeout(jobsUI.t); jobsUI.limit = 40;
+    if (jobsUI.q.trim()) jbRemember(jobsUI.q);
+    const a = document.activeElement; if (a && (a.id === "jbQ" || a.id === "jbWhere") && a.blur) a.blur();
+    renderJobs();
+    const bar = document.querySelector("#view-jobs .jb-listbar"); if (bar) bar.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+  };
+  $("jbFind").addEventListener("click", findJobs);
+  for (const id of ["jbQ", "jbWhere"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); findJobs(); } });
+  $("view-jobs").addEventListener("input", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; jobsUI.limit = 40; clearTimeout(jobsUI.t); jobsUI.t = setTimeout(renderJobs, 150); if (f === "q") { clearTimeout(jobsUI.t3); jobsUI.t3 = setTimeout(() => jbRemember(jobsUI.q), 1800); } } });
   $("view-jobs").addEventListener("change", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; renderJobs(); } });
   $("view-jobs").addEventListener("click", async e => {
+    if (e.target.closest("[data-edu-fill]")) { const s = jbEduFromMe(); if (s) { jobsUI.eduLevel = s.level; jobsUI.eduType = s.type; jobsUI.limit = 40; renderJobs(); } return; }
     const ro = e.target.closest(".jb-ro");
     if (ro) { jbSetMode(ro.dataset.by, "smooth"); return; }
-    const pill = e.target.closest("[data-remote]");
-    if (pill) { jobsUI.remote = jobsUI.remote === pill.dataset.remote ? "" : pill.dataset.remote; jobsUI.limit = 40; renderJobs(); return; }
     const sg = e.target.closest("[data-sg]");
-    if (sg) { const f = JB_MODES[jobsUI.by].field, v = sg.dataset.sg; jobsUI[f] = jobsUI[f].toLowerCase() === v.toLowerCase() ? "" : v; $("jbQ").value = jobsUI[f]; jobsUI.limit = 40; renderJobs(); return; }
+    if (sg) { const v = sg.dataset.sg; jobsUI.q = jobsUI.q.toLowerCase() === v.toLowerCase() ? "" : v; if (jobsUI.by === "education") jobsUI.by = "title"; if (jobsUI.q) jbRemember(jobsUI.q); $("jbQ").value = jobsUI.q; jobsUI.limit = 40; renderJobs(); return; }
     const clr = e.target.closest("[data-clear]");
-    if (clr) { const k = clr.dataset.clear; if (k === "all") Object.assign(jobsUI, { q: "", edu: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "" }); else jobsUI[k] = ""; jobsUI.limit = 40; renderJobs(); return; }
+    if (clr) { const k = clr.dataset.clear; if (k === "all") Object.assign(jobsUI, { q: "", eduLevel: "", eduType: "", where: "", type: "", remote: "", source: "", payMin: "", payMax: "" }); else jobsUI[k] = ""; jobsUI.limit = 40; renderJobs(); return; }
     const inv = e.target.closest("[data-inv]");
     if (inv) { jobsUI.open = inv.dataset.inv; jobsUI.source = ""; renderJobs(); const el = document.querySelector(`[data-job="${CSS.escape(inv.dataset.inv)}"]`); if (el) el.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); return; }
     if (e.target.closest("#jbMore")) { jobsUI.limit += 40; renderJobs(); return; }
@@ -421,7 +607,13 @@ onInit(() => {
     else if (a === "ext") trackJob({ title: j.title, company: j.company, location: j.location, url: j.url, jd: j.description, source: j.source }, "applied");
     else if (a === "apply") { jobsUI.applyFor = key; renderJobs(); const f = document.querySelector(".apply-form textarea"); if (f) f.focus(); }
     else if (a === "cancel") { jobsUI.applyFor = null; renderJobs(); }
-    else if (a === "prep") { els.jd.value = els.jd.value || j.description; openView("interview"); }
+    else if (a === "bookmark") {
+      const tr = jobTracked(j);
+      if (!tr) { trackJob({ title: j.title, company: j.company, location: j.location, url: j.url, jd: j.description, source: j.source }, "saved"); toast("Saved to your Application tracker."); }
+      else if (tr.stage === "saved") { trk.data.items = T().filter(x => x !== tr); trk.save(); jbBell(); toast("Removed from your saved jobs."); }
+      else toast(`It's in your Application tracker as ${(STAGES_T.find(s => s.key === tr.stage) || { label: tr.stage }).label.toLowerCase()}. Change it there.`, "warn");
+      renderJobs();
+    }
   });
   $("view-jobs").addEventListener("submit", e => { const f = e.target.closest("[data-apply]"); if (!f) return; e.preventDefault(); const j = allJobs().find(x => x.key === f.dataset.apply); if (j) submitApplication(f, j); });
   // employer

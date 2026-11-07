@@ -23,6 +23,7 @@ function trackJob(job, stage) {
   it.jd = String(it.jd || "").slice(0, 2500);
   trimTracker();
   trk.save();
+  jbBell();
   if (currentView === "tracker") renderTracker();
   return it;
 }

@@ -156,7 +156,7 @@ function renderAccount() {
     const item = (href, text) => `<a class="acct-item" role="menuitem" href="#${href}" data-acct="menu-close">${text}</a>`;
     box.innerHTML = `<div class="acct-menu"><button class="acct-trigger" type="button" data-acct="menu" aria-haspopup="menu" aria-expanded="false" aria-controls="acctPop" title="Your account"><span class="acct-avatar" aria-hidden="true">${esc(name.trim().charAt(0).toUpperCase() || "?")}</span><span class="acct-who">${esc(name)}</span><svg class="acct-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>`
       + `<div class="acct-pop" id="acctPop" role="menu" hidden><div class="acct-pop-head"><b>${esc(name)}</b>${u.email ? `<span>${esc(u.email)}</span>` : ""}</div>${item("profile", "Profile")}${item("builder", "Create or edit resume")}${item("letter", "Create or edit cover letter")}${item("support", "Contact or help")}<hr><button class="acct-item" type="button" role="menuitem" data-acct="out">Sign out</button></div></div>`;
-  } else box.innerHTML = `<a class="ab-help" href="#profile">Profile</a><button class="btn ghost acct-btn" type="button" data-acct="open-in"><span>Log in</span></button><button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up</span></button>`;
+  } else box.innerHTML = `<button class="btn ghost acct-btn" type="button" data-acct="open-in"><span>Log in</span></button><button class="btn primary acct-btn" type="button" data-acct="open" title="Sign up to keep your data"><span>Sign up</span></button>`;
 }
 function acctDialog(mode = "up") {
   let d = document.getElementById("acctDlg");
