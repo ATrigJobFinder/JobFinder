@@ -7,12 +7,16 @@ function devDialog() {
   const fresh = devFresh();
   d.innerHTML = `<form method="dialog" class="jf-dialog-card"><h2 id="devH">Developer</h2>
     ${fresh
-      ? `<p>You're seeing Job Finder as a <b>brand new visitor</b>: no profile, no saved resumes, no AI chosen, not signed in.</p><p class="small muted">Your own data is put safely aside, not deleted. Restoring clears anything you added in this view and puts yours back, so the pages fill in again.</p>`
-      : `<p>See Job Finder the way a brand new visitor sees it?</p><p class="small muted">Your profile, resumes, letters, applications, AI choice and sign-in are put safely aside (not deleted) and the page reloads empty. Press <b>Restore my data</b> any time to fill everything back in. Anything you add while looking as a new visitor is dropped when you restore.</p>`}
-    <div class="b-actions"><button class="btn ghost" value="cancel" type="submit" formnovalidate>${fresh ? "Stay as a new visitor" : "Cancel"}</button><button class="btn ${fresh ? "primary" : "danger"}" value="go">${fresh ? "Restore my data" : "View as a new visitor"}</button></div>
+      ? `<p>You're seeing Job Finder as a <b>brand new visitor</b>: no profile, no saved resumes, no AI chosen, not signed in.</p><p class="small muted"><b>New session</b> starts again from nothing. <b>Restore data</b> brings back just the resume in your profile, so you can see the site as someone who has uploaded one. <b>Restore everything</b> clears this view and puts all of your own data back. Your own data is kept safely aside, not deleted, until you restore everything.</p>`
+      : `<p>See Job Finder the way a brand new visitor sees it?</p><p class="small muted">Your profile, resumes, letters, applications, AI choice and sign-in are put safely aside (not deleted) and the page reloads empty. Press <b>Restore everything</b> any time to fill everything back in. Anything you add while looking as a new visitor is dropped when you restore.</p>`}
+    <div class="b-actions"><button class="btn ghost" value="cancel" type="submit" formnovalidate>${fresh ? "Stay as I am" : "Cancel"}</button>${fresh
+      ? `<button class="btn" value="new">New session</button><button class="btn primary" value="resume">Restore data (resume only)</button><button class="btn" value="go">Restore everything</button>`
+      : `<button class="btn danger" value="go">New session</button>`}</div>
     <label class="q-check small"><input type="checkbox" id="devKeep"${devRead(DEV_FLAG) === "1" ? " checked" : ""}> <span>Always show the Developer button on this browser</span></label></form>`;
   d.addEventListener("close", () => {
     const keep = $("devKeep"); try { if (keep) { if (keep.checked) localStorage.setItem(DEV_FLAG, "1"); else localStorage.removeItem(DEV_FLAG); } } catch { /* blocked */ }
+    if (fresh && d.returnValue === "new") { devResetFresh(false); return; }
+    if (fresh && d.returnValue === "resume") { devResetFresh(true); return; }
     if (d.returnValue !== "go") { devRender(); return; }
     if (fresh) devLeaveFresh();
     else if (!devEnterFresh()) toast("This browser won't let the site store anything here, so it can't be put aside safely.", "warn");
@@ -32,8 +36,8 @@ function devRender() {
     // while you are looking as a new visitor the Developer button turns into "Viewing as visitor": press it to go back to your own data
     const fresh = devFresh();
     btn.hidden = !devAllowed();
-    btn.textContent = fresh ? "Viewing as visitor" : "Developer";
-    btn.title = fresh ? "You are seeing the site as a brand new visitor. Press to go back to your own data." : "See the site as a brand new visitor";
+    btn.textContent = fresh ? "Viewing as visitor" : "New session";
+    btn.title = fresh ? "You are seeing the site as a brand new visitor. Press for new session, restore data, or to go back to your own data." : "See the site as a brand new visitor";
     btn.classList.toggle("on", fresh);
   }
   // the Job seeker / Employer switch is a developer option too: it sits in the same pop-up as the Developer button

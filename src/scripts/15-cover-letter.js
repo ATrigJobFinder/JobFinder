@@ -1,16 +1,17 @@
 /* ===================== Cover letter ===================== */
 // A proven five-part structure: each paragraph has one job to do
 const COVER_PARTS = [
-  { key: "opening", label: "Opening", purpose: "Names the role and the company and gives one specific reason to keep reading. It's the part most hiring managers weigh most." },
-  { key: "experience", label: "Experience", purpose: "One story that proves the job's top requirement: what you did, what changed (with the number), and why it matters to them." },
-  { key: "education", label: "Education and skills", purpose: "A second, different proof: the study, tools or way of working behind your experience that the ad asks for." },
-  { key: "motivation", label: "Why this company", purpose: "Your own specific reason for choosing them, tied to something true about you. The one thing AI can't make up for you." },
+  { key: "opening", label: "Opening", purpose: "Names the job and the employer, then gives your strongest relevant result with its number. It's the part most hiring managers read." },
+  { key: "experience", label: "Experience", purpose: "Proof of their top requirement as one short story: what you did, the result with its number, and why it matters to them." },
+  { key: "education", label: "Education and skills", purpose: "Proof of their next requirement from another side: the study, tools or way of working behind your experience." },
+  { key: "motivation", label: "Why this company", purpose: "One specific reason you want this employer, in your own words, tied to something true about you. AI can't make this up for you." },
   { key: "closing", label: "Close", purpose: "One line on what you'd contribute, an invitation to talk, your availability and thanks." }
 ];
 const partOf = k => COVER_PARTS.find(p => p.key === k) || { key: k, label: "Paragraph", purpose: "" };
 // How long a letter should be: about 250 to 400 words for a student, more as people get more senior
 // (each paragraph's minimum is 20 words more than it was, so the totals are 100 words more)
-const LETTER_WORDS = { student: [350, 460], early: [380, 480], returning: [350, 460], change: [400, 510], experienced: [450, 560] };
+// (the cover letter advice says 250 to 400 words and under one page, so no stage goes past 400)
+const LETTER_WORDS = { student: [270, 360], early: [290, 380], returning: [270, 360], change: [310, 400], experienced: [320, 400] };
 const PART_SHARE = { opening: 0.15, experience: 0.32, education: 0.16, motivation: 0.22, closing: 0.1 };
 function letterStage(text) {
   if (hasProfile(P())) return stageOf(P());
@@ -20,7 +21,9 @@ const letterRange = text => {
   const r = LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
   // the words that fit one page at the chosen spacing and margins (measured from the preview), when known
   const fit = typeof ltFitRange === "function" ? ltFitRange() : null;
-  return fit || r;
+  // (never more than the advice allows, even when more would fit on the page)
+  if (fit) { const hi = Math.min(fit[1], r[1]); return [Math.min(fit[0], Math.round(hi * 0.88 / 10) * 10), hi]; }
+  return r;
 };
 // The fewest words each paragraph should have, so none of them is thin
 // each paragraph's share of the page, in rough proportion (the shares are scaled to add up to one)

@@ -1,8 +1,8 @@
 /* ===================== Create or edit resume: the part of the advice that helps, in a pop-up ===================== */
 // Each step of the resume builder (and a few of its boxes) gets an "Advice" button. It opens a pop-up with the matching part of the
-// Resume checker page, copied from that page so the two never disagree. Nothing there can be typed into; the full page is one button away.
+// Resume Advice page, copied from that page so the two never disagree. Nothing there can be typed into; the full page is one button away.
 const ADV_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>';
-// Each row: [section on the Resume checker page, the one entry to show from it (blank for the whole section), the button's words]
+// Each row: [section on the Resume Advice page, the one entry to show from it (blank for the whole section), the button's words]
 const ADV_STEP = {
   layout: [["rg-format", "", "Format for people and software"]],
   contact: [["rg-basics", "", "What to include and leave off"]],
@@ -15,7 +15,7 @@ const ADV_STEP = {
 };
 const advButton = (id, pick, label, cls = "") => `<button type="button" class="adv-btn${cls ? " " + cls : ""}" data-advice="${esc(id)}" data-advice-pick="${esc(pick)}" data-advice-title="${esc(label)}" aria-haspopup="dialog">${ADV_ICON}<span>${esc(label)}</span></button>`;
 
-// The advice, copied out of the Resume checker page and made read-only
+// The advice, copied out of the Resume Advice page and made read-only
 function adviceContent(id, pick) {
   const src = document.getElementById(id);
   if (!src) return null;
@@ -47,9 +47,9 @@ function advDialog() {
   if (advState.dlg) return advState.dlg;
   const d = advState.dlg = document.createElement("dialog");
   d.id = "advPop"; d.className = "adv-pop"; d.setAttribute("aria-labelledby", "advPopTitle"); d.setAttribute("data-nohelp", "");
-  d.innerHTML = `<div class="adv-pop-bar"><div><span class="adv-pop-kick">From the Resume checker</span><h2 id="advPopTitle"></h2></div><button type="button" class="adv-pop-x" aria-label="Close the advice" data-adv-close>×</button></div>
+  d.innerHTML = `<div class="adv-pop-bar"><div><span class="adv-pop-kick">From the Resume Advice</span><h2 id="advPopTitle"></h2></div><button type="button" class="adv-pop-x" aria-label="Close the advice" data-adv-close>×</button></div>
     <div class="ig adv-pop-body" id="advPopBody"></div>
-    <div class="adv-pop-foot"><span class="small muted">This is one part of the advice page.</span><a class="btn" href="#advice-resume" data-adv-full>Open the full Resume checker</a></div>`;
+    <div class="adv-pop-foot"><span class="small muted">This is one part of the advice page.</span><a class="btn" href="#advice-resume" data-adv-full>Open the full Resume Advice</a></div>`;
   d.addEventListener("click", e => {
     if (e.target === d || e.target.closest("[data-adv-close]")) { d.close(); return; }
     const full = e.target.closest("[data-adv-full]");

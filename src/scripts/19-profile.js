@@ -78,7 +78,7 @@ const emptyProfile = () => ({
   // order: the sections in the order the person arranged them. hideSections / hideLines: left off this version of the resume (kept in the profile).
   // hideWhy: "key||reason" lines saying why Job Finder hid something to fit the page.
   cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false },
-  prefs: { dateStyle: "words", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
+  prefs: { dateStyle: "words", font: "", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
   updated: ""
 });
 

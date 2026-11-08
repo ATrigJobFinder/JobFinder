@@ -49,11 +49,8 @@ function chipQ(path, label, hint, items) {
 // Every industry as a grid of equal tiles, so choosing one never moves the others.
 // Once one is picked the grid folds away to that choice, with a Change button.
 function jobTypeQ(label, hint) {
-  const cur = P().target.jobType, folded = !!cur && !builder.jobTypeOpen;
-  const grid = folded
-    ? `<div class="job-picked"><button type="button" class="opt-tile" aria-pressed="true" data-act="jobtype-open" aria-label="${esc(jobLabel(cur))} is chosen. Change it">${esc(jobLabel(cur))}</button><button class="linkish" type="button" data-act="jobtype-open">Change</button></div>`
-    : `<div class="opt-grid" role="group" aria-labelledby="bJobTypeL">${JOB_TYPES.map(x => `<button type="button" class="opt-tile" data-act="pick" data-path="target.jobType" data-val="${esc(x.key)}" aria-pressed="${cur === x.key}">${esc(x.label)}</button>`).join("")}</div>`;
-  return `<div class="q"><div class="q-label" id="bJobTypeL">${label}</div>${hint && !folded ? `<p class="q-hint">${hint}</p>` : ""}${grid}</div>`;
+  const cur = P().target.jobType, id = "b_target_industry";
+  return `<div class="q"><label class="q-label" for="${id}">${label}</label><div class="q-body"><div class="pick sugg"><input type="text" id="${id}" data-industry="1" data-suggest="industry" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" aria-describedby="${id}_h ${id}-msg" autocomplete="off" value="${esc(jobLabel(cur))}" placeholder="Type an industry, like Accounting, Nursing or Software"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="Industry suggestions" hidden></ul></div><p class="pick-msg" id="${id}-msg" role="status"></p><p class="q-hint" id="${id}_h">${hint}</p></div></div>`;
 }
 // Sidebar designs have two colours: the headings (above) and the side column. Dark sidebars pick from deep colours, light ones from the design's own.
 const SIDE_DARKS = ["#1F2430", "#14213D", "#0B3D3A", "#3B1E54", "#1F3D2B", "#4A1D1D", "#111111"];
@@ -69,7 +66,7 @@ function colourQ() {
   return `<div class="q"><div class="q-label" id="bColL">Colour</div><div class="swatches" role="group" aria-labelledby="bColL">${t.accents.map(a => `<button type="button" class="swatch" data-act="accent" data-val="${a}" style="background:${a}" aria-pressed="${a === builderAccent(t)}" aria-label="Accent colour ${a}"></button>`).join("")}</div>
         ${colour2Q(t)}<p class="q-hint">${esc(t.name)}: ${esc(t.blurb)}${t.ats ? "" : " It has two columns, which some online application systems read out of order. For job portals, a single-column design like Professional is safer."}</p></div>`;
 }
-// Action words grouped by what the bullet is about, the same groups as on the Resume checker page. Each is one word, so it can swap a bullet's first word.
+// Action words grouped by what the bullet is about, the same groups as on the Resume Advice page. Each is one word, so it can swap a bullet's first word.
 const VERB_GROUPS = [
   ["Led", ["Led", "Supervised", "Coordinated", "Trained", "Mentored", "Rostered", "Delegated", "Managed", "Organised"]],
   ["Improved", ["Cut", "Reduced", "Increased", "Streamlined", "Fixed", "Upgraded", "Simplified", "Improved"]],
@@ -104,14 +101,11 @@ const STEP_RENDER = {
     return stepHead(kicker("goal"), "What are you going for?", "A resume works best when it's written for one kind of job. Your answers here pick the designs, questions and tips that follow.")
       + chipQ("target.stage", "Where are you in your career?", "Students, recent graduates and people with no experience lead with education. Everyone else leads with experience.", STAGES)
       + (st ? `<p class="tip">${tips[st]}</p>` : "")
-      + jobTypeQ("Which industry?", "Pick the closest one. It decides which designs and skill ideas come first.")
-      + jobSubQ()
-      + q("target.title", "What job title are you aiming for?", { hint: "Start typing and pick from the list, or type your own if it isn't there. It becomes the headline under your name, and recruiters search on it.", ph: "e.g. Graduate Mechanical Engineer", suggest: "titles", cap: "jobtitle" })
-      + workTypeQ();
+      + q("target.title", "Job title you are applying for", { hint: "Start typing and the list narrows to titles that match, or type your own if it isn't there. It becomes the headline under your name, and it decides which designs, skill ideas and tips come first.", ph: "e.g. Graduate Mechanical Engineer", suggest: "titles", cap: "jobtitle" });
   },
   contact() {
     return stepHead(kicker("contact"), "How can employers reach you?", "Recruiters call more often than they email, so check your number.")
-      + `<div class="q-grid">${q("contact.first", "First name", { ph: "e.g. Alex", ac: "given-name", cap: "name" })}${q("contact.last", "Last name", { ph: "e.g. Nguyen", ac: "family-name", cap: "surname" })}${phoneQ()}${q("contact.email", "Email", { type: "email", ph: "e.g. alex.nguyen@email.com", ac: "email" })}${locQ("contact.location", "Suburb and state", { ac: true, hint: "Enough to show you're local. Not your street address." })}${q("contact.linkedin", "LinkedIn", { opt: true, ph: "linkedin.com/in/your-name", ac: "url" })}${q("contact.website", "Portfolio, GitHub or website", { opt: true, ph: "e.g. github.com/your-name", ac: "url" })}${q("contact.workRights", "Work rights", { opt: true, select: WORK_RIGHTS, hint: "Worth stating if your name or study history might make employers wonder." })}${licenceQ()}</div>`
+      + `<div class="q-grid">${q("contact.first", "First name", { ph: "e.g. Alex", ac: "given-name", cap: "name" })}${q("contact.last", "Last name", { ph: "e.g. Nguyen", ac: "family-name", cap: "surname" })}${phoneQ()}${q("contact.email", "Email", { type: "email", ph: "e.g. alex.nguyen@email.com", ac: "email" })}${locQ("contact.location", "Location", { plain: true, ac: true, hint: "Your suburb and state, like Parramatta NSW. Enough to show you're local. Not your street address." })}${q("contact.linkedin", "LinkedIn", { opt: true, ph: "linkedin.com/in/your-name", ac: "url" })}${q("contact.website", "Portfolio, GitHub or website", { opt: true, ph: "e.g. github.com/your-name", ac: "url" })}${q("contact.workRights", "Work rights", { opt: true, select: WORK_RIGHTS, hint: "Worth stating if your name or study history might make employers wonder." })}${licenceQ()}</div>`
       + `<p class="tip">Leave out your date of birth, photo, marital status and full street address. Australian employers don't need them, and they can invite bias.</p>`
       + `<p class="b-check" id="bContactCheck"></p>`;
   },
@@ -155,7 +149,7 @@ const STEP_RENDER = {
     const p = P();
     const box = (key, label, inner) => `<div class="b-card${p.extras[key] ? "" : " off"}${p.extrasDone[key] ? " done" : ""}"><div class="b-card-body"><div class="b-extra-head"><label class="q-check"><input type="checkbox" data-path="extras.${key}" data-rerender="1"${p.extras[key] ? " checked" : ""}> <b>${label}</b></label>${p.extras[key] && p.extrasDone[key] ? '<span class="card-tag done">On your resume</span>' : ""}</div>${p.extras[key] ? inner : ""}</div></div>`;
     return stepHead(kicker("extras"), "Anything else worth showing?", "Tick the sections you want. They're optional, but projects, volunteering and awards can make a short resume stand out. Finish adds each one to your resume.")
-      + box("availability", "Availability", `<div class="q-grid">${startQ()}${q("availDays", "Days you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights", prose: true })}${wantsHours(P()) ? q("availHours", "Hours per week", { opt: true, ph: "e.g. 20", inputmode: "numeric", hint: "A number, or a range like 15 to 25.", ac: "off" }) : `<p class="q-hint wide">Hours per week shows up here when you choose part-time or casual work in the Goal step.</p>`}${val(P().availability) && !val(P().availDays) && !val(P().availHours) ? `<p class="q-hint wide">Saved from before: “${esc(P().availability)}”. Fill in the two boxes above to replace it.</p>` : ""}</div>`)
+      + box("availability", "Availability", `${workTypeQ()}<div class="q-grid">${startQ()}${q("availDays", "Days you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights", prose: true })}${wantsHours(P()) ? q("availHours", "Hours per week", { opt: true, ph: "e.g. 20", inputmode: "numeric", hint: "A number, or a range like 15 to 25.", ac: "off" }) : `<p class="q-hint wide">Hours per week shows up here when you choose part-time or casual work above.</p>`}${val(P().availability) && !val(P().availDays) && !val(P().availHours) ? `<p class="q-hint wide">Saved from before: “${esc(P().availability)}”. Fill in the two boxes above to replace it.</p>` : ""}</div>`)
       + box("projects", "Projects", p.projects.map((x, i) => projCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="projects">+ Add a project</button></div><p class="q-hint">University, personal or work projects. Say what you built and what came of it.</p>`)
       + box("volunteering", "Volunteering", p.volunteering.map((x, i) => volCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="volunteering">+ Add a role</button></div>`)
       + box("awards", "Awards and achievements", lineListQ("awards", "Awards and achievements", "e.g. Dean's List, 2024", "+ Add an award") + textFoot("awards"))
@@ -194,7 +188,7 @@ function jobSubQ() {
 // Goal: full-time, part-time or casual. It also decides whether Extras asks for hours per week.
 function workTypeQ() {
   const cur = P().target.workTypes || [];
-  return `<div class="q"><div class="q-label" id="bWorkL">What kind of work are you looking for? <span class="opt">(pick any that suit)</span></div><p class="q-hint">Part-time and casual roles ask for the hours you can work, so we add that question in Extras. Full-time doesn't need it.</p>
+  return `<div class="q"><div class="q-label" id="bWorkL">What kind of work are you looking for? <span class="opt">(pick any that suit)</span></div><p class="q-hint">Part-time and casual roles ask for the hours you can work, so we add that question below. Full-time doesn't need it.</p>
     <div class="opt-chips" role="group" aria-labelledby="bWorkL">${WORK_TYPES.map(([k, l]) => `<button type="button" class="opt-chip" data-act="pick-work" data-val="${k}" aria-pressed="${cur.includes(k)}">${l}</button>`).join("")}</div></div>`;
 }
 const wantsHours = p => { const w = p.target.workTypes || []; return w.includes("part") || w.includes("casual") || !!val(p.availHours); };
@@ -246,6 +240,7 @@ function expCard(e, i) {
     <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button>${genned ? `<button class="btn ghost" type="button" data-act="redo-ask" data-i="${i}" aria-expanded="${builder.redoAsk === i}">Try again…</button>` : ""}</div>
     ${verbsHelp(i)}
     <div class="b-sugg" id="bSugg${i}">${suggHtml(i)}</div>
+    ${e.org ? `<div class="b-actions b-role-add"><button class="btn ghost" type="button" data-act="add-role" data-i="${i}">+ Add a promotion or new title at ${esc(shortOrg(e.org))}</button></div><p class="q-hint">Jobs at the same employer, one after the other, are stacked under a single company heading on your resume. Applicant tracking systems read that layout well.</p>` : ""}
     ${cardFoot("experience", i, e)}
   </div></details>${finNoteHtml("experience", i)}`;
 }
@@ -331,18 +326,18 @@ function textFoot(key) {
   return `<p class="status-line" id="bFin-text-${key}" role="status"></p><div class="b-card-foot"><span class="foot-gap"></span><button class="btn primary" type="button" data-act="finish-text" data-key="${key}">${done ? "Finish" : "Finish this section"}</button></div>`;
 }
 const CHIP_LABELS = {
-  software: ["Software and tools", "Programs, systems and equipment, like Excel, Xero, AutoCAD or a forklift.", "Start typing a tool, or press Enter to add your own"],
-  certs: ["Licences and certificates", "White Card, RSA, First Aid, Working with Children Check… Your driver's licence from the Contact step is added here for you.", "Start typing a licence or certificate"],
-  hard: ["Technical and job skills", "Things you can do, like “Financial reporting”, “Food safety” or “Engineering drawings”.", "Start typing a skill, or press Enter to add your own"],
-  languages: ["Languages", "Include your level, like “Mandarin (fluent)”.", "e.g. Vietnamese (conversational)"],
-  soft: ["Strengths", "Pick up to 12. Every one you pick shows on your resume, and your bullet points should back them up.", "e.g. Communication"]
+  software: ["Software and tools", "Programs, systems and equipment, like Excel, Xero, AutoCAD or a forklift.", "Type a tool or program, then press Enter"],
+  certs: ["Licences and certificates", "White Card, RSA, First Aid, Working with Children Check… Your driver's licence from the Contact step is added here for you.", "Type a licence or certificate, then press Enter"],
+  hard: ["Technical and job skills", "Things you can do, like “Financial reporting”, “Food safety” or “Engineering drawings”.", "Type a skill, then press Enter"],
+  languages: ["Languages", "Include your level, like “Mandarin (fluent)”.", "Type a language, e.g. Vietnamese (conversational)"],
+  soft: ["Strengths", "Pick up to 12. Every one you pick shows on your resume, and your bullet points should back them up.", "Type a strength, e.g. Communication"]
 };
 function chipEditor(key, label, hint, ph) {
   const items = P().skills[key], id = "chin_" + key;
   return `<section class="q skill-card" data-chips="${key}"><header class="skill-head"><h3 class="q-label" id="chl_${key}">${label}</h3><span class="skill-count" data-skill-count="${key}">${items.length ? `${items.length} added` : "none yet"}</span></header>${hint ? `<p class="q-hint">${hint}</p>` : ""}
     <div class="chip-edit pick sugg">${items.map((s, i) => `<span class="echip">${esc(s)}<button type="button" class="chip-x" data-act="chip-del" data-key="${key}" data-i="${i}" aria-label="Remove ${esc(s)}">×</button></span>`).join("")}<input type="text" id="${id}" class="chip-in" data-chip-in="${key}" data-suggest="chip-${key}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" placeholder="${esc(ph)}" aria-labelledby="chl_${key}" autocomplete="off"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
     <div class="sugg-row sugg-found" data-found="${key}">${skillSuggestions(key, "found")}</div>
-    <details class="skill-ideas" open><summary>Ideas to pick from</summary><div class="sugg-row" data-sugg="${key}">${skillSuggestions(key)}</div></details></section>`;
+    <details class="skill-ideas"><summary>Ideas to pick from</summary><div class="sugg-row" data-sugg="${key}">${skillSuggestions(key)}</div></details></section>`;
 }
 function skillSuggestions(key, part) {
   const p = P(), have = new Set(Object.values(p.skills).flat().map(s => s.toLowerCase()));
@@ -391,13 +386,16 @@ const presentVerbs = () => presentSet || (presentSet = new Set([...ACTION_VERBS.
 const isActionStart = t => { const w = (String(t).match(/^[A-Za-z]+/) || [""])[0].toLowerCase(); return ACTION_START.test(t) || /^[A-Z][a-z]+(ed|ised|ized)\b/.test(t) || VERB_WORDS.has(w) || !!IRREG[w] || Object.values(IRREG).includes(w) || BASE_VERBS.test(w) || presentVerbs().has(w) || presentVerbs().has(w.replace(/e?s$/, "")); };
 const WEAK_START = /^(responsible for|duties (included|were)|tasks included|helped( to)?|assisted( with)?|worked on|in charge of)\b/i;
 // Each note: [kind, message, issue key for the Fix button]
+// A figure of any kind counts as a number: 5, 12%, $2m, 10k, 5x, 24/7, "three" or "a dozen". A year on its own does not.
+const NUM_WORDS = /\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|dozens?|hundreds?|thousands?|millions?|billions?|half|quarter|double[ds]?|tripled?|twice|per ?cent|percent|daily|weekly|fortnightly|monthly|hourly)\b/i;
+const hasFigure = t => /\d/.test(String(t).replace(/\b(19|20)\d{2}\b/g, " ")) || NUM_WORDS.test(t);
 function coachNotes(text, current) {
   const t = String(text || "").trim();
   if (!t) return [];
   const w = wordCount(t), notes = [];
   const verb = isActionStart(t) && !WEAK_START.test(t);
   notes.push(verb ? ["ok", "Action word"] : ["warn", WEAK_START.test(t) ? "Say what you did, not what you were responsible for" : "Start with an action word", "verb"]);
-  notes.push(numsOf(t).length || /\b(two|three|four|five|six|seven|eight|nine|ten|twelve|dozens?|hundreds?|thousands?|half|double[ds]?|tripled?)\b/i.test(t) ? ["ok", "Has a number"] : ["idea", "Add a number if you can", "number"]);
+  notes.push(hasFigure(t) ? ["ok", "Has a number"] : ["idea", "Add a number if you can", "number"]);
   if (w > 32) notes.push(["warn", `Shorten it (${w} words)`, "long"]);
   else if (w < 9) notes.push(["warn", "Add more detail: how, with what, and the result", "short"]);
   if (/\b(I|my|me)\b/.test(t)) notes.push(["warn", "Drop “I” and “my”", "first"]);
@@ -423,7 +421,8 @@ function resumeHealth(p) {
   if (missing.length) add("fail", `Add ${listJoin(missing)}.`, SN("contact")); else add("pass", "Contact details are complete.");
   if (c.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c.email.trim())) add("warn", "Your email address doesn't look right.", SN("contact"));
   if (c.phone && (c.phone.replace(/\D/g, "").length < 8 || c.phone.replace(/\D/g, "").length > 13)) add("warn", "Check your phone number.", SN("contact"));
-  if (!p.target.title.trim()) add("warn", "Add the job title you're aiming for. It becomes your headline.", SN("goal")); else add("pass", "Headline matches the job you want.");
+  if (["none", "student"].includes(stageOf(p))) { /* the job title is only asked from early career up */ }
+  else if (!p.target.title.trim()) add("warn", "Add the job title you're aiming for. It becomes your headline.", SN("goal")); else add("pass", "Headline matches the job you want.");
   const sw = wordCount(p.summary);
   if (!sw) add("warn", "Write a short profile for the top.", SN("summary"));
   else if (sw < 25) add("warn", "Your profile is short. Aim for 40 to 75 words.", SN("summary"));
@@ -476,7 +475,7 @@ function stepState(k, p) {
     return real.every(e => e.done !== false) && real.some(e => complete(e)) ? "done" : "draft";
   };
   switch (k) {
-    case "goal": return p.target.stage && p.target.jobType && has(p.target.title) ? "done" : (p.target.stage || p.target.jobType || has(p.target.title)) ? "draft" : "";
+    case "goal": return p.target.stage && has(p.target.title) ? "done" : (p.target.stage || has(p.target.title)) ? "draft" : "";
     case "layout": return p.cv.template ? "done" : "";
     case "contact": {
       const c = p.contact, need = [has(c.name) || (has(c.first) && has(c.last)), has(c.email), has(c.phone), has(c.location)];
@@ -510,11 +509,11 @@ function renderBuilder(focus) {
   const flipFrom = builder.animate ? flipCapture() : null;
   builder.animate = false;
   f.innerHTML = STEP_RENDER[k]() + (pend ? `<div class="b-pending" role="alert"><p>${esc(pend.msg)}</p><div class="b-actions"><button class="btn primary" type="button" data-act="finish-all">Finish ${pend.count > 1 ? "them" : "it"} and continue</button><button class="btn" type="button" data-act="goto" data-step="${pend.step}" data-force="1">Continue without ${pend.count > 1 ? "them" : "it"}</button></div></div>` : "")
-    + `<div class="b-nav">${builder.step > 0 ? `<button class="btn" type="button" data-act="goto" data-step="${builder.step - 1}">← ${B_STEPS[builder.step - 1].label}</button>` : "<span></span>"}${builder.step < B_STEPS.length - 1 ? `<button class="btn primary" type="button" data-act="goto" data-step="${builder.step + 1}">Next: ${B_STEPS[builder.step + 1].label} →</button>` : ""}</div>`;
+    + `<div class="b-nav">${builder.step > 0 ? `<button class="btn" type="button" data-act="goto" data-step="${builder.step - 1}">← ${B_STEPS[builder.step - 1].label}</button>` : `<button class="btn" type="button" data-back-start="1">← Back to start</button>`}${builder.step < B_STEPS.length - 1 ? `<button class="btn primary" type="button" data-act="goto" data-step="${builder.step + 1}">Next: ${B_STEPS[builder.step + 1].label} →</button>` : ""}</div>`;
   renderSteps();
   updateChecks();
   renderPreview();
-  f.querySelectorAll("textarea[data-bullet], textarea[data-sugg-edit], textarea[data-path$='.answers.wins'], textarea[data-path$='.answers.duties'], textarea[data-path='target.ad']").forEach(autoGrow);
+  f.querySelectorAll("textarea").forEach(autoGrow);   // every text box grows to the size of its text
   if (k === "layout" || k === "review") fitThumbs();
   if (focus) { const h = $("bStepTitle"); if (h) h.focus({ preventScroll: true }); smoothTo(stepsBar() || f, 8); }   // a new step starts with the steps bar at the top
   else if (wasWelcome) window.scrollTo(0, 0);
@@ -529,6 +528,13 @@ function smoothTo(el, extra = 12) {
   if (!el) return;
   const bar = ($("appbar") || document.querySelector(".appbar") || { offsetHeight: 0 }).offsetHeight || 0;
   window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - bar - extra), behavior: reduceMotion() ? "auto" : "smooth" });
+}
+// Scroll so the bottom of a box sits at the bottom of the screen (its top stays in view if the box is taller than the screen)
+function smoothToBottom(el, extra = 16) {
+  if (!el) return;
+  const bar = ($("appbar") || document.querySelector(".appbar") || { offsetHeight: 0 }).offsetHeight || 0, r = el.getBoundingClientRect();
+  const toBottom = r.bottom + window.scrollY - window.innerHeight + extra, toTop = r.top + window.scrollY - bar - extra;
+  window.scrollTo({ top: Math.max(0, Math.min(toBottom, toTop)), behavior: reduceMotion() ? "auto" : "smooth" });
 }
 let previewTimer = null;
 function builderTpl() { const k = P().cv.template; return CV_TEMPLATES.some(t => t.key === k) ? tplByKey(k) : ((rankTemplates()[0] || {}).t || tplByKey("professional")); }
@@ -623,7 +629,7 @@ function dateOrderCheck(path) {
 /* --- Editing --- */
 function onBuilderInput(e) {
   const t = e.target, p = P(), change = e.type === "change";
-  if (t.tagName === "TEXTAREA" && (t.dataset.bullet || t.dataset.suggEdit || /\.answers\.|^target\.ad$/.test(t.dataset.path || ""))) autoGrow(t);
+  if (t.tagName === "TEXTAREA") autoGrow(t);
   if (t.dataset.chipIn || t.dataset.ask || t.dataset.subjIn != null) return;
   // edited suggestion before adding it
   if (t.dataset.suggEdit) { const sg = builder.sugg[+t.dataset.i]; if (sg) sg.items[+t.dataset.j] = t.value; return; }
@@ -722,7 +728,8 @@ function onBuilderInput(e) {
     if (gn) gn.hidden = !(val(ed.grade) && !gradeStrong({ ...ed, gradeType: v }));
   }
   // a job title from the list tells us the kind of work, if it isn't set yet
-  if (change && path === "target.title" && !p.target.jobType) { const jt = jobTypeForTitle(v); if (jt) { p.target.jobType = jt; touchProfile("builder"); keepOpen(); renderBuilder(false); return; } }
+  // (the title is the only question now: the kind of work is worked out from it, and follows it if the title changes)
+  if (change && path === "target.title") { const jt = titleKind(v); if (jt && jt !== p.target.jobType) { p.target.jobType = jt; p.target.jobSub = ""; touchProfile("builder"); keepOpen(); renderBuilder(false); return; } }
   // a job ad pasted in Goal: take the title and company from it
   if (change && path === "target.ad") {
     const ad = String(v || "");
@@ -881,7 +888,27 @@ async function onBuilderClick(e) {
       builder.foldOpen = {};
       builder.extraAlts = {};
       builder.open[list] = new Set();
-      touchProfile("builder"); renderBuilder(false); return;
+      touchProfile("builder"); renderBuilder(false);
+      if (list === "experience" || list === "education") window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+      return;
+    }
+    case "add-role": {
+      keepOpen();
+      const src = p.experience[i];
+      if (!src) return;
+      const nx = emptyExp(); nx.org = src.org; nx.location = src.location || "";
+      // the newer title goes above the one it follows, and the entries below it move down one place
+      p.experience.splice(i, 0, nx);
+      const down = k => k >= i ? k + 1 : k;
+      builder.genned = new Set([...builder.genned].map(down));
+      builder.sugg = Object.fromEntries(Object.entries(builder.sugg).map(([k, v]) => [down(+k), v]));
+      builder.alts = Object.fromEntries(Object.entries(builder.alts).map(([k, v]) => { const [a, b] = k.split("."); return [down(+a) + "." + b, v]; }));
+      builder.foldOpen = {}; builder.extraAlts = {};
+      builder.open.experience = new Set([i]);
+      touchProfile("builder"); renderBuilder(false);
+      const card = document.querySelector(`#bForm details[data-card="experience"][data-i="${i}"]`);
+      if (card) { const t = card.querySelector("input:not([disabled])"); if (t) { t.focus({ preventScroll: true }); t.select(); } smoothTo(card); }
+      return;
     }
     case "move": {
       keepOpen();
@@ -1541,7 +1568,7 @@ async function aiReadProfile(text, progress) {
       const it = inText(d.interests); if (it) { p.interests = it; p.extras.interests = true; }
       return p.experience.length || p.education.length ? { ok: true, value: p } : { ok: false, why: "copy every job and qualification in the text into jobs and study" };
     } });
-  return r.data ? { profile: r.data, via: r.via } : null;
+  return r.data ? { profile: r.data, via: r.via } : { profile: null, miss: aiMissWords(r) || "The AI didn't give a usable answer this time." };
 }
 // Bring in a resume (kind "resume", text) or a LinkedIn profile (kind "linkedin", li), filling in as much as possible
 async function importInto(kind, input, statusEl, sourceName) {
@@ -1550,11 +1577,17 @@ async function importInto(kind, input, statusEl, sourceName) {
   if (kind === "linkedin" && !(input.experience || input.education || input.headline || input.name)) { statusEl.textContent = `Couldn't find your profile sections in ${sourceName}. Try LinkedIn's PDF instead.`; statusEl.classList.add("err"); return false; }
   statusEl.classList.remove("err");
   const before = JSON.parse(JSON.stringify(P()));
-  let got = kind === "linkedin" ? profileFromLinkedIn(input) : profileFromText(text), via = "";
-  if ($("bImportAi") && $("bImportAi").checked) {
+  let got = kind === "linkedin" ? profileFromLinkedIn(input) : profileFromText(text), via = "", aiMiss = "";
+  // The AI reads it closely unless that box has been unticked (the cover letter and LinkedIn pages bring things in without showing the box, so they always ask it)
+  const aiBox = $("bImportAi"), aiOn = !aiBox || aiBox.checked || statusEl !== $("bImportStatus");
+  if (aiOn) {
     statusEl.classList.add("busy");
-    try { const r = await aiReadProfile(text, m => { statusEl.textContent = m; }); if (r) { got = mergeProfiles(got, r.profile); via = viaWords(r.via); } }
-    catch { /* the plain read is still there */ }
+    try {
+      const r = await aiReadProfile(text, m => { statusEl.textContent = m; });
+      if (r && r.profile) { got = mergeProfiles(got, r.profile); via = viaWords(r.via); }
+      else if (r) aiMiss = r.miss;
+    }
+    catch (e) { aiMiss = `The AI read stopped early${e && e.message ? ` (${e.message})` : ""}.`; }   // the plain read is still there
     finally { statusEl.classList.remove("busy"); }
   }
   const merged = mergeProfiles(before, got);
@@ -1572,7 +1605,7 @@ async function importInto(kind, input, statusEl, sourceName) {
   const jobs = n(p.experience.filter(hasContent).length, before.experience.filter(hasContent).length), quals = n(p.education.filter(hasContent).length, before.education.filter(hasContent).length);
   const skills = n(Object.values(p.skills).flat().length, Object.values(before.skills).flat().length);
   const what = [jobs ? `${jobs} job${jobs === 1 ? "" : "s"}` : "", quals ? `${quals} qualification${quals === 1 ? "" : "s"}` : "", skills ? `${skills} skill${skills === 1 ? "" : "s"}` : ""].filter(Boolean);
-  statusEl.innerHTML = `${esc(`Read ${sourceName}${via ? ` (checked by ${via})` : ""}: ${what.length ? "added " + listJoin(what) : "nothing new to add, but blanks were filled in"}. Each job and qualification is a draft until you finish it, so check each step and answer the questions to strengthen it.`)}${builder.undo ? ' <button class="linkish" type="button" id="bUndoImport">Undo</button>' : ""}`;
+  statusEl.innerHTML = `${esc(`Read ${sourceName}${via ? ` (checked by ${via})` : ""}: ${what.length ? "added " + listJoin(what) : "nothing new to add, but blanks were filled in"}. Each job and qualification is a draft until you finish it, so check each step and answer the questions to strengthen it.${aiMiss ? ` The AI did not check it: ${aiMiss}` : ""}`)}${builder.undo ? ' <button class="linkish" type="button" id="bUndoImport">Undo</button>' : ""}`;
   const u = $("bUndoImport");
   if (u) u.onclick = () => { replaceProfile(builder.undo, "import"); builder.undo = null; statusEl.textContent = "Restored your previous answers."; };
   // the import box has done its job: put it away and say so
@@ -1580,6 +1613,7 @@ async function importInto(kind, input, statusEl, sourceName) {
   if (box && !box.hidden && statusEl === $("bImportStatus")) { box.hidden = true; const ib = $("bImportBtn"); if (ib) ib.setAttribute("aria-expanded", "false"); }
   builder.welcome = false;   // on to the questions
   toast(kind === "linkedin" ? "LinkedIn profile successfully loaded" : "Resume successfully loaded", "ok");
+  if (aiMiss) toast(`The AI did not check it: ${aiMiss}`, "warn");
   return true;
 }
 // Older callers: a resume's text
@@ -1630,7 +1664,8 @@ onInit(() => {
     else if (t.dataset && t.dataset.chipIn && e.key === "Backspace" && !t.value) { const k = t.dataset.chipIn, arr = P().skills[k]; if (arr.length) { arr.pop(); touchProfile("builder"); rerenderChips(k); } }
   });
   f.addEventListener("focusout", e => { const t = e.target; if (t.isConnected && t.dataset && t.dataset.chipIn && t.value.trim()) { const v = t.value; t.value = ""; setTimeout(() => addChip(t.dataset.chipIn, v), 0); } });
-  f.addEventListener("toggle", e => { if (e.target.matches && e.target.matches("details.b-card")) keepOpen(); }, true);
+  // (a closed card can't measure its text boxes, so they are sized when it opens)
+  f.addEventListener("toggle", e => { if (e.target.matches && e.target.matches("details.b-card")) { keepOpen(); if (e.target.open) e.target.querySelectorAll("textarea").forEach(autoGrow); } }, true);
   $("bImportBtn").addEventListener("click", () => {
     showWelcome("bPick");
     if (!$("bLiUrl").value && P().contact.linkedin) $("bLiUrl").value = P().contact.linkedin;
@@ -1666,13 +1701,14 @@ onInit(() => {
     $("bUndoReset").onclick = () => { replaceProfile(builder.undo, "import"); builder.undo = null; builder.welcome = false; renderBuilder(false); toast("Restored your answers.", "ok"); };
   });
   $("useBuilt").addEventListener("click", () => { sendToScanner(); });
-  viewHooks.builder = () => {
+  // (wait for the saved profile first: opening the page straight onto #builder must not mistake a saved resume for a blank one)
+  viewHooks.builder = () => profileReady.then(() => {
     if (!P().experience.length) P().experience.push(emptyExp());
     if (!P().education.length) P().education.push(emptyEdu());
     // the first visit with nothing filled in opens on "how do you want to start?"
     if (builder.welcome === undefined) builder.welcome = isFreshProfile(P());
     renderBuilder(false);
-  };
+  });
   onProfile(src => {
     $("useBuilt").hidden = !hasProfile(P());
     if (currentView === "builder" && src !== "builder") renderBuilder(false);

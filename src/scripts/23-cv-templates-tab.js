@@ -130,7 +130,7 @@ function renderCv() {
   $("view-cv").dataset.kind = cvState.kind;
   $("cvEditBtn").textContent = cvLetters() ? "Edit my cover letter" : "Edit my details";
   $("cvGallery").setAttribute("aria-label", cvLetters() ? "Cover letter designs, best match first" : "Templates, best match first");
-  renderCvSource(); renderCvFilters(); renderGallery(); renderCvEditor();
+  renderCvSource(); renderCvFilters(); renderGallery(); renderCvEditor(); cvFontFill();
   cvState.rendered = true;
 }
 function setCvPref(k, v) { P().cv[k] = v; touchProfile("cv"); }

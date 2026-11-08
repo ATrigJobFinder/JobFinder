@@ -1,6 +1,6 @@
 /* ===================== Resume advice: the resume guide ===================== */
 // How resumes are screened, what to include and leave off, achievement bullets, tailoring, ATS, AI and cover letters, with a bullet checker and a final checklist.
-// The page itself is in index.html (#advice-resume-body). The menu calls it the Resume checker.
+// The page itself is in index.html (#advice-resume-body). The menu calls it Resume Advice.
 // Everything typed into the tools stays in the browser.
 onInit(() => {
   var root = document.getElementById("rgRoot");

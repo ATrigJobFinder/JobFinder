@@ -50,6 +50,7 @@ function ltV22Render() {
   ltShowStep(ltStep);
   ltNextCards();
   navDots();
+  if (typeof renderLetterSources === "function") renderLetterSources();
   applyLtWelcome();
 }
 

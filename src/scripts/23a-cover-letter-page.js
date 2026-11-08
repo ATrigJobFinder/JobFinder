@@ -3,11 +3,13 @@
 function letterStyle(tpl, accent) {
   const t = tpl || DEFAULT_LETTER_STYLE;
   if (!tpl) return DEFAULT_LETTER_STYLE;
+  // the resume's font follows into a letter that matches it
+  const fp = typeof fontPref === "function" && letterMatched() ? fontPref() : "";
   return {
-    body: t.body, head: t.head, accent: accent || t.accent, caps: !!(t.nm && t.nm.caps), track: t.nm && t.nm.track ? Math.round(t.nm.track * 250) : 0,
+    body: fp || t.body, head: fp || t.head, accent: accent || t.accent, caps: !!(t.nm && t.nm.caps), track: t.nm && t.nm.track ? Math.round(t.nm.track * 250) : 0,
     align: t.nm && t.nm.align === "center" ? "center" : "left",
     look: t.layout === "band" ? "band" : t.layout === "sidebar" ? "side" : "rule",
-    pdf: (FONTS[t.body] || FONTS.Calibri).pdf, pdfHead: (FONTS[t.head] || FONTS.Calibri).pdf, name: t.name
+    pdf: (FONTS[fp || t.body] || FONTS.Calibri).pdf, pdfHead: (FONTS[fp || t.head] || FONTS.Calibri).pdf, name: t.name
   };
 }
 // The design chosen in Templates (or the best match for your job type)
@@ -66,7 +68,7 @@ function letterHtml(L, st) {
 const PH = { who: "[Hiring manager's name, e.g. Sam Lee]", company: "[Company name, e.g. Sydney Water]", role: "[Job title, e.g. Graduate Engineer]" };
 // a template for any job unless you've chosen "A specific job" (or already typed a job, company or recipient)
 const ltTemplate = () => { try { const d = BL(); return d.mode === "template" || (!d.mode && !d.role && !d.company && !d.recipient); } catch { return false; } };
-const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Yours sincerely,", mode: "template" }));
+const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Kind regards,", mode: "template" }));   // "Kind regards" is the safe Australian default whether or not you have a name to write to
 const BL = () => baseLetter.data;
 const blText = () => BL().parts.map(p => p.text.trim()).filter(Boolean);
 function baseLetterParts(forSample) {
@@ -79,10 +81,11 @@ function baseLetterParts(forSample) {
     date: todayAU(),
     // a blank is a placeholder that says what goes there, highlighted yellow; a template leaves the job, company and name as placeholders
     recipient: ltTemplate() ? [PH.who, PH.company] : [d.recipient || PH.who, d.company || PH.company],
-    re: ltTemplate() ? `Re: Application for ${PH.role}` : (d.role || p.target.title) ? `Re: Application for ${d.role || p.target.title}` : `Re: Application for ${PH.role}`,
+    // (the advice: a "Re:" line with the job title and any reference number)
+    re: ltTemplate() ? `Re: Application for ${PH.role}` : ((d.role || p.target.title) ? `Re: Application for ${d.role || p.target.title}` : `Re: Application for ${PH.role}`) + (String(d.ref || "").trim() ? ` (Ref ${String(d.ref).trim()})` : ""),
     salutation: ltTemplate() ? "Dear Hiring Manager," : d.salutation || "Dear Hiring Manager,",
     paragraphs: sample ? letterFromProfile(p).map(x => x.text) : paras,
-    signoff: d.signoff || "Yours sincerely,",
+    signoff: d.signoff || "Kind regards,",
     signName: c.name || ""
   };
 }
@@ -111,8 +114,10 @@ function letterFromProfile(p) {
   const certs = p.skills.certs.length ? ` I also hold ${listJoin(p.skills.certs.slice(0, 2))}.` : "";
   const subj = edu ? pickSubjects(edu, p).slice(0, 5) : [];
   out.push({ part: "education", text: edu && subj.length ? `My studies have given me a strong foundation, including ${listJoin(subj)}.${proj}${p.skills.software.length ? ` I am proficient in ${listJoin(p.skills.software.slice(0, 3))}.` : ""}${certs}` : p.skills.software.length ? `I am proficient in ${listJoin(p.skills.software.slice(0, 3))}.${proj}${certs}` : edu ? `My ${edu.degree} has given me a strong foundation for this role.${proj}${certs}` : "[The study, tools and certificates behind your experience.]" });
-  out.push({ part: "motivation", text: `I am particularly drawn to ${company || "[the company]"} because [one specific reason: a project, a value or the work they do].${soft.length ? ` My experience has also developed my ${listJoin(soft)}, which I would bring to your team.` : ""}` });
-  out.push({ part: "closing", text: `Thank you for considering my application. I would welcome the opportunity to discuss how I could contribute${p.availability ? `, and I am available ${lowerFirst(p.availability.replace(/[.\s]+$/, "").replace(/^available\s+/i, "")).replace(/,\s*available\s+/i, ", ")}` : ""}.` });
+  const why = ltTemplate() ? "" : lwClean(BL().why);   // the person's own reason for choosing this employer, if they gave one
+  out.push({ part: "motivation", text: `I am drawn to ${company || "[the company]"} because ${why ? (/^I( |')/.test(why) ? why : lowerFirst(why)) : "[one specific reason: a project, a value or the work they do]"}.${soft.length ? ` My experience has also developed my ${listJoin(soft)}, which I would bring to your team.` : ""}` });
+  const avail = lwClean(BL().avail) || p.availability;   // the start date typed for this letter, or the one in the profile
+  out.push({ part: "closing", text: `I would welcome the opportunity to discuss how I could contribute${avail ? `, and I am available ${lowerFirst(String(avail).replace(/[.\s]+$/, "").replace(/^available\s+/i, "")).replace(/,\s*available\s+/i, ", ")}` : ""}. Thank you for considering my application.` });
   return out;
 }
 // Your base letter also becomes a "previous letter" in Tailor to a job, so its best sentences get reused
@@ -130,7 +135,7 @@ async function syncBaseToTailor() {
 function renderLetterPage() {
   const d = BL();
   renderSignAlts();
-  for (const k of ["role", "company", "recipient", "salutation", "signoff"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el && document.activeElement !== el) el.value = d[k] || ""; }
+  for (const k of ["role", "company", "recipient", "salutation", "signoff", "ref"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el && document.activeElement !== el) el.value = d[k] || ""; }
   const roleEl = $("lt-role"); if (roleEl && !d.role) roleEl.placeholder = P().target.title || "e.g. Graduate Engineer";
   // blank company / addressed-to boxes are yellow and read [XXX] in the letter
   for (const k of ["role", "company", "recipient"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el) el.classList.toggle("gap-input", !String(d[k] || "").trim()); }

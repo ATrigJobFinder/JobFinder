@@ -249,7 +249,7 @@ function analyse(resumeRaw, jdRaw, typedTitle, fileInfo, opts = {}) {
   const has = re => short.some(l => re.test(l));
   const heads = {
     Experience: has(/^[a-z &,\-/]{0,40}\b(experience|employment|work history|career history)$/i),
-    Education: has(/^(education|qualifications|education (and|&) [a-z ]+|academic (background|qualifications))$/i),
+    Education: has(/^(education|qualifications|education (and|&) [a-z ]+|[a-z ]+ (and|&) education|academic (background|qualifications))$/i),
     Skills: has(/^[a-z &,\-/]{0,30}\b(skills|competencies|expertise|capabilities)\b[a-z &,\-/]{0,30}$/i)
   };
   const missingHeads = Object.keys(heads).filter(k => !heads[k]);

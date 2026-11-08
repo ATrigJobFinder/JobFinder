@@ -1,6 +1,8 @@
 /* ===================== Resume structure ===================== */
 const RANGE_TEST = new RegExp(RANGE_RE.source, "i");
 const RANGE_ALL = new RegExp(RANGE_RE.source, "gi");
+// "Overall Tenure: Mar 2019 – Present" sits under a company name when several roles at one employer are stacked (see 22). It is not a job itself.
+const TENURE_RE = /^\s*overall tenure\b/i;
 const BULLET_RE = /^\s*([-•*▪◦‣–·])\s+/;
 const KNOWN_HEAD = /^[a-z &\-/]{0,40}\b(profile|summary|objective|about me|education|qualifications|experience|employment|work history|career history|skills|competencies|certifications?|licen[cs]es|volunteering|volunteer|community|projects|achievements|awards|interests|referees|references|languages|leadership|extracurricular|activities|training|publications|availability)\b[a-z &\-/]{0,30}$/i;
 
@@ -52,6 +54,7 @@ function parseResume(text) {
     for (let i = s.start; i <= s.end; i++) if (!BULLET_RE.test(lines[i]) && RANGE_TEST.test(lines[i])) heads.push(i);
     if (heads.length) {
       heads.forEach((h, k) => {
+        if (TENURE_RE.test(lines[h])) return;   // the company's own line: its roles below are the jobs
         const end = k + 1 < heads.length ? heads[k + 1] - 1 : s.end;
         let start = h, label = cleanHeader(lines[h]);
         if (!label) {                                    // date on its own line: the title is the line above
@@ -64,7 +67,7 @@ function parseResume(text) {
         let subIdx = -1;
         if (sub && !BULLET_RE.test(lines[j]) && !RANGE_TEST.test(sub) && !/[.:]$/.test(sub) && !/^[A-Za-z ]{2,30}:\s/.test(sub) && words(sub).length <= 9) { label += (label ? " · " : "") + sub; subIdx = j; }
         // a role's last line should not swallow the next role's title line when dates sit on their own line
-        if (k + 1 < heads.length && !cleanHeader(lines[heads[k + 1]])) { let p = heads[k + 1] - 1; while (p > h && !lines[p].trim()) p--; last = lastContent(h, p - 1); }
+        if (k + 1 < heads.length && (!cleanHeader(lines[heads[k + 1]]) || TENURE_RE.test(lines[heads[k + 1]]))) { let p = heads[k + 1] - 1; while (p > h && !lines[p].trim()) p--; last = lastContent(h, p - 1); }
         zones.push({ id: "z" + zones.length, kind: s.type === "education" ? "education" : "role", section: s.title, label: label || "Untitled", start, last, headIdx: h, subIdx });
       });
     } else {

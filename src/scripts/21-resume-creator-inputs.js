@@ -134,7 +134,7 @@ function locQ(path, label, o = {}) {
   const saved = val(getPath(P(), path)), id = fid(path), x = placeOf(saved);
   const [sub, st] = x && x.kind === "au" ? [x.n, x.s] : x && x.kind === "world" ? [`${x.n}, ${x.s}`, ""] : splitLoc(saved);
   const known = !saved || !!x;
-  return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${/suburb|town/i.test(String(label)) ? label : label + " (suburb)"}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
+  return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${o.plain || /suburb|town/i.test(String(label)) ? label : label + " (suburb)"}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
     <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Start typing a suburb or town")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : o.nofill ? "nope" : "off"}"${o.nofill ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" data-lpignore="true" data-1p-ignore data-form-type="other" readonly` : ""} spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
     <p class="pick-msg${known ? "" : " err"}" id="${id}-msg" role="status">${known ? "" : "We don't know that place. Pick it from the list as you type, so employers (and Job Finder) know where it is."}</p>${o.hint ? `<p class="q-hint">${o.hint}</p>` : ""}</div></div>`;
 }
@@ -1078,17 +1078,20 @@ function parseLang(s) { const m = String(s || "").match(/^(.*?)\s*\(([^)]*)\)\s*
 const langString = (name, level) => name ? (level ? `${name} (${level})` : name) : "";
 function langEditor() {
   const p = P(), rows = p.skills.languages.map(parseLang);
-  rows.push({ name: "", level: "", draft: true });   // one blank row is always open
+  // a blank row opens only when there are no languages yet, or after "Add a language" is pressed
+  const hasAny = rows.length > 0, blank = !hasAny || !!builder.langNew;
+  if (blank) rows.push({ name: "", level: "", draft: true });
   const row = (r, i) => {
     const typing = builder.langOther === i, known = LANGUAGES.includes(r.name);
     const nameBox = typing ? `<input type="text" data-lang="${i}" data-part="other" value="${esc(known ? "" : r.name)}" placeholder="Type the language" aria-label="Language ${i + 1}" autocomplete="off">`
       : `<select data-lang="${i}" data-part="name" aria-label="Language ${i + 1}"><option value="">Choose a language…</option>${r.name && !known ? `<option selected>${esc(r.name)}</option>` : ""}${LANGUAGES.map(l => `<option${l === r.name ? " selected" : ""}>${esc(l)}</option>`).join("")}<option value="__other">Another language…</option></select>`;
     const lvKnown = LANG_LEVELS.some(([k]) => k === r.level);
     const lv = `<select data-lang="${i}" data-part="level" aria-label="Level for language ${i + 1}"${r.name ? "" : " disabled"}>${r.level ? "" : '<option value="" selected disabled hidden>Choose a level</option>'}${r.level && !lvKnown ? `<option value="${esc(r.level)}" selected>${esc(r.level)}</option>` : ""}${LANG_LEVELS.map(([k, l]) => `<option value="${k}"${k === r.level ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
-    return `<div class="lang-row${r.draft ? " is-blank" : ""}">${nameBox}${lv}${r.draft ? '<span class="chip-x-gap" aria-hidden="true"></span>' : `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button>`}</div>`;
+    return `<div class="lang-row${r.draft ? " is-blank" : ""}">${nameBox}${lv}${r.draft && !hasAny ? '<span class="chip-x-gap" aria-hidden="true"></span>' : r.draft ? `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Cancel this new language">×</button>` : `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button>`}</div>`;
   };
-  return `<div class="q" data-langs="1"><div class="q-label" id="chl_languages">Languages <span class="opt">(optional)</span></div><p class="q-hint">Any language other than English is worth listing, with your level. Choose one below and another blank row opens for the next.</p>
-    <div class="lang-list">${rows.map(row).join("")}</div></div>`;
+  return `<div class="q" data-langs="1"><div class="q-label" id="chl_languages">Languages <span class="opt">(optional)</span></div><p class="q-hint">Any language other than English is worth listing, with your level. Choose one below, and press Add a language for the next.</p>
+    <div class="lang-list">${rows.map(row).join("")}</div>
+    <div class="b-actions"><button class="btn" type="button" data-act="lang-add">+ Add a language</button></div></div>`;
 }
 function rerenderLangs(focusSel) {
   const box = document.querySelector("#bForm [data-langs]");
@@ -1106,7 +1109,7 @@ function onLangInput(t, change) {
   if (part === "name" || part === "other") cur.name = part === "other" ? smartCase(t.value.trim(), "title") : t.value;
   else cur.level = t.value;
   if (part === "other") builder.langOther = null;
-  if (!cur.name && !draft) { arr.splice(i, 1); builder.langNew = 1; }
+  if (!cur.name && !draft) { arr.splice(i, 1); builder.langNew = 0; }
   else if (cur.name && draft) { arr.push(langString(cur.name, cur.level)); builder.langNew = 0; }
   else if (cur.name) arr[i] = langString(cur.name, cur.level);
   touchProfile("builder");
@@ -1128,13 +1131,14 @@ const MARGINS = { narrow: { mm: 12, label: "Narrow" }, normal: { mm: 0, label: "
 function tplWithPrefs(tpl, prefs) {
   const pr = prefs || (profile && profile.data && profile.data.prefs) || {};
   const sp = SPACING[pr.spacing] || SPACING.normal, mg = MARGINS[pr.margins] || MARGINS.normal;
-  return { ...tpl, lh: sp.lh, gap: sp.gap, margin: mg.mm || tpl.margin };
+  const font = FONTS[pr.font] ? pr.font : "";   // a font chosen by the person replaces the design's own
+  return { ...tpl, lh: sp.lh, gap: sp.gap, margin: mg.mm || tpl.margin, ...(font ? { body: font, head: font } : {}) };
 }
 function pageSetupQ() {
   const pr = P().prefs, design = (builderTpl() || {}).margin || 16;
   const unit = (k, o, path) => path === "prefs.margins" ? `${k === "normal" ? design : o.mm} mm` : o.unit;
   const seg = (path, opts, cur, label) => `<div class="q"><div class="q-label" id="ps_${path.split(".")[1]}">${label}</div><div class="seg seg-fill" role="group" aria-labelledby="ps_${path.split(".")[1]}">${Object.entries(opts).map(([k, o]) => `<button type="button" data-act="pick" data-path="${path}" data-val="${k}" aria-pressed="${(cur || "normal") === k}"><span>${o.label}</span><small>${unit(k, o, path)}</small></button>`).join("")}</div></div>`;
-  return `<div class="page-setup">${seg("prefs.spacing", SPACING, pr.spacing, "Line spacing")}${seg("prefs.margins", MARGINS, pr.margins, "Page margins")}</div><p class="q-hint">Compact spacing and narrow margins fit more on a page. Line spacing is relative to the design's own (1.0×); normal margins are the design's own (${design} mm).</p>${dateStyleQ()}${languageQ()}`;
+  return `<div class="page-setup">${seg("prefs.spacing", SPACING, pr.spacing, "Line spacing")}${seg("prefs.margins", MARGINS, pr.margins, "Page margins")}</div>${fontQ()}<p class="q-hint">Compact spacing and narrow margins fit more on a page. Line spacing is relative to the design's own (1.0×); normal margins are the design's own (${design} mm).</p>${dateStyleQ()}${languageQ()}`;
 }
 // Which English to write in: it sets the spelling autocorrect fixes to, and the language the browser's spell check uses
 function languageQ() {
@@ -1202,6 +1206,7 @@ function sugItems(inp, browse) {
   return hits.sort((a, b) => a[0] - b[0] || a[1].length - b[1].length || a[1].localeCompare(b[1])).slice(0, browse ? 80 : 8).map(h => h[1]);
 }
 function sugSub(kind, x) {
+  if (kind === "industry") { const a = INDUSTRY_ALIASES.find(y => y[0] === x); return a ? jobLabel(a[1]) : ""; }
   if (kind === "titles") { const j = jobTypeForTitle(x); return j ? jobLabel(j) : ""; }
   if (kind === "inst") {
     if (!uniSet) { uniSet = new Set(UNIVERSITIES.split(";")); tafeSet = new Set(TAFES.split(";")); }

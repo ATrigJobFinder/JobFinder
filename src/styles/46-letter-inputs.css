@@ -1,0 +1,15 @@
+/* ===================== The cover letter's inputs: what the letter is written from ===================== */
+.lt-src { margin: 20px 0 8px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); display: grid; gap: 4px; }
+.lt-src .b-sub { margin-top: 0; }
+.lt-src-list { list-style: none; margin: 8px 0 14px; padding: 0; display: grid; gap: 9px; }
+.lt-src-list:empty { display: none; }
+.lt-src-list li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; font-size: var(--step--1); line-height: 1.45; }
+.lt-src-list li.head { display: block; margin-top: 4px; }
+.lt-src-list .mk { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 700; background: var(--line); color: var(--ink); }
+.lt-src-list .ok .mk { background: color-mix(in srgb, var(--good) 18%, var(--surface)); color: var(--good); }
+.lt-src-list .warn .mk { background: var(--warn-bg); color: var(--warn); }
+.lt-src-note:empty { display: none; }
+.lt-src .field { margin-top: 6px; }
+.lt-src textarea { width: 100%; min-height: 6.5em; resize: vertical; }
+.lt-src .q-grid { margin-top: 6px; }
+@media (max-width: 600px) { .lt-src { padding: 14px; } }

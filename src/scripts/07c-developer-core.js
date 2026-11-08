@@ -3,7 +3,7 @@
 // "View as a new visitor" moves all of it into one stash entry and reloads, so the site looks like the very first visit.
 // Nothing is deleted: "Restore my data" clears whatever the new-visitor session made and puts the stash back.
 // Inside Claude, where data is kept in your Claude account, the new-visitor view just stops reading it (see 08).
-const DEV_STASH = "jobfinder.dev.stash.v1", DEV_FLAG = "jobfinder.dev.v1";
+const DEV_STASH = "jobfinder.dev.stash.v1", DEV_FLAG = "jobfinder.dev.v1", DEV_PROFILE = "jobfinder.profile.v1";
 const devRead = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const devFresh = () => !!devRead(DEV_STASH);   // true while the new-visitor view is on
 // The Developer button is for you, not for visitors: it shows on localhost and local files, after adding ?dev to the address, or after Ctrl+Shift+D
@@ -24,6 +24,18 @@ function devEnterFresh() {
   location.hash = "";
   location.reload();
   return true;
+}
+// While in the new-visitor view: start over with nothing (a new session), or with only the resume in the profile.
+// Your stash is left alone either way, so "Restore everything" still puts all of your own data back.
+function devResetFresh(withResume) {
+  if (!devFresh()) return;
+  let saved = null; try { saved = JSON.parse(devRead(DEV_STASH) || "null"); } catch { saved = null; }
+  for (const k of devOwnKeys(localStorage)) localStorage.removeItem(k);
+  for (const k of devOwnKeys(sessionStorage)) { try { sessionStorage.removeItem(k); } catch { /* blocked */ } }
+  const prof = withResume && saved && saved.keep && saved.keep.local ? saved.keep.local[DEV_PROFILE] : null;
+  if (prof) { try { localStorage.setItem(DEV_PROFILE, prof); } catch { /* full */ } }
+  location.hash = "";
+  location.reload();
 }
 // Throw away what the new-visitor session made, put your own data back, and reload
 function devLeaveFresh() {

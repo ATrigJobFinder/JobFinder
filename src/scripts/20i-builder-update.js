@@ -275,14 +275,22 @@ function applyWelcome() {
   const w = $("bWelcome"); if (w) w.hidden = !on;
   for (const sel of [".b-steps", ".b-layout", ".view-head .top-actions"]) { const el = root.querySelector(sel); if (el) el.hidden = on; }
   root.classList.toggle("is-welcome", on);
+  // With a resume in the profile, "from profile" is the blue way in; without one it is greyed out and uploading is blue
+  const has = hasProfile(P()), pr = $("bwProfile"), up = $("bwUpload");
+  if (pr) {
+    pr.disabled = !has; pr.classList.toggle("bw-card--go", has); pr.classList.toggle("bw-card--off", !has);
+    const t = $("bwProfileText"); if (t) t.textContent = has ? "Use the resume already saved in your profile. We fill in your jobs, study and skills." : "There's no resume in your profile yet. Upload one, or your LinkedIn, to use this next time.";
+  }
+  if (up) up.classList.toggle("bw-card--go", !has);
 }
 function openImportPanel(focusId) {
   const box = $("bImport"); if (!box) return;
   box.hidden = false;
+  const ub = $("bwUpload"); if (ub) ub.setAttribute("aria-expanded", "true");
   const ib = $("bImportBtn"); if (ib) ib.setAttribute("aria-expanded", "true");
   const fs = $("bFromScanner"); if (fs) fs.hidden = !(els.resume.value.trim() && wordCount(els.resume.value) > 40);
   if (focusId === "bLiUrl" && !$("bLiUrl").value && P().contact.linkedin) $("bLiUrl").value = P().contact.linkedin;
-  smoothTo(box, 16);
+  smoothToBottom(box, 16);
   const f = $(focusId); if (f) setTimeout(() => f.focus({ preventScroll: true }), 120);
 }
 function showWelcome(focusId) {
@@ -297,8 +305,8 @@ onInit(() => {
   w.addEventListener("click", e => {
     const b = e.target.closest("[data-bw]");
     if (!b) return;
-    if (b.dataset.bw === "resume") openImportPanel("bPick");
-    else if (b.dataset.bw === "linkedin") openImportPanel("bLiUrl");
+    if (b.dataset.bw === "upload") openImportPanel("bPick");
+    else if (b.dataset.bw === "profile") { if (!hasProfile(P())) return; builder.welcome = false; builder.step = 0; renderBuilder(true); }
     else { builder.welcome = false; builder.step = 0; renderBuilder(true); }
   });
 });

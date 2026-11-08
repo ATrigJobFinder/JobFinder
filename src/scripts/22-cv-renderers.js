@@ -289,8 +289,8 @@ const tplByKey = k => CV_TEMPLATES.find(t => t.key === k) || CV_TEMPLATES[0];
 const TITLE_SETS = {
   standard: { summary: "Profile", experience: "Experience", education: "Education", skills: "Skills", certs: "Licences & Certifications", projects: "Projects", volunteering: "Volunteering", awards: "Awards", publications: "Publications", interests: "Interests", availability: "Availability", referees: "Referees", contact: "Contact" },
   formal: { summary: "Professional Summary", experience: "Professional Experience", education: "Education", skills: "Skills", certs: "Licences & Certifications", projects: "Selected Projects", volunteering: "Community Involvement", awards: "Awards & Honours", publications: "Publications", interests: "Interests", availability: "Availability", referees: "Referees", contact: "Contact" },
-  casual: { summary: "About Me", experience: "Work Experience", education: "Education", skills: "What I Bring", certs: "Certificates", projects: "Projects", volunteering: "Volunteering", awards: "Achievements", publications: "Publications", interests: "Interests", availability: "Availability", referees: "References", contact: "Contact" },
-  trades: { summary: "Profile", experience: "Work History", education: "Training & Education", skills: "Skills & Equipment", certs: "Licences & Tickets", projects: "Projects", volunteering: "Volunteering", awards: "Achievements", publications: "Publications", interests: "Interests", availability: "Availability", referees: "Referees", contact: "Contact" },
+  casual: { summary: "About Me", experience: "Work Experience", education: "Education", skills: "Skills", certs: "Certificates", projects: "Projects", volunteering: "Volunteering", awards: "Achievements", publications: "Publications", interests: "Interests", availability: "Availability", referees: "References", contact: "Contact" },
+  trades: { summary: "Profile", experience: "Work History", education: "Education & Training", skills: "Skills & Equipment", certs: "Licences & Tickets", projects: "Projects", volunteering: "Volunteering", awards: "Achievements", publications: "Publications", interests: "Interests", availability: "Availability", referees: "Referees", contact: "Contact" },
   academic: { summary: "Research Profile", experience: "Professional Experience", education: "Education", skills: "Skills", certs: "Certifications", projects: "Research Projects", volunteering: "Service & Outreach", awards: "Awards & Scholarships", publications: "Publications", interests: "Interests", availability: "Availability", referees: "Referees", contact: "Contact" }
 };
 function sectionOrder(tpl, p) {
@@ -323,7 +323,7 @@ function cvModel(p, tpl, opts = {}) {
   const clean = a => keep(a.map(s => val(s)).filter(Boolean));
   if (p.summary.trim()) sec.summary = { kind: "text", text: p.summary.trim() };
   else if (opts.ghostSummary) sec.summary = { kind: "text", text: "Your profile goes here: two or three sentences on who you are and what you're after. You write it in the Summary step.", ghost: true };
-  const exp = shown(p.experience).filter(e => e.title || e.org).map(e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }));
+  const exp = stackRoles(shown(p.experience).filter(e => e.title || e.org), e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }));
   if (exp.length) sec.experience = { kind: "entries", items: exp };
   const edu = shown(p.education).filter(e => e.degree || e.inst).map(e => ({ title: e.degree, org: e.inst, loc: val(e.location), dates: rangeOf(e, true), bullets: keep(eduLines(e, p)) }));
   if (edu.length) sec.education = { kind: "entries", items: edu };
@@ -391,6 +391,10 @@ function cvHtml(model, tpl, opts = {}) {
   const head = withContact => `<header class="cv-head"><div class="cv-name">${e(model.name)}</div>${model.headline ? `<div class="cv-headline">${e(model.headline)}</div>` : ""}${withContact && contactLine.length ? `<div class="cv-contact">${contactLine.map(x => `<span>${e(x)}</span>`).join('<i aria-hidden="true">|</i>')}</div>` : ""}</header>`;
   const ul = items => items.length ? `<ul class="cv-ul">${items.map(b => `<li>${e(b)}</li>`).join("")}</ul>` : "";
   const entry = it => {
+    // Several roles at one employer (a promotion), in the plain order applicant tracking systems read:
+    //   Company — City, State / Overall Tenure: … / Higher title | dates / bullets / Lower title | dates / bullets
+    if (it.stack === "company") return `<div class="cv-entry cv-co"><div class="cv-et">${e(it.title)}${it.loc ? ` — ${e(it.loc)}` : ""}</div>${it.dates ? `<div class="cv-muted">Overall Tenure: ${e(it.dates)}</div>` : ""}</div>`;
+    if (it.stack === "role") return `<div class="cv-entry cv-role"><div class="cv-rl"><span class="cv-et">${e(it.title)}</span>${it.dates ? ` | <span class="cv-muted">${e(it.dates)}</span>` : ""}</div>${ul(it.bullets)}</div>`;
     const org = [it.org, it.loc].filter(Boolean).join(", ");
     if (tpl.dates === "gutter" || tpl.dates === "timeline") return `<div class="cv-entry g"><div class="cv-ed">${e(it.dates || "")}</div><div class="cv-eb"><div class="cv-et">${e(it.title || it.org)}</div>${it.title && org ? `<div class="cv-org">${e(org)}</div>` : ""}${ul(it.bullets)}</div></div>`;
     return `<div class="cv-entry"><div class="cv-eh"><span class="cv-et">${e(it.title || it.org)}</span>${it.dates ? `<span class="cv-ed">${e(it.dates)}</span>` : ""}</div>${it.title && org ? `<div class="cv-org">${e(org)}</div>` : ""}${ul(it.bullets)}</div>`;
@@ -546,6 +550,9 @@ async function cvDocx(model, tpl, opts = {}) {
   const G = 1700;
   const bulletParas = (items, left) => items.map(b => para(run(b), { num: true, ind: { left: left + 300, hanging: 220 }, after: 30 })).join("");
   const entry = (it, ctx) => {
+    // roles stacked under one employer (a promotion): Company — City, State / Overall Tenure / Title | dates / bullets
+    if (it.stack === "company") return para(run(it.title + (it.loc ? " — " + it.loc : ""), { b: true }), { keep: true, before: 100 }) + (it.dates ? para(run("Overall Tenure: " + it.dates, { sz: SZ - 1, color: muted }), { keep: true }) : "");
+    if (it.stack === "role") return para(run(it.title, { b: true }) + (it.dates ? run(" | " + it.dates, { color: muted }) : ""), { keep: !!it.bullets.length, before: 60 }) + bulletParas(it.bullets, 0);
     const org = [it.org, it.loc].filter(Boolean).join(", ");
     const orgRun = run(org, { color: ["classic", "academic", "executive", "minimal"].includes(tpl.family || tpl.key) ? "#3A4252" : C.accent, i: ["classic", "academic", "executive"].includes(tpl.family || tpl.key) });
     if (tpl.dates === "gutter" || tpl.dates === "timeline") {
@@ -742,6 +749,21 @@ async function cvPdf(model, tpl, opts = {}) {
   const fam = tpl.family || tpl.key;
   const orgStyle = ["classic", "academic", "executive"].includes(fam) ? { style: "italic", color: "#3A4252" } : fam === "minimal" ? { color: "#3A4252" } : { color: C.accent };
   const entry = (col, it) => {
+    // roles stacked under one employer (a promotion): Company — City, State / Overall Tenure / Title | dates / bullets
+    if (it.stack === "company") {
+      ensure(col, LH(S) * 3);
+      rich(col, [{ t: it.title + (it.loc ? " — " + it.loc : ""), style: "bold" }]);
+      if (it.dates) rich(col, [{ t: "Overall Tenure: " + it.dates, color: col.side ? C.sideMuted : C.muted }], { size: S - 0.5 });
+      col.y += 0.8 * GP;
+      return;
+    }
+    if (it.stack === "role") {
+      ensure(col, LH(S) * 2);
+      rich(col, [{ t: it.title, style: "bold" }, ...(it.dates ? [{ t: " | " + it.dates, color: col.side ? C.sideMuted : C.muted }] : [])]);
+      bullets(col, it.bullets);
+      col.y += 1.5 * GP;
+      return;
+    }
     const org = [it.org, it.loc].filter(Boolean).join(", ");
     const title = it.title || it.org;
     if (tpl.dates === "gutter" || tpl.dates === "timeline") {
