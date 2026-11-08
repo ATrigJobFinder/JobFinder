@@ -4,27 +4,16 @@
 .jb-filters { grid-template-columns: minmax(0, 1fr); align-items: start; }
 .jb-by { flex-wrap: wrap; row-gap: 8px; }
 
-/* "Searching by": shows only the current choice. The wheel appears while you hover, tap or focus it, and you can drag it. */
-.jb-by-pick { position: relative; width: 220px; max-width: 100%; height: 38px; flex: none; }
-.jb-by-now {
-  all: unset; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; cursor: pointer;
-  border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--surface);
-  font-family: var(--font-display); font-stretch: 105%; font-weight: 700; font-size: var(--step-0); color: var(--ink);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+/* "Searching by": three buttons side by side, the chosen one filled */
+.jb-by-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); max-width: 100%; }
+.jb-segb {
+  all: unset; box-sizing: border-box; cursor: pointer; padding: 7px 16px; border-radius: 999px; white-space: nowrap;
+  font-family: var(--font-display); font-stretch: 105%; font-weight: 700; font-size: var(--step--1); color: var(--muted);
 }
-.jb-by-now svg { color: var(--accent); flex: none; }
-.jb-by-now:hover { border-color: var(--accent); }
-.jb-by-now:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.jb-by-now.on { background: var(--accent-soft); border-color: var(--accent); }
-.jb-by-pick .jb-roller {
-  position: absolute; z-index: 30; left: 0; top: -32px; width: 100%; height: 102px;
-  background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none;
-  visibility: hidden; opacity: 0; pointer-events: none; transform: scale(0.97); transform-origin: 50% 50%;
-  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0s linear 0.14s;
-}
-.jb-by-pick.open .jb-roller { visibility: visible; opacity: 1; pointer-events: auto; transform: none; transition-delay: 0s; }
-.jb-by-pick.open .jb-by-now > * { opacity: 0; }
-.jb-roller, .jb-wheel { cursor: grab; touch-action: pan-y; }
+.jb-segb:hover { color: var(--ink); }
+.jb-segb[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); box-shadow: 0 1px 3px rgba(15, 23, 42, .25); }
+.jb-segb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.jb-wheel { cursor: grab; touch-action: pan-y; }
 .jb-roller-track.drag, .jb-roller-track.drag * { cursor: grabbing; }
 
 /* Search, location and the Find jobs button */
@@ -74,8 +63,8 @@
 .jb-split-detail .job-warn { margin-top: 14px; border: 0; border-radius: var(--radius); }
 
 @container main (max-width: 700px) {
-  .jb-by-pick { flex: 1 1 200px; width: auto; }
+  .jb-by-seg { width: 100%; }
+  .jb-segb { flex: 1 1 auto; text-align: center; padding-inline: 10px; }
   .jb-find { flex: 1 1 100%; }
   .jb-pay { flex: 1 1 100%; max-width: none; }
 }
-@media (prefers-reduced-motion: reduce) { .jb-by-pick .jb-roller { transition: none; } }

@@ -1,0 +1,87 @@
+/* ===================== Aptitude tests, in the style of the advice pages: the library, the test room, the results ===================== */
+#view-aptitude .iv-head { border-bottom: 1px solid var(--line); margin-bottom: 0; padding-bottom: 0; }
+#view-aptitude .iv-head p { display: none; }
+#view-aptitude .iv-head h1 { font-size: 1.05rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); padding-bottom: 10px; }
+.iv-tiles--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 620px) { .iv-tiles--2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* Step 1: what you're applying for, and the tests */
+.apt-areas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.apt-areas-l { font-weight: 700; margin-right: 4px; }
+.apt-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.apt-tiles .iv-tile-txt em { text-transform: none; letter-spacing: 0; font-size: .82rem; }
+@media (max-width: 1000px) { .apt-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .apt-tiles { grid-template-columns: minmax(0, 1fr); } }
+#aptAbout .ig-facts2 h3 { font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
+
+/* The paper in the hero */
+.apt-fig .ig-score__sheet { transform: rotate(1.2deg); }
+.apt-minitable { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .86rem; font-variant-numeric: tabular-nums; }
+.apt-minitable th, .apt-minitable td { padding: 6px 10px; border-bottom: 1px solid var(--ig-line); text-align: right; }
+.apt-minitable th:first-child { text-align: left; }
+.apt-minitable thead th { color: var(--ig-muted); font-weight: 600; }
+.apt-miniq { font-weight: 700; margin: 14px 0 8px; font-size: .95rem; }
+.apt-minioptions { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.apt-minioptions li { position: relative; padding: 7px 10px; border: 1px solid var(--ig-line); border-radius: 6px; font-size: .86rem; }
+.apt-minioptions li.is-on { color: var(--ig-accent); font-weight: 700; border-color: transparent; }
+.apt-minioptions svg { position: absolute; inset: -6px -8px; width: calc(100% + 16px); height: calc(100% + 12px); overflow: visible; pointer-events: none; }
+.apt-minioptions path { fill: none; stroke: var(--ig-accent); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 1; animation: ig-draw .6s ease-out .3s both; }
+.apt-figpen { margin-top: 14px; transform: rotate(-1.5deg); }
+
+/* The test room */
+.apt-timer { margin-left: auto; font: 700 1.15rem var(--font-mono); font-variant-numeric: tabular-nums; padding: 4px 12px; border-radius: 8px; background: var(--ig-paper); border: 1px solid var(--ig-line); }
+.apt-timer:empty { display: none; }
+.apt-timer.low { color: var(--ig-bad); border-color: var(--ig-bad); }
+.apt-timer + .iv-room-prog { margin-left: 0; }
+.apt-qroom { gap: 18px; padding-top: 22px; }
+.apt-nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.apt-dot { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--ig-line); background: var(--ig-surface); color: var(--ig-ink); font: 700 .9rem var(--ig-font-body); cursor: pointer; position: relative; }
+.apt-dot.done { background: var(--ig-accent-soft); border-color: var(--ig-accent); color: var(--ig-accent); }
+.apt-dot.now { background: var(--ig-accent); border-color: var(--ig-accent); color: var(--ig-on-accent); }
+.apt-dot.flag::after { content: "⚑"; position: absolute; top: -8px; right: -5px; font-size: .75rem; color: var(--ig-warn); }
+.apt-progress { height: 5px; border-radius: 4px; background: var(--ig-line); overflow: hidden; }
+.apt-progress i { display: block; height: 100%; background: var(--ig-accent); transition: width .2s ease; }
+.apt-qcard { display: grid; gap: 18px; padding: clamp(18px, 3vw, 30px); background: var(--ig-surface); border: 1px solid var(--ig-line); border-left: 6px solid var(--ig-accent); border-radius: 14px; }
+.apt-qcard .apt-text { font-size: clamp(1.25rem, 2.4vw, 1.7rem); font-weight: 800; line-height: 1.3; max-width: 52ch; margin: 0; }
+.apt-qcard .apt-passage { margin: 0; padding: 14px 18px; border-left: 4px solid var(--ig-line); background: var(--ig-paper); border-radius: 0 10px 10px 0; font-size: 1.02rem; line-height: 1.65; max-width: 72ch; }
+.apt-qcard .apt-seq { font: 700 clamp(1.4rem, 3vw, 2rem) var(--font-mono); letter-spacing: .02em; margin: 0; }
+.apt-qcard .apt-seq span { color: var(--ig-accent); }
+.apt-target { display: inline-grid; gap: 6px; justify-items: start; font-weight: 700; font-size: .85rem; color: var(--ig-muted); }
+.apt-target svg, .apt-flashgrid svg { width: 112px; height: 112px; color: var(--ig-ink); background: var(--ig-paper); border: 1px solid var(--ig-line); border-radius: 8px; display: block; }
+.apt-opts { display: grid; gap: 10px; max-width: 720px; }
+.apt-opts.svg { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.apt-opt { display: flex; gap: 12px; align-items: center; text-align: left; padding: 13px 14px; border: 1.5px solid var(--ig-line); border-radius: 12px; background: var(--ig-surface); color: var(--ig-ink); cursor: pointer; font: 600 1rem var(--ig-font-body); }
+.apt-opts.svg .apt-opt { flex-direction: column; align-items: center; padding: 10px; }
+.apt-opt svg { width: 80px; height: 80px; color: var(--ig-ink); background: var(--ig-surface); border: 1px solid var(--ig-line); border-radius: 6px; }
+.apt-opt:hover:not(:disabled):not(.static) { border-color: var(--ig-accent); }
+.apt-opt[aria-checked="true"] { border-color: var(--ig-accent); background: var(--ig-accent-soft); box-shadow: 0 0 0 1px var(--ig-accent) inset; }
+.apt-opt .l { width: 28px; height: 28px; flex: none; border-radius: 50%; display: grid; place-items: center; font: 700 .8rem var(--font-mono); background: var(--ig-paper); border: 1.5px solid var(--ig-line); }
+.apt-opt[aria-checked="true"] .l { background: var(--ig-accent); border-color: var(--ig-accent); color: var(--ig-on-accent); }
+.apt-opt.right { border-color: var(--ig-good); background: var(--ig-good-soft); }
+.apt-opt.right .l { background: var(--ig-good); border-color: var(--ig-good); color: #fff; }
+.apt-opt.wrong { border-color: var(--ig-bad); background: var(--ig-bad-soft); }
+.apt-opt.wrong .l { background: var(--ig-bad); border-color: var(--ig-bad); color: #fff; }
+.apt-opt:disabled { cursor: default; opacity: 1; }
+.apt-opt.static { cursor: default; font-weight: 500; }
+.apt-fb { padding: 14px 16px; border-radius: 10px; border-left: 5px solid var(--ig-good); background: var(--ig-good-soft); line-height: 1.55; }
+.apt-fb.bad { border-left-color: var(--ig-warn); background: var(--ig-warn-soft); }
+.apt-review-body { gap: 14px; }
+.apt-rtext { margin: 0; font-weight: 700; }
+.apt-why { margin: 0; padding: 10px 14px; background: var(--ig-paper); border-radius: 10px; line-height: 1.55; }
+
+/* Memory: the flash */
+.apt-flash { text-align: center; justify-items: center; padding-top: 60px; }
+.apt-flash-box { padding: 28px 40px; background: var(--ig-surface); border: 1px solid var(--ig-line); border-radius: 16px; min-width: min(100%, 420px); }
+.apt-digits { margin: 0; font: 800 clamp(2rem, 7vw, 3.6rem) var(--font-mono); letter-spacing: .12em; }
+.apt-words { margin: 0; font: 800 clamp(1.4rem, 4vw, 2.2rem) var(--ig-font-display); line-height: 1.5; }
+.apt-flash-bar { width: min(100%, 420px); height: 6px; border-radius: 4px; background: var(--ig-line); overflow: hidden; }
+.apt-flash-bar i { display: block; height: 100%; background: var(--ig-accent); animation: aptFlash linear forwards; }
+@keyframes aptFlash { from { width: 100%; } to { width: 0; } }
+.apt-flashgrid { display: grid; place-items: center; }
+.apt-flashgrid svg { width: 180px; height: 180px; }
+
+/* Numbers in the summaries stand out like the rest of the page */
+.iv-room .ig-facts2 h3 { font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 800; line-height: 1; }
+.iv-summary > div:not(.ig-facts2):not(.iv-focus):not(.iv-next):not(.iv-actions) { display: grid; gap: 12px; }
+.apt-ig .iv-barrow { grid-template-columns: 190px minmax(0, 1fr) 52px 170px; }
+@media (max-width: 760px) { .apt-ig .iv-barrow { grid-template-columns: 120px minmax(0, 1fr) 44px; } .apt-ig .iv-barrow em { display: none; } }

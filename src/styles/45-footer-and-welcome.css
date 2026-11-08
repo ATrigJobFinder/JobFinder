@@ -1,0 +1,68 @@
+/* ===================== The site footer, and the opening pages for the cover letter and LinkedIn ===================== */
+
+/* The footer sits at the bottom of every page except the globe on the home page */
+.main { display: flex; flex-direction: column; }
+.main > .view { margin-bottom: 48px; }
+.main > #view-home { margin-bottom: 0; }
+.site-foot { margin-top: auto; width: 100%; max-width: 1840px; margin-inline: auto; border-top: 1px solid var(--line); padding: 38px 0 88px; color: var(--ink); font-size: .92rem; }   /* room at the bottom for the Ask AI button */
+.site-foot[hidden] { display: none; }
+.sf-inner { display: grid; gap: 30px; }
+.sf-cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 36px; }
+.sf-col h2 { font-size: 1rem; font-weight: 700; margin: 0 0 14px; letter-spacing: 0; }
+.sf-col .sf-h2-gap { margin-top: 26px; }
+.sf-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.sf-col a, .sf-links a { color: var(--muted); text-decoration: none; }
+.sf-col a:hover, .sf-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.sf-mid { display: flex; gap: 18px; align-items: flex-start; padding: 24px 0; border-block: 1px solid var(--line); }
+.sf-mid p { margin: 0; color: var(--muted); line-height: 1.5; max-width: 90ch; }
+.sf-mid p + p { margin-top: 4px; }
+.sf-mid b { color: var(--ink); }
+.sf-logo { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font: 800 1.05rem var(--font-body); letter-spacing: .02em; }
+.sf-base { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; justify-content: space-between; font-size: .82rem; color: var(--muted); }
+.sf-region { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: .9rem; }
+.sf-region svg { width: 16px; height: 16px; }
+.sf-links { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-left: auto; }
+@media (max-width: 900px) { .sf-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) {
+  .sf-cols { grid-template-columns: minmax(0, 1fr); }
+  .sf-links { margin-left: 0; }
+  .site-foot { padding-top: 28px; }
+}
+@media print { .site-foot { display: none; } }
+
+/* The opening pages: the same look as the resume builder's, with a few drawings of their own */
+.bw-sign { stroke: var(--accent); }
+.bw-banner { fill: var(--accent-soft); }
+.bw-avatar { fill: var(--surface); stroke: var(--surface); stroke-width: 4; }
+.b-welcome .status-line:empty { display: none; }
+.is-welcome .status-line:empty { display: none; }
+.bw-skip { margin: -8px 0 0; text-align: center; }
+.b-welcome .panel.b-import { scroll-margin-top: calc(var(--bar-h, 52px) + 14px); }
+.b-welcome .lt-pick { margin: 0; }
+#liWelcome .b-import-col textarea, #ltWelcome .b-import-col textarea { width: 100%; }
+#ltWelcome .b-import-col .q-label, #liWelcome .b-import-col > .q-label { display: block; font-weight: 500; font-size: var(--step--1); }
+
+/* Each opening page has its own picture and colour, so the three don't look alike */
+/* Cover letter: a letter coming out of an envelope, in warm amber */
+#ltWelcome .bw-h1 mark { background: linear-gradient(transparent 62%, var(--warn-bg) 62%, var(--warn-bg) 94%, transparent 94%); }
+#ltWelcome .bw-ico { background: var(--warn-bg); color: var(--warn); }
+#ltWelcome .bw-card:not(.bw-card--go) i { color: var(--ink); }
+.bw-env-back { fill: color-mix(in srgb, var(--warn) 26%, var(--surface)); stroke: var(--line); stroke-width: 2; }
+.bw-env-front { fill: color-mix(in srgb, var(--warn) 14%, var(--surface)); stroke: var(--line); stroke-width: 2; filter: drop-shadow(0 -4px 8px rgba(20, 26, 46, .08)); }
+.bw-env-fold { stroke: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+.bw-stamp rect:first-child { fill: var(--warn); }
+.bw-stamp rect + rect { fill: none; stroke: rgba(255, 255, 255, .85); }
+.bw-badge .bw-stamp-hill { fill: rgba(255, 255, 255, .9); stroke: none; }
+.bw-pen rect { fill: var(--ink); }
+.bw-badge .bw-pen-tip { fill: var(--warn); stroke: none; }
+@media (prefers-reduced-motion: no-preference) { .bw-rise { animation: bwRise .8s cubic-bezier(.2, 1, .3, 1) both; } @keyframes bwRise { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } } }
+/* LinkedIn: a profile card with a score ring, in LinkedIn blue */
+#liWelcome .bw-h1 mark { background: linear-gradient(transparent 62%, color-mix(in srgb, #0a66c2 24%, transparent) 62%, color-mix(in srgb, #0a66c2 24%, transparent) 94%, transparent 94%); }
+#liWelcome .bw-ico { background: color-mix(in srgb, #0a66c2 14%, var(--surface)); color: #378fe9; }
+.bw-li-banner { fill: #0a66c2; }
+.bw-li-fill { fill: #378fe9; }
+.bw-open { stroke: var(--good); }
+.bw-ring-bg { stroke: var(--line); }
+.bw-ring { stroke: var(--good); }
+.bw-gauge { fill: var(--ink); font: 800 26px/1 var(--font-body, system-ui); }
+.bw-fig--li .bw-sheet .bw-paper { filter: drop-shadow(0 10px 18px rgba(20, 26, 46, .14)); }

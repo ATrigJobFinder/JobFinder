@@ -413,7 +413,7 @@ async function finishEntry(list, i, btn, quiet) {
   }
   keepOpen();
   const before = JSON.parse(JSON.stringify(e));
-  const wasDone = e.done;
+  const wasDone = e.done, scoreBefore = resumeHealth(p).score;
   if (btn) { btn.disabled = true; btn.textContent = "Finishing…"; }
   tidyEntry(list, e);
   let r = { data: null, via: null }, already = isPolished(list, e) || (list === "experience" && e.bullets.length && e.bullets.every(b => builder.aiText.has(norm(b))));
@@ -433,9 +433,10 @@ async function finishEntry(list, i, btn, quiet) {
   if (quiet) return true;
   renderBuilder(false);
   finToast();
-  const card = document.querySelector(`#bForm details[data-card="${list}"][data-i="${i}"]`);
-  if (card) smoothTo(card, 90);
+  const bar = stepsBar(); if (bar) smoothTo(bar, 8);   // the steps bar at the top, as when you move to the next step
   const paper = $("bPaper"); if (paper) { paper.classList.remove("flash"); void paper.offsetWidth; paper.classList.add("flash"); }
+  const scoreAfter = resumeHealth(P()).score;
+  setTimeout(() => scorePop(scoreBefore, scoreAfter), 450);
   return true;
 }
 // Said at the bottom of the screen for 3 seconds when a card was just finished or polished, with Undo
@@ -1077,18 +1078,17 @@ function parseLang(s) { const m = String(s || "").match(/^(.*?)\s*\(([^)]*)\)\s*
 const langString = (name, level) => name ? (level ? `${name} (${level})` : name) : "";
 function langEditor() {
   const p = P(), rows = p.skills.languages.map(parseLang);
-  if (builder.langNew) rows.push({ name: "", level: "", draft: true });
+  rows.push({ name: "", level: "", draft: true });   // one blank row is always open
   const row = (r, i) => {
     const typing = builder.langOther === i, known = LANGUAGES.includes(r.name);
     const nameBox = typing ? `<input type="text" data-lang="${i}" data-part="other" value="${esc(known ? "" : r.name)}" placeholder="Type the language" aria-label="Language ${i + 1}" autocomplete="off">`
       : `<select data-lang="${i}" data-part="name" aria-label="Language ${i + 1}"><option value="">Choose a language…</option>${r.name && !known ? `<option selected>${esc(r.name)}</option>` : ""}${LANGUAGES.map(l => `<option${l === r.name ? " selected" : ""}>${esc(l)}</option>`).join("")}<option value="__other">Another language…</option></select>`;
     const lvKnown = LANG_LEVELS.some(([k]) => k === r.level);
     const lv = `<select data-lang="${i}" data-part="level" aria-label="Level for language ${i + 1}"${r.name ? "" : " disabled"}>${r.level ? "" : '<option value="" selected disabled hidden>Choose a level</option>'}${r.level && !lvKnown ? `<option value="${esc(r.level)}" selected>${esc(r.level)}</option>` : ""}${LANG_LEVELS.map(([k, l]) => `<option value="${k}"${k === r.level ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
-    return `<div class="lang-row">${nameBox}${lv}<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button></div>`;
+    return `<div class="lang-row${r.draft ? " is-blank" : ""}">${nameBox}${lv}${r.draft ? '<span class="chip-x-gap" aria-hidden="true"></span>' : `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button>`}</div>`;
   };
-  return `<div class="q" data-langs="1"><div class="q-label" id="chl_languages">Languages <span class="opt">(optional)</span></div><p class="q-hint">Any language other than English is worth listing, with your level.</p>
-    <div class="lang-list">${rows.map(row).join("")}</div>
-    <div class="b-actions"><button class="btn" type="button" data-act="lang-add"${builder.langNew ? " disabled" : ""}>+ Add a language</button></div></div>`;
+  return `<div class="q" data-langs="1"><div class="q-label" id="chl_languages">Languages <span class="opt">(optional)</span></div><p class="q-hint">Any language other than English is worth listing, with your level. Choose one below and another blank row opens for the next.</p>
+    <div class="lang-list">${rows.map(row).join("")}</div></div>`;
 }
 function rerenderLangs(focusSel) {
   const box = document.querySelector("#bForm [data-langs]");
@@ -1149,6 +1149,7 @@ onInit(() => {
     if (e.key !== "Enter" || e.defaultPrevented || e.shiftKey || e.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
     const t = e.target;
     if (!t.matches || !t.matches("input, textarea, select") || t.dataset.chipIn || t.dataset.subjIn != null || t.type === "checkbox" || t.type === "radio" || t.dataset.multiline) return;
+    if (t.tagName === "TEXTAREA" && !t.dataset.bullet && !t.dataset.suggEdit) return;   // a text box: Enter starts a new line
     e.preventDefault();
     if (t.dataset.ask) { const b = t.closest(".bl-ask").querySelector("button"); if (b) b.click(); return; }
     if (t.dataset.suggEdit) { const b = t.closest(".s-row").querySelector("button"); if (b) b.click(); return; }
@@ -1168,8 +1169,11 @@ onInit(() => {
 // Each box can still take anything typed into it; the list just offers what people usually mean.
 let uniSet = null, tafeSet = null;
 const SUGGEST_SRC = {
-  titles: () => [val(P().target.title), ...P().experience.map(e => val(e.title)), ...allJobTitles(), ...COMMON_TITLES],
-  employers: () => [val(P().target.company), ...P().experience.map(e => val(e.org)), ...P().volunteering.map(e => val(e.org)), ...employerNames()],
+  titles: inp => inp && inp.dataset.path === "target.title"
+    ? [val(P().target.title), ...P().experience.map(e => val(e.title)), ...titlesFor(P().target.jobType, val(P().target.jobSub)), ...COMMON_TITLES]
+    : [val(P().target.title), ...P().experience.map(e => val(e.title)), ...allJobTitles(), ...COMMON_TITLES],
+  employers: inp => employersFor(inp),
+  detail: inp => { const i = +(inp.dataset.path || "").split(".")[1], v = vagueSubject((P().education[i] || {}).subject); return v ? v[2].split(";") : []; },
   inst: () => [...P().education.map(e => val(e.inst)), ...institutionNames()],
   licence: () => [...LICENCE_OPTS, ...licenceList().filter(x => /licen[cs]e/i.test(x))],
   subject: inp => { const i = +(inp.dataset.subjIn != null ? inp.dataset.subjIn : (inp.dataset.path || "").split(".")[1]), e = P().education[i] || {}; return subjectList(/subject2$/.test(inp.dataset.path || "") ? e.level2 : e.level); },
@@ -1179,7 +1183,7 @@ const SUGGEST_SRC = {
   "chip-soft": () => [...COMMON_SOFT, ...SKILLS.filter(s => s.kind === "soft").map(s => s.name)]
 };
 // short lists open as soon as you click in, like a drop-down; long ones once you start typing (or press the down arrow)
-const SUGGEST_OPEN_EMPTY = new Set(["subject", "licence", "chip-certs"]);
+const SUGGEST_OPEN_EMPTY = new Set(["subject", "licence", "chip-certs", "detail", "employers"]);
 const sugNow = { inp: null, items: [], i: -1 };
 function sugItems(inp, browse) {
   const src = SUGGEST_SRC[inp.dataset.suggest];

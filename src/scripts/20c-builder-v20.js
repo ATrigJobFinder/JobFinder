@@ -64,7 +64,7 @@ const BULLET_ONE_NANO = `You write ONE new resume bullet point for a job, from t
 Rules:
 1. Use only what they wrote. Never invent numbers, tools, results, team sizes or tasks.
 2. It must cover something the existing bullet points do NOT already say. Do not repeat, reword or overlap any fact in them: choose a different task, tool, person or result from the answers.
-3. One complete sentence without "I": a strong action verb, what they did, how (the tools or people they named), and why it mattered or what came of it. 16 to 30 words.
+3. One complete sentence without "I", following the formula: action verb + what they did + the result, with a number where possible (only a number they gave). 16 to 30 words.
 4. Past tense for a past job, present tense for a current job. Start with a verb that none of the existing bullet points starts with.
 5. No "I", "my", "responsible for", clichés or full stop at the end.
 Reply with JSON only: {"bullets": ["..."]}`;
@@ -148,6 +148,6 @@ function nextStepsHtml() {
   return `<div class="b-sub">What next?</div><p class="q-hint">Your resume is done. These three make it work harder for you.</p><div class="b-next nx">`
     + card("to-letter", "Most useful", "Write a cover letter that sounds like you", "Five short paragraphs, drafted from this resume. Every gap is highlighted in yellow so nothing is sent unfinished.", "Create a cover letter")
     + card("to-linkedin", "Do this next", "Make your LinkedIn match your resume", "Get a headline, About section and skills list written from this resume, so recruiters see the same strong story everywhere.", "Improve my LinkedIn")
-    + card("to-scanner", "Quick win", ad ? "Tailor this resume to your job ad" : "Tailor it to a real job ad", "Paste an ad to see your match score, the skills it asks for that you haven't shown, and get your resume and a cover letter shaped around that job.", "Tailor to a job")
+    + card("to-jobs", "Quick win", "Find jobs to apply for", ad ? "Browse jobs that match this resume, save the ones you like, and tailor it to each one." : "Browse jobs that match this resume and save the ones you like to your Application tracker. Tailor your resume to a job when you find a good one.", "Find jobs")
     + `</div>`;
 }

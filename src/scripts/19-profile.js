@@ -56,14 +56,14 @@ const EXTRA_KEYS = [
   ["publications", "Publications"], ["interests", "Interests"], ["availability", "Availability"], ["referees", "Referees"]
 ];
 // hidden: kept in your profile but left off this resume. polished: the bullets as they were last polished.
-const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyEdu = () => ({ degree: "", level: "", subject: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], toolsSeen: "", done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyEdu = () => ({ degree: "", level: "", subject: "", detail: "", detailFor: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyRef = () => ({ name: "", role: "", org: "", phone: "", phoneIso: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
   v: 2,
   // ad and company: filled when the resume is for one particular job
-  target: { title: "", jobType: "", stage: "", specific: false, ad: "", company: "" },
+  target: { title: "", jobType: "", jobSub: "", workTypes: [], stage: "", specific: false, ad: "", company: "" },
   contact: { name: "", first: "", last: "", phone: "", phoneCode: "+61", phoneIso: "AU", email: "", location: "", linkedin: "", website: "", workRights: "", licence: "" },
   summaryQ: { who: "", strengths: "", proof: "", next: "" },
   summary: "", summaryOk: false,
@@ -150,14 +150,19 @@ function syncProject(e) {
   }
   if (e.projectSplit || val(e.projectTitle)) { e.projectSplit = true; e.project = val(e.projectTitle) ? `${e.projectKind || "Thesis"}: ${val(e.projectTitle)}` : ""; }
 }
+// A broad subject like "Professional Engineering" gets the follow-up the person gave ("Mechanical") in brackets
+function subjectWithDetail(e) {
+  const s = val(e.subject), d = val(e.detail);
+  return s && d && typeof vagueSubject === "function" && vagueSubject(s) ? `${s} (${d})` : s;
+}
 function syncQual(e) {
   syncProject(e);
   if (e.degreeCustom && val(e.degree)) return;   // the person wrote the title themselves
   if (e.double && (val(e.level) || val(e.subject) || val(e.level2) || val(e.subject2))) {
-    e.degree = [qualName(e.level, e.subject), qualName(e.level2, e.subject2)].filter(Boolean).join(" / ");
+    e.degree = [qualName(e.level, subjectWithDetail(e)), qualName(e.level2, e.subject2)].filter(Boolean).join(" / ");
     return;
   }
-  if (val(e.level) || val(e.subject)) e.degree = qualName(e.level, e.subject);
+  if (val(e.level) || val(e.subject)) e.degree = qualName(e.level, subjectWithDetail(e));
   else if (val(e.degree)) {
     const parts = val(e.degree).split(DOUBLE_SPLIT);
     if (parts.length === 2) { [e.level, e.subject] = splitQual(parts[0]); [e.level2, e.subject2] = splitQual(parts[1]); e.double = true; e.degree = [qualName(e.level, e.subject), qualName(e.level2, e.subject2)].join(" / "); }
@@ -436,7 +441,9 @@ function startText(p) {
   return w;
 }
 // Days and hours per week are kept apart; an older single "days and hours" line still shows if the new boxes are empty
-const availabilityText = p => [startText(p), val(p.availDays) || val(p.availHours) ? [val(p.availDays), val(p.availHours) ? `${val(p.availHours).replace(/\s*(hours?|hrs?)?\s*(a|per)?\s*(week)?\s*$/i, "").trim()} hours per week` : ""].filter(Boolean).join(", ") : val(p.availability)].filter(Boolean).join(". ");
+const WORK_TYPES = [["full", "Full-time"], ["part", "Part-time"], ["casual", "Casual"]];
+const workTypeText = p => { const w = ((p.target && p.target.workTypes) || []).filter(k => WORK_TYPES.some(x => x[0] === k)); return w.length ? `Looking for ${listJoin(w.map(k => WORK_TYPES.find(x => x[0] === k)[1].toLowerCase()))} work` : ""; };
+const availabilityText = p => [workTypeText(p), startText(p), val(p.availDays) || val(p.availHours) ? [val(p.availDays), val(p.availHours) ? `${val(p.availHours).replace(/\s*(hours?|hrs?)?\s*(a|per)?\s*(week)?\s*$/i, "").trim()} hours per week` : ""].filter(Boolean).join(", ") : val(p.availability)].filter(Boolean).join(". ");
 // Only entries the person has finished go on the resume
 const finished = list => list.filter(e => e.done !== false);
 // …and of those, the ones they haven't hidden from this resume

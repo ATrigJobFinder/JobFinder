@@ -30,18 +30,18 @@ function flipPlay(from) {
   });
 }
 
-/* --- Relevant subjects: type one, press Enter, and it becomes a bubble. Click a bubble to remove it; drag to reorder; the first 3 show --- */
+/* --- Specific relevant subjects: type one, press Enter, and it becomes a bubble. Click a bubble to edit it (× removes it); drag to reorder; the first 3 show --- */
 const subjList = e => listOf(val(e.coursework)).filter(x => !isBlank(x));
 function subjChips(e, i) {
   const all = subjList(e);
-  return all.map((s, k) => `<span class="echip subj-chip${k < subjN(e) ? "" : " off"}${k === subjN(e) - 1 && all.length > subjN(e) ? " cut" : ""}" role="button" tabindex="0" draggable="true" data-subj-chip="1" data-i="${i}" data-k="${k}" data-flip="s${i}:${flipText(i, s)}" title="Click to remove. Drag to move." aria-label="${esc(s)}${k < subjN(e) ? ", shown on your resume" : ", not shown"}. Press Delete to remove.">${esc(s)}<span class="chip-x" aria-hidden="true">×</span></span>`).join("");
+  return all.map((s, k) => `<span class="echip subj-chip${k < subjN(e) ? "" : " off"}${k === subjN(e) - 1 && all.length > subjN(e) ? " cut" : ""}" role="button" tabindex="0" draggable="true" data-subj-chip="1" data-i="${i}" data-k="${k}" data-flip="s${i}:${flipText(i, s)}" title="Click to edit. Drag to move." aria-label="${esc(s)}${k < subjN(e) ? ", shown on your resume" : ", not shown"}. Press Enter to edit, Delete to remove."><span class="subj-text">${esc(s)}</span><span class="chip-x" role="button" data-subj-x="1" title="Remove" aria-label="Remove ${esc(s)}">×</span></span>`).join("");
 }
 function subjNote(e) {
   const n = subjList(e).length;
   return n > subjN(e) ? `Only the first ${subjN(e)} show on your resume (${n - subjN(e)} more kept here, shaded). Drag a bubble to change which.` : n ? `All ${n} show on your resume. The first ${subjN(e)} are used if you add more.` : `The first ${subjN(e)} you add show on your resume. Pick the ones closest to the job you're going for.`;
 }
 function subjectsQ(e, i) {
-  return `<div class="q wide subj-q" data-subj="${i}"><label class="q-label" for="subjIn${i}">Relevant subjects <span class="opt">(optional)</span></label>
+  return `<div class="q wide subj-q" data-subj="${i}"><label class="q-label" for="subjIn${i}">Specific relevant subjects <span class="opt">(optional)</span></label>
     <div class="q-body"><div class="pick sugg subj-box"><div class="chip-edit subj-edit"><span class="subj-chips" data-subj-list="${i}">${subjChips(e, i)}</span><input type="text" id="subjIn${i}" class="chip-in" data-subj-in="${i}" data-suggest="subject" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subjIn${i}-sl" placeholder="Type a subject and press Enter" autocomplete="off"></div><ul class="pick-list" id="subjIn${i}-sl" role="listbox" aria-label="Subject suggestions" hidden></ul></div>
     <p class="q-hint subj-note" id="subjNote${i}">${esc(subjNote(e))}</p>
     <label class="subj-n">Show <input type="number" min="1" max="8" step="1" value="${subjN(e)}" data-subj-n="${i}" aria-label="How many subjects to show on your resume"> on my resume</label></div></div>`;
@@ -80,6 +80,26 @@ function subjRemove(i, k) {
   subjSet(i, cur, true);
   actToast(`Removed “${gone}”.`, () => { P().education[i].coursework = was; subjRefresh(i, false); });
 }
+// Edit a subject where it sits: the bubble turns into a small box
+function subjEdit(chip) {
+  if (chip.querySelector("[data-subj-edit]")) return;
+  const i = +chip.dataset.i, k = +chip.dataset.k, text = subjList(P().education[i] || {})[k];
+  if (text === undefined) return;
+  chip.draggable = false; chip.classList.add("editing");
+  chip.innerHTML = `<input type="text" class="subj-edit-in" data-subj-edit="1" data-i="${i}" data-k="${k}" value="${esc(text)}" maxlength="70" aria-label="Edit subject: ${esc(text)}" autocomplete="off" size="${Math.max(8, text.length + 1)}">`;
+  const inp = chip.querySelector("input"); inp.focus(); inp.select();
+}
+function subjCommit(inp) {
+  const i = +inp.dataset.i, k = +inp.dataset.k, e = P().education[i];
+  if (!e) return;
+  const cur = subjList(e), v = inp.value.replace(/\s+/g, " ").trim().slice(0, 70);
+  if (!v || isBlank(v)) { subjRemove(i, k); return; }
+  const next = v[0].toUpperCase() + v.slice(1);
+  if (next === cur[k]) { subjRefresh(i, false); return; }
+  if (cur.some((s, n) => n !== k && s.toLowerCase() === next.toLowerCase())) { subjRemove(i, k); return; }
+  cur[k] = next;
+  subjSet(i, cur, false);
+}
 let subjDrag = null;
 onInit(() => {
   const f = $("bForm");
@@ -88,10 +108,20 @@ onInit(() => {
     if (t.dataset && t.dataset.subjIn != null) {
       if (e.key === "Enter" || e.key === ",") { e.preventDefault(); const v = t.value; t.value = ""; subjAdd(+t.dataset.subjIn, v, true); }
       else if (e.key === "Backspace" && !t.value) { const i = +t.dataset.subjIn, n = subjList(P().education[i] || {}).length; if (n) subjRemove(i, n - 1); }
-    } else if (t.dataset && t.dataset.subjChip && (e.key === "Delete" || e.key === "Backspace" || e.key === "Enter")) { e.preventDefault(); subjRemove(+t.dataset.i, +t.dataset.k); }
+    } else if (t.dataset && t.dataset.subjChip && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); subjRemove(+t.dataset.i, +t.dataset.k); }
+    else if (t.dataset && t.dataset.subjChip && e.key === "Enter") { e.preventDefault(); subjEdit(t); }
+    else if (t.dataset && t.dataset.subjEdit != null) {
+      if (e.key === "Enter") { e.preventDefault(); t.dataset.done = "1"; subjCommit(t); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); t.dataset.done = "1"; subjRefresh(+t.dataset.i, false); }
+    }
   });
   f.addEventListener("focusout", e => { const t = e.target; if (t.isConnected && t.dataset && t.dataset.subjIn != null && t.value.trim()) { const v = t.value, i = +t.dataset.subjIn; t.value = ""; setTimeout(() => subjAdd(i, v, false), 0); } });
-  f.addEventListener("click", e => { const c = e.target.closest && e.target.closest("[data-subj-chip]"); if (c) subjRemove(+c.dataset.i, +c.dataset.k); });
+  f.addEventListener("click", e => {
+    const c = e.target.closest && e.target.closest("[data-subj-chip]");
+    if (!c || e.target.closest("[data-subj-edit]")) return;
+    if (e.target.closest("[data-subj-x]")) subjRemove(+c.dataset.i, +c.dataset.k); else subjEdit(c);
+  });
+  f.addEventListener("focusout", e => { const t = e.target; if (t.isConnected && t.dataset && t.dataset.subjEdit != null && !t.dataset.done) { t.dataset.done = "1"; subjCommit(t); } });
   f.addEventListener("dragstart", e => {
     const c = e.target.closest && e.target.closest("[data-subj-chip]");
     if (!c) return;

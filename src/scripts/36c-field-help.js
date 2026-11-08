@@ -143,7 +143,7 @@ function helpFor(el, label = "") {
 function helpLabelText(lab, el) {
   if (!lab) return (el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").trim();
   const c = lab.cloneNode(true);
-  c.querySelectorAll("input,select,textarea,datalist,.hinfo,.opt,.q-hint,.card-tag,ul").forEach(n => n.remove());
+  c.querySelectorAll("input,select,textarea,datalist,.hinfo,.opt,.q-hint,.card-tag,.adv-btn,ul").forEach(n => n.remove());
   return c.textContent.replace(/\s+/g, " ").trim();
 }
 function helpLabelOf(el) {

@@ -1,5 +1,5 @@
 /* ===================== App shell: sidebar and tabs ===================== */
-const VIEWS = { "advice-resume": "Resume advice", "advice-letter": "Cover letter advice", "advice-linkedin": "LinkedIn advice", support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
+const VIEWS = { "advice-resume": "Resume checker", "advice-letter": "Cover letter checker", "advice-linkedin": "LinkedIn checker", support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
 const NAV_KEY = "jobfinder.nav.v1", VIEW_KEY = "jobfinder.view.v1", MODE_KEY = "jobfinder.mode.v1";
 const EMPLOYER_VIEWS = new Set(["employer", "jobs", "connect"]);
 const appEl = $("app");
@@ -113,6 +113,7 @@ function showView(name, opts = {}) {
   document.querySelectorAll(".sn-item").forEach(a => { if (a.dataset.view === name && !a.hidden) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   $("abView").textContent = name === "jobs" && appMode === "employer" ? "Job market" : VIEWS[name];
   lsSet(VIEW_KEY, name);
+  if (typeof siteFootShow === "function") siteFootShow(name);
   closeDrawer(false);
   if (viewHooks[name]) { try { viewHooks[name](opts); } catch (e) { console.error(e); } }
   if (changed && !opts.keepScroll) window.scrollTo({ top: 0 });

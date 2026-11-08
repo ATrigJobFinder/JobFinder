@@ -1,0 +1,173 @@
+/* ===================== Checker pages (advice) and the advice pop-ups in the resume builder ===================== */
+
+/* The picture on the right starts level with the big heading, not the small line above it */
+#view-advice-resume .ig-hero, #view-advice-letter .ig-hero, #view-advice-linkedin .ig-hero { align-items: start; }
+#view-advice-resume .ig-eyebrow, #view-advice-letter .ig-eyebrow, #view-advice-linkedin .ig-eyebrow { line-height: 1.25rem; }
+#view-advice-resume .ig-hero > figure, #view-advice-letter .ig-hero > figure, #view-advice-linkedin .ig-hero > figure { margin-top: calc(1.25rem + 16px); }
+@media (max-width: 900px) {
+  #view-advice-resume .ig-hero > figure, #view-advice-letter .ig-hero > figure, #view-advice-linkedin .ig-hero > figure { margin-top: 0; }
+}
+
+/* A pointer to another part of Job Finder, in place of a tool that lived on the page */
+.ig-promo { display: grid; gap: 16px; padding: 20px 22px; border: 1px solid var(--ig-line); border-left: 4px solid var(--ig-accent); border-radius: 12px; background: var(--ig-surface); }
+.ig-promo > div:not(.ig-actions) { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ig-promo :where(p, ul, h3) { margin: 0; }
+.ig-promo h3 { font-size: 1.2rem; }
+.ig-promo ul { padding-left: 1.1em; display: grid; gap: 8px; }
+.ig-promo .ig-actions { margin-top: 0; display: flex; flex-wrap: wrap; gap: 12px; }
+.ig-prose a { color: var(--ig-accent); }
+.ig-section > .ig-actions { margin-top: 16px; }
+
+/* Example letters look like paper, in light and dark mode */
+#view-advice-letter .ig-letter { background: #fff; color: #1b2230; border-color: #d6dbe5; box-shadow: 0 1px 2px rgba(20, 26, 46, 0.08), 0 10px 24px -14px var(--ig-shadow); }
+#view-advice-letter .ig-letter mark { color: #1b2230; }
+
+/* The contents column: it stays beside the guide on tablets, and on a phone it hides behind a small see-through button */
+.ig-fab-host { display: none; }
+.ig-fab-host.ig { padding: 0; background: transparent; font-size: 1rem; }
+.ig-drawer-nav h2 { font-family: var(--ig-font-body); font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ig-muted); margin: 18px 0 6px; }
+.ig-drawer-nav h2:first-child { margin-top: 0; }
+.ig-drawer-nav ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 1px; }
+.ig-drawer-nav a { display: block; padding: 8px 10px; border-left: 2px solid var(--ig-line); color: var(--ig-ink); text-decoration: none; line-height: 1.3; font-size: .95rem; }
+.ig-drawer-nav a:hover { border-left-color: var(--ig-muted); }
+.ig-drawer-nav a[aria-current="true"] { border-left-color: var(--ig-accent); color: var(--ig-accent); font-weight: 700; }
+@media (max-width: 760px) {
+  .ig-shell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ig-toc { display: none; }
+  .ig-fab-host.is-on { display: block; }
+}
+.ig-toc-fab { position: fixed; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; width: 42px; height: 42px; display: grid; place-items: center; padding: 0;
+  border-radius: 50%; border: 1px solid var(--ig-line); color: var(--ig-ink); cursor: pointer;
+  background: rgba(255, 255, 255, 0.6); background: color-mix(in srgb, var(--ig-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: .75; box-shadow: 0 4px 14px -6px var(--ig-shadow); transition: opacity .15s ease; }
+.ig-toc-fab:hover, .ig-toc-fab:focus-visible, .ig-fab-host.is-open .ig-toc-fab { opacity: 1; }
+.ig-toc-fab svg { width: 20px; height: 20px; }
+.ig-drawer-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(8, 12, 20, 0.42); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility 0s .2s; }
+.ig-drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 61; width: min(300px, 86vw); display: flex; flex-direction: column; background: var(--ig-surface); border-right: 1px solid var(--ig-line);
+  box-shadow: 0 10px 40px rgba(8, 12, 20, 0.28); transform: translateX(-105%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s; }
+.ig-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--ig-line); font-weight: 700; }
+.ig-drawer-x { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--ig-line); background: var(--ig-paper); color: var(--ig-ink); cursor: pointer; font-size: 1.2rem; line-height: 1; }
+.ig-drawer-nav { overflow: auto; padding: 14px 14px 80px; flex: 1; }
+.ig-fab-host.is-open .ig-drawer-scrim { opacity: 1; visibility: visible; transition: opacity .2s ease; }
+.ig-fab-host.is-open .ig-drawer { transform: none; visibility: visible; transition: transform .22s ease; }
+@media print { .ig-fab-host { display: none !important; } }
+
+/* Advice pop-ups in Create or edit resume */
+.adv-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.adv-btn { display: inline-flex; align-items: center; gap: 6px; font: 600 .82rem/1.2 var(--font-body); padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--accent); cursor: pointer; }
+.adv-btn:hover, .adv-btn:focus-visible { border-color: var(--accent); }
+.adv-btn svg { width: 14px; height: 14px; flex: none; }
+.adv-btn.inline { margin-left: 6px; padding: 2px 9px; font-size: .76rem; vertical-align: middle; }
+dialog.adv-pop { width: min(780px, 94vw); max-height: 88vh; max-height: 88dvh; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(8, 12, 20, 0.5); }
+dialog.adv-pop[open] { display: flex; flex-direction: column; }
+dialog.adv-pop::backdrop { background: rgba(8, 12, 20, 0.5); }
+.adv-pop-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.adv-pop-kick { display: block; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.adv-pop-bar h2 { margin: 2px 0 0; font-size: 1.25rem; line-height: 1.2; }
+.adv-pop-x { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 1.3rem; line-height: 1; }
+.adv-pop-x:hover { border-color: var(--accent); color: var(--accent); }
+.adv-pop-body.ig { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 22px; background: transparent; font-size: 1rem; display: grid; gap: 18px; align-content: start; }
+.adv-pop-body .ig-section { padding: 0; border: 0; margin: 0; display: grid; gap: 14px; }
+#advPop .adv-pop-body .ig-anatomy.is-single { border-top: 0; }
+#advPop .adv-pop-body .ig-anatomy.is-single > li { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-top: 0; border-bottom: 0; }
+#advPop .adv-pop-body .ig-anatomy.is-single > li::before { display: none; }
+#advPop .adv-pop-body .ig-anatomy.is-single .ig-example { grid-column: auto; }
+.adv-pop-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.adv-pop-foot .small { margin: 0; }
+
+/* Action words in the resume builder, grouped the way the advice page groups them */
+.verb-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; margin-top: 10px; }
+.verb-groups > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.verb-groups h4 { margin: 0; font-size: .9rem; padding-bottom: 5px; border-bottom: 2px solid var(--ink); }
+.verb-groups .opt-chips { margin-top: 0; }
+@media (max-width: 720px) { .verb-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 440px) { .verb-groups { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===================== Create or edit resume: opening page, and the smaller changes to the steps ===================== */
+
+/* The opening page: start from a resume or LinkedIn, or from scratch */
+.b-welcome[hidden] { display: none; }
+.b-welcome { display: grid; gap: 28px; margin-top: 8px; }
+.bw-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: clamp(20px, 4vw, 56px); align-items: center; padding: clamp(8px, 2vw, 24px) 0; }
+.bw-eyebrow { font: 700 .8rem/1.2 var(--font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.bw-h1 { font-size: clamp(2.1rem, 4.6vw, 3.6rem); line-height: 1.04; letter-spacing: -.025em; margin: 14px 0 0; }
+.bw-h1 mark { background: linear-gradient(transparent 62%, var(--accent-soft) 62%, var(--accent-soft) 94%, transparent 94%); color: inherit; padding: 0 .04em; }
+.bw-lede { font-size: clamp(1.02rem, 1.4vw, 1.18rem); line-height: 1.55; margin: 18px 0 0; max-width: 52ch; }
+.bw-facts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 22px 0 0; padding: 0; list-style: none; font-size: .92rem; color: var(--muted); }
+.bw-facts li { display: flex; align-items: center; gap: 8px; }
+.bw-facts li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.bw-fig { margin: 0; justify-self: center; width: min(100%, 360px); }
+.bw-fig svg { width: 100%; height: auto; display: block; overflow: visible; }
+.bw-sheet--back rect { fill: var(--surface-2); stroke: var(--line); stroke-width: 2; transform-origin: 180px 150px; transform: rotate(7deg); }
+.bw-paper { fill: var(--surface); stroke: var(--line); stroke-width: 2; filter: drop-shadow(0 10px 18px rgba(20, 26, 46, .12)); }
+.bw-ink { fill: var(--ink); }
+.bw-accent { fill: var(--accent); }
+.bw-line { fill: var(--line); transform-box: fill-box; transform-origin: left center; }
+.bw-badge rect, .bw-badge circle { fill: var(--accent); }
+.bw-badge--in rect { fill: #0a66c2; }
+.bw-badge--ok circle { fill: var(--good); }
+.bw-badge text { fill: #fff; font: 800 34px/1 var(--font-body, system-ui); }
+.bw-badge path { stroke: #fff; }
+.bw-badge { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .bw-line { animation: bwLine .7s ease both; }
+  .bw-line.l2 { animation-delay: .08s; } .bw-line.l3 { animation-delay: .16s; } .bw-line.l4 { animation-delay: .28s; } .bw-line.l5 { animation-delay: .36s; } .bw-line.l6 { animation-delay: .44s; } .bw-line.l7 { animation-delay: .56s; }
+  .bw-badge { animation: bwPop .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+  .bw-badge--in { animation-delay: .5s; } .bw-badge--up { animation-delay: .7s; } .bw-badge--ok { animation-delay: .9s; }
+  @keyframes bwLine { from { transform: scaleX(0); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes bwPop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+.bw-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.bw-card { display: grid; gap: 8px; align-content: start; text-align: left; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.bw-card:hover, .bw-card:focus-visible { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 10px 24px -14px rgba(20, 26, 46, .35); }
+.bw-card b { font-size: 1.12rem; }
+.bw-card > span:not(.bw-ico) { color: var(--muted); font-size: .94rem; line-height: 1.45; }
+.bw-card i { font-style: normal; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.bw-ico { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.bw-ico svg { width: 22px; height: 22px; }
+.bw-card--go { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.bw-card--go > span:not(.bw-ico), .bw-card--go i { color: inherit; }
+.bw-card--go .bw-ico { background: rgba(255, 255, 255, .2); color: inherit; }
+.bw-steps { list-style: none; counter-reset: bw; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.bw-steps li { counter-increment: bw; display: grid; gap: 4px; padding-top: 12px; border-top: 2px solid var(--line); font-size: .93rem; color: var(--muted); }
+.bw-steps li::before { content: counter(bw); font: 700 .8rem/1 var(--font-mono); color: var(--accent); }
+.bw-steps b { color: var(--ink); font-size: 1rem; }
+@media (max-width: 860px) { .bw-hero { grid-template-columns: minmax(0, 1fr); } .bw-fig { width: min(100%, 280px); order: -1; } .bw-cards, .bw-steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* Goal: the area within an industry, and full-time, part-time or casual */
+.sub-q .opt-chips { margin-top: 6px; }
+[data-vague]:empty { display: none; }
+
+/* Finish sits in the bottom right corner of its card, under the notes */
+.b-card-foot { justify-content: space-between; }
+.b-card-foot [data-act="finish"], .b-card-foot [data-act="finish-text"] { margin-left: auto; }
+.b-dl-row { align-items: center; }
+
+/* Summary: the hint under the box with the word count on its right; "Accepted" to the left of the button */
+.sum-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.sum-meta .q-hint { margin: 0; flex: 1 1 auto; }
+.sum-words { flex: none; font-size: var(--step--1); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sum-acts { align-items: center; }
+.sum-acts #bSumOk:empty { display: none; }
+
+/* +5 floats up from the resume strength when a job is finished */
+.score-pop { position: fixed; z-index: 90; pointer-events: none; font: 800 1.5rem/1 var(--font-body, system-ui); color: var(--good); text-shadow: 0 1px 0 var(--surface), 0 0 10px var(--surface); animation: scorePop 2s ease-out forwards; }
+@keyframes scorePop { 0% { opacity: 0; transform: translateY(8px) scale(.8); } 15% { opacity: 1; transform: translateY(0) scale(1.15); } 100% { opacity: 0; transform: translateY(-46px) scale(1); } }
+.b-score.bump { animation: scoreBump .6s ease; }
+@keyframes scoreBump { 30% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .score-pop { animation: scorePopStill 2s linear forwards; } @keyframes scorePopStill { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } .b-score.bump { animation: none; } }
+
+/* Skills and licences: every box is two lines of skills tall before it grows; what we found in your answers sits outside the ideas */
+.skill-card .chip-edit { min-height: 5rem; align-content: flex-start; }
+.sugg-found { margin-top: 8px; }
+.sugg-found .opt-chip { border-style: solid; border-color: var(--accent); }
+.chip-x-gap { width: 26px; }
+
+/* A select on its own in a joined row (When can you start?) has all four corners rounded */
+.seg-in > select:not([multiple]):not([size]):only-child, .seg-in > input:only-child { border-radius: var(--field-r, 8px); }
+
+/* Specific relevant subjects: click a bubble to edit it, × to remove it */
+.subj-chip:hover { background: var(--surface-2); border-color: var(--accent); }
+.subj-chip .chip-x:hover { color: var(--bad); opacity: 1; }
+.subj-chip.editing { padding: 0; background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); cursor: text; }
+.subj-edit-in { border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 3px 9px !important; font: inherit; font-size: var(--step--1); min-width: 6rem; width: auto; }

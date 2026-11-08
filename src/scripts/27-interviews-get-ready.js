@@ -1,5 +1,5 @@
 /* ===================== Interviews: get ready (how to practise, story bank, screening answers) ===================== */
-const ivPrep = privateDoc("interviewPrep", "jobfinder.ivprep.v1", () => ({ screen: { pitch: "", why: "", salary: "", start: "", rights: "", elsewhere: "" }, stories: {} }));
+const ivPrep = privateDoc("interviewPrep", "jobfinder.ivprep.v1", () => ({ screen: { pitch: "", why: "", salary: "", start: "", rights: "", elsewhere: "" }, stories: {}, job: { id: "", title: "", company: "", level: "", format: "" } }));
 const SCREEN_QS = [
   { id: "s1", type: "intro", text: "Walk me through your background in about a minute." },
   { id: "s2", type: "motivation", text: "What made you apply for this role?" },
@@ -47,24 +47,50 @@ function renderScreenSheet(box, compact) {
   const sc = ivPrep.data.screen;
   box.innerHTML = `<div class="iv-sheet-head"><h3>Your screening answers</h3><span class="small muted">Have these in front of you on the call. ${whereWords(ivPrep.where).replace(/^./, c => c.toUpperCase())}.</span></div>
     <div class="q-grid">${SCREEN_FIELDS.map(([k, label, hint, rows]) => `<div class="q${rows > 1 ? " wide" : ""}"><label class="q-label" for="scr-${k}${compact ? "-c" : ""}">${label}</label>${compact ? "" : `<p class="q-hint">${esc(hint)}</p>`}<textarea id="scr-${k}${compact ? "-c" : ""}" data-scr="${k}" rows="${rows}" placeholder="${esc(compact ? hint : "")}">${esc(sc[k] || "")}</textarea></div>`).join("")}</div>
-    ${compact ? "" : `<div class="b-actions"><button class="btn" type="button" data-scr-copy>Copy all</button><button class="btn" type="button" data-scr-practise>Practise a screening call</button></div>`}`;
+    ${compact ? "" : `<div class="b-actions"><button class="ig-btn ig-btn--ghost ig-btn--small" type="button" data-scr-copy>Copy all</button><button class="ig-btn ig-btn--primary ig-btn--small" type="button" data-scr-practise>Practise a screening call</button></div>`}`;
   if (!sc.pitch && P().summary) box.querySelector('[data-scr="pitch"]').placeholder = "Start from your profile: " + P().summary.slice(0, 140) + "…";
 }
 function renderPrepare() {
   const box = $("ivPrepare");
   const stories = ivPrep.data.stories;
   const ready = STORY_SLOTS.filter(([k]) => storyState(stories[k])[0] === "ok").length;
-  box.innerHTML = `<section class="panel" aria-labelledby="hpH"><div class="panel-head"><h2 id="hpH">How to practise</h2><p>Five steps that work for any interview, from a phone screen to a panel.</p></div>
-      <ol class="iv-steps prac-steps">${PRACTISE_STEPS.map(([h, t]) => `<li><span><b>${esc(h)}</b>${esc(t)}</span></li>`).join("")}</ol>
-      <details class="iv-hint"><summary>A one-week plan</summary><div><table><tbody>${WEEK_PLAN.map(([d, t]) => `<tr><th scope="row">${d}</th><td>${t}</td></tr>`).join("")}</tbody></table></div></details>
-    </section>
-    <section class="panel iv-sheet" id="ivSheetFull" aria-label="Your screening answers"></section>
-    <section class="panel" aria-labelledby="sbH"><div class="panel-head"><h2 id="sbH">Story bank</h2><p>${ready} of ${STORY_SLOTS.length} stories ready. Write each one with STAR: a sentence of situation, what you had to do, what you did, and what came of it.</p></div>
-      <div class="story-grid">${STORY_SLOTS.map(([k, label, q]) => { const st = stories[k] || {}, [cls, msg] = storyState(st); return `<details class="story" data-story="${k}"${st.open ? " open" : ""}><summary><span>${esc(label)}</span><span class="story-state ${cls}">${msg}</span></summary><div class="story-body"><p class="small muted">Answers questions like “${esc(q)}”</p>
-        ${[["s", "Situation", "Where and when, in one sentence"], ["t", "Task", "What you needed to achieve"], ["a", "Action", "What you did, step by step, using “I”"], ["r", "Result", "What changed, with a number or feedback"]].map(([f, l, h]) => `<label class="field" for="st-${k}-${f}">${l}<textarea id="st-${k}-${f}" data-st="${k}" data-f="${f}" rows="${f === "a" ? 3 : 2}" placeholder="${h}">${esc(st[f] || "")}</textarea></label>`).join("")}
-        <div class="b-actions"><button class="btn" type="button" data-story-practise="${k}">Practise with this story</button></div></div></details>`; }).join("")}</div>
-    </section>`;
+  box.innerHTML = `<div class="ig iv-ig" id="ivPrepRoot" data-nohelp>
+    <header class="ig-hero iv-hero">
+      <div>
+        <p class="ig-eyebrow">Get ready · build your plan</p>
+        <h2 class="ig-h1">Tell us about the interview. <mark>We'll build your plan.</mark></h2>
+        <p class="ig-lede">Choose a job you've saved, or type in the title and company. You'll get advice for that company, that role and that kind of interview, plus a place to write your stories and screening answers. No account or AI needed.</p>
+        <div class="ig-actions"><a class="ig-btn ig-btn--primary" href="#iv-job" data-iv-scroll>Choose the interview</a><button class="ig-btn ig-btn--ghost" type="button" data-ivtab="practice">Skip to practice</button></div>
+        <ul class="ig-facts"><li>Advice for the company, role and format</li><li>Questions written for your job</li><li>Saved as you type</li></ul>
+      </div>
+      <figure class="ig-score iv-prepfig" id="ivPrepFig" aria-hidden="true"></figure>
+    </header>
+    <div class="ig-shell">
+      <aside class="ig-toc" aria-label="Contents"><nav aria-label="Get ready contents">
+        <h2>Start</h2><ul><li><a href="#iv-job">Your interview</a></li><li><a href="#iv-plan">Your plan</a></li></ul>
+        <h2>Prepare</h2><ul><li><a href="#iv-stories">Your stories</a></li><li><a href="#iv-screen">Screening answers</a></li><li><a href="#iv-week">A one-week plan</a></li></ul>
+      </nav></aside>
+      <div class="ig-content">
+        <section class="ig-section" id="iv-job" aria-labelledby="ivJobH"><p class="ig-phase">Step 1</p><h2 id="ivJobH">Which interview is it?</h2><div id="ivJobPick"></div></section>
+        <section class="ig-section" id="iv-plan" aria-labelledby="ivPlanH"><p class="ig-phase">Step 2</p><h2 id="ivPlanH">Your plan</h2><div id="ivJobAdvice" aria-live="polite"></div></section>
+        <section class="ig-section" id="iv-stories" aria-labelledby="ivStoriesH"><p class="ig-phase">Step 3</p><h2 id="ivStoriesH">Your stories</h2>
+          <div class="ig-prose"><p>Most behavioural questions can be answered with one of a handful of real stories. Write each one with STAR: a sentence of situation, what you had to do, what you did, and what came of it. <b id="ivStoryCount">${ready} of ${STORY_SLOTS.length} ready.</b></p></div>
+          <div class="story-grid">${STORY_SLOTS.map(([k, label, q]) => { const st = stories[k] || {}, [cls, msg] = storyState(st); return `<details class="story" data-story="${k}"${st.open ? " open" : ""}><summary><span>${esc(label)}</span><span class="story-state ${cls}">${msg}</span></summary><div class="story-body"><p class="small muted">Answers questions like “${esc(q)}”</p>
+            ${[["s", "Situation", "Where and when, in one sentence"], ["t", "Task", "What you needed to achieve"], ["a", "Action", "What you did, step by step, using “I”"], ["r", "Result", "What changed, with a number or feedback"]].map(([f, l, h]) => `<label class="field" for="st-${k}-${f}">${l}<textarea id="st-${k}-${f}" data-st="${k}" data-f="${f}" rows="${f === "a" ? 3 : 2}" placeholder="${h}">${esc(st[f] || "")}</textarea></label>`).join("")}
+            <div class="b-actions"><button class="ig-btn ig-btn--ghost ig-btn--small" type="button" data-story-practise="${k}">Practise with this story</button></div></div></details>`; }).join("")}</div>
+        </section>
+        <section class="ig-section" id="iv-screen" aria-labelledby="ivScreenH"><p class="ig-phase">Step 4</p><h2 id="ivScreenH">Your screening answers</h2>
+          <div class="ig-prose"><p>Recruiters often ring first to check the basics. Write these once and keep them in front of you on the call.</p></div>
+          <div class="iv-sheet" id="ivSheetFull"></div></section>
+        <section class="ig-section" id="iv-week" aria-labelledby="ivWeekH"><p class="ig-phase">Step 5</p><h2 id="ivWeekH">A one-week plan</h2>
+          <ol class="ig-quick">${WEEK_PLAN.map(([d, t]) => `<li><span><strong>${esc(d)}</strong>${esc(t)}</span></li>`).join("")}</ol>
+          <details class="iv-more"><summary>How to practise, in five steps</summary><ol class="iv-steps prac-steps">${PRACTISE_STEPS.map(([h, t]) => `<li><span><b>${esc(h)}</b>${esc(t)}</span></li>`).join("")}</ol></details>
+        </section>
+      </div>
+    </div>
+  </div>`;
   renderScreenSheet($("ivSheetFull"), false);
+  trk.ready.then(() => { renderJobPanels(); document.dispatchEvent(new Event("jf:guides")); });
 }
 onInit(() => {
   const onEdit = e => {
@@ -75,6 +101,8 @@ onInit(() => {
       st[t.dataset.f] = t.value; ivPrep.save();
       const [cls, msg] = storyState(st), lab = t.closest(".story").querySelector(".story-state");
       lab.className = "story-state " + cls; lab.textContent = msg;
+      const n = $("ivStoryCount"); if (n) n.textContent = `${STORY_SLOTS.filter(([kk]) => storyState(ivPrep.data.stories[kk])[0] === "ok").length} of ${STORY_SLOTS.length} ready.`;
+      if (typeof renderJobAdvice === "function") { clearTimeout(ivState.timer); ivState.timer = setTimeout(renderJobAdvice, 400); }
     }
   };
   $("ivPrepare").addEventListener("input", onEdit);

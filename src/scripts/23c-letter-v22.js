@@ -50,6 +50,7 @@ function ltV22Render() {
   ltShowStep(ltStep);
   ltNextCards();
   navDots();
+  applyLtWelcome();
 }
 
 /* --- Three ways to go on, at the bottom of the page --- */

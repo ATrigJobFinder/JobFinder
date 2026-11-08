@@ -1,0 +1,115 @@
+/* ===================== Resume advice: the resume guide ===================== */
+/* Shares the interview guide's look (38-interview-guide.css). Only what that file doesn't already say is here, and it's scoped to this page. */
+.ig { --ig-font-mono: var(--font-mono); }
+:is(#view-advice-resume,#advPop) .ig :where(p,ul,ol,dl,figure,pre) { margin:0 }
+:is(#view-advice-resume,#advPop) .ig-hero .ig-h1 mark { background:linear-gradient(transparent 60%,var(--ig-mark) 60%,var(--ig-mark) 94%,transparent 94%);color:inherit;padding:0 .04em;border-radius:0 }
+:is(#view-advice-resume,#advPop) .ig-cv { position:relative;justify-self:center;width:100%;max-width:470px;margin:0 }
+:is(#view-advice-resume,#advPop) .ig-cv__sheet { position:relative;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:6px;padding:26px 24px 26px; transform:rotate(-1.3deg);box-shadow:0 1px 0 var(--ig-line),0 24px 48px -22px var(--ig-shadow);font-size:.84rem;line-height:1.45 }
+:is(#view-advice-resume,#advPop) .ig-cv__timer { position:absolute;top:-14px;right:18px;transform:rotate(3deg);background:var(--ig-ink);color:var(--ig-paper);font-size:.74rem;font-weight:700;letter-spacing:.04em;padding:5px 10px;border-radius:999px }
+:is(#view-advice-resume,#advPop) .ig-cv__name { font-family:var(--ig-font-display);font-weight:800;font-size:1.45rem;letter-spacing:-.01em;line-height:1.1 }
+:is(#view-advice-resume,#advPop) .ig-cv__title { font-weight:700;font-size:.98rem;margin-top:2px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline }
+:is(#view-advice-resume,#advPop) .ig-cv__contact { color:var(--ig-muted);font-size:.78rem;margin-top:4px }
+:is(#view-advice-resume,#advPop) .ig-cv__block { margin-top:14px;padding-top:10px;border-top:2px solid var(--ig-ink);display:grid;gap:5px }
+:is(#view-advice-resume,#advPop) .ig-cv__h { font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-cv__line { display:block;height:7px;border-radius:4px;background:var(--ig-line);width:var(--w) }
+:is(#view-advice-resume,#advPop) .ig-cv__job { display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap }
+:is(#view-advice-resume,#advPop) .ig-cv__job span { color:var(--ig-muted);font-variant-numeric:tabular-nums }
+:is(#view-advice-resume,#advPop) .ig-cv ul { list-style:none;padding:0;display:grid;gap:3px }
+:is(#view-advice-resume,#advPop) .ig-cv li { position:relative;padding-left:12px }
+:is(#view-advice-resume,#advPop) .ig-cv li::before { content:"";position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--ig-ink) }
+:is(#view-advice-resume,#advPop) .ig-cv li.is-note { padding-left:12px }
+:is(#view-advice-resume,#advPop) .ig-cv li.is-note::before { display:none }
+:is(#view-advice-resume,#advPop) .ig-cv li.is-struck span { text-decoration:line-through;text-decoration-color:var(--ig-accent);text-decoration-thickness:2px;color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-cv .ig-pen { font-size:1.2rem;transform:rotate(-1.5deg);display:inline-block;transform-origin:left }
+:is(#view-advice-resume,#advPop) .ig-cv__corner { position:absolute;right:-4px;bottom:-34px;transform:rotate(-4deg)!important;max-width:220px;text-align:right }
+:is(#view-advice-resume,#advPop) .ig-cv figcaption { margin-top:48px;font-size:.84rem;color:var(--ig-muted);max-width:46ch }
+:is(#view-advice-resume,#advPop) .ig-cv__ring { position:relative;display:inline-block }
+:is(#view-advice-resume,#advPop) .ig-cv__ring svg { position:absolute;inset:-6px -10px;width:calc(100% + 20px);height:calc(100% + 12px);overflow:visible;pointer-events:none }
+:is(#view-advice-resume,#advPop) .ig-cv__ring path { fill:none;stroke:var(--ig-accent);stroke-width:2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0;animation:ig-draw .6s ease-out .2s both }
+:is(#view-advice-resume,#advPop) .ig-three { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px }
+:is(#view-advice-resume,#advPop) .ig-three .ig-big { font-family:var(--ig-font-display);font-weight:800;font-size:2rem;line-height:1;color:var(--ig-accent);font-variant-numeric:tabular-nums }
+:is(#view-advice-resume,#advPop) .ig-chart__row, :is(#view-advice-resume,#advPop) .ig-chart__axis { display:grid;grid-template-columns:56px minmax(0,1fr) 40px;gap:10px;align-items:center }
+:is(#view-advice-resume,#advPop) .ig-chart__row { padding:7px 0;font-size:.9rem;font-variant-numeric:tabular-nums }
+:is(#view-advice-resume,#advPop) .ig-chart__track { height:22px;position:relative;background-image:linear-gradient(to right,var(--ig-line) 1px,transparent 1px);background-size:20% 100%;border-right:1px solid var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-chart__bar { position:absolute;left:0;top:2px;bottom:2px;width:calc(var(--v) / 250 * 100%);background:var(--ig-muted);border-radius:0 3px 3px 0;opacity:.55 }
+:is(#view-advice-resume,#advPop) .ig-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px }
+:is(#view-advice-resume,#advPop) .ig-grid > div { display:grid;gap:6px;align-content:start;padding-top:10px;border-top:1px solid var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-grid h3 { font-size:1.02rem }
+:is(#view-advice-resume,#advPop) .ig-grid p { font-size:.93rem }
+:is(#view-advice-resume,#advPop) .ig-table .is-before { color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-table .is-before span { text-decoration:line-through;text-decoration-color:var(--ig-bad) }
+:is(#view-advice-resume,#advPop) .ig-anatomy { list-style:none;padding:0;display:grid;gap:0;border-top:2px solid var(--ig-ink);counter-reset:a }
+:is(#view-advice-resume,#advPop) .ig-anatomy > li { counter-increment:a;display:grid;grid-template-columns:44px minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-anatomy > li::before { content:counter(a);font-family:var(--ig-font-display);font-weight:800;font-size:1.4rem;color:var(--ig-accent);font-variant-numeric:tabular-nums }
+:is(#view-advice-resume,#advPop) .ig-anatomy h3 { font-size:1.08rem;margin-bottom:4px }
+:is(#view-advice-resume,#advPop) .ig-anatomy p { font-size:.95rem }
+:is(#view-advice-resume,#advPop) .ig-anatomy .ig-example { font-size:.88rem;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:10px;padding:10px 12px;align-self:start;display:grid;gap:4px }
+:is(#view-advice-resume,#advPop) .ig-example b { font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-field label, :is(#view-advice-resume,#advPop) .ig-field .ig-label { font-weight:700;font-size:.92rem }
+:is(#view-advice-resume,#advPop) .ig input[type="text"], :is(#view-advice-resume,#advPop) .ig textarea { width:100%;font:inherit;font-size:.98rem;color:var(--ig-ink);background:var(--ig-paper);border:1px solid var(--ig-line);border-radius:8px;padding:10px 12px }
+:is(#view-advice-resume,#advPop) .ig-chip { font:700 .86rem var(--ig-font-body);padding:7px 12px;border-radius:999px;border:1px solid var(--ig-line);background:var(--ig-paper);color:var(--ig-ink);cursor:pointer;text-align:left }
+:is(#view-advice-resume,#advPop) .ig-chip:hover { border-color:var(--ig-accent) }
+:is(#view-advice-resume,#advPop) .ig-bullet { display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:start }
+:is(#view-advice-resume,#advPop) .ig-bullet__panel { display:grid;gap:14px;padding:18px;border-radius:12px;background:var(--ig-paper);border:1px solid var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-meter { display:grid;grid-template-columns:repeat(5,1fr);gap:4px }
+:is(#view-advice-resume,#advPop) .ig-meter span { height:10px;border-radius:3px;background:var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-meter[data-score="1"] span:nth-child(-n+1), :is(#view-advice-resume,#advPop) .ig-meter[data-score="2"] span:nth-child(-n+2) { background:var(--ig-bad) }
+:is(#view-advice-resume,#advPop) .ig-meter[data-score="3"] span:nth-child(-n+3) { background:var(--ig-warn) }
+:is(#view-advice-resume,#advPop) .ig-meter[data-score="4"] span:nth-child(-n+4), :is(#view-advice-resume,#advPop) .ig-meter[data-score="5"] span:nth-child(-n+5) { background:var(--ig-good) }
+:is(#view-advice-resume,#advPop) .ig-verdict { font-family:var(--ig-font-display);font-weight:800;font-size:1.5rem;line-height:1.1 }
+:is(#view-advice-resume,#advPop) .ig-checks { list-style:none;padding:0;display:grid;gap:6px;font-size:.92rem }
+:is(#view-advice-resume,#advPop) .ig-checks li { display:grid;grid-template-columns:22px 1fr;gap:6px }
+:is(#view-advice-resume,#advPop) .ig-checks li::before { content:"✗";font-weight:700;color:var(--ig-bad) }
+:is(#view-advice-resume,#advPop) .ig-checks li.is-ok::before { content:"✓";color:var(--ig-good) }
+:is(#view-advice-resume,#advPop) .ig-numbers { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px }
+:is(#view-advice-resume,#advPop) .ig-numbers > div { background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:10px;padding:12px 14px;display:grid;gap:2px }
+:is(#view-advice-resume,#advPop) .ig-numbers b { font-family:var(--ig-font-display);font-size:1.05rem }
+:is(#view-advice-resume,#advPop) .ig-numbers span { font-size:.88rem;color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-verbs { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 20px }
+:is(#view-advice-resume,#advPop) .ig-verbs > div { display:grid;gap:6px;align-content:start }
+:is(#view-advice-resume,#advPop) .ig-verbs h3 { font-size:.98rem;padding-bottom:6px;border-bottom:2px solid var(--ig-ink) }
+:is(#view-advice-resume,#advPop) .ig-verbs p { font-size:.92rem;line-height:1.7 }
+:is(#view-advice-resume,#advPop) .ig-kw { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px }
+:is(#view-advice-resume,#advPop) .ig-kw textarea { min-height:190px;font-size:.9rem }
+:is(#view-advice-resume,#advPop) .ig-kwout { display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:start;padding:18px;border-radius:12px;background:var(--ig-paper);border:1px solid var(--ig-line) }
+:is(#view-advice-resume,#advPop) .ig-kwscore { font-family:var(--ig-font-display);font-weight:800;font-size:2.4rem;line-height:1;color:var(--ig-accent);font-variant-numeric:tabular-nums }
+:is(#view-advice-resume,#advPop) .ig-kwscore small { display:block;font-family:var(--ig-font-body);font-size:.8rem;font-weight:400;color:var(--ig-muted);margin-top:6px;max-width:16ch }
+:is(#view-advice-resume,#advPop) .ig-terms { display:grid;gap:12px }
+:is(#view-advice-resume,#advPop) .ig-terms h4 { font-family:var(--ig-font-body);font-size:.76rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ig-muted) }
+:is(#view-advice-resume,#advPop) .ig-terms ul { list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px }
+:is(#view-advice-resume,#advPop) .ig-terms li { font-size:.86rem;font-weight:700;padding:4px 10px;border-radius:999px }
+:is(#view-advice-resume,#advPop) .ig-terms .is-hit li { background:var(--ig-good-soft);color:var(--ig-good) }
+:is(#view-advice-resume,#advPop) .ig-terms .is-miss li { background:var(--ig-warn-soft);color:var(--ig-warn) }
+:is(#view-advice-resume,#advPop) .ig-terms li.is-empty { background:transparent!important;color:var(--ig-muted)!important;font-weight:400;padding-left:0 }
+:is(#view-advice-resume,#advPop) .ig-callout ul { display:grid;gap:6px;font-size:.94rem;padding-left:1.1em }
+:is(#view-advice-resume,#advPop) .ig-callout .ig-pen { font-size:1.5rem;transform:rotate(-1.5deg);transform-origin:left;display:block }
+:is(#view-advice-resume,#advPop) .ig-dodont { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px }
+:is(#view-advice-resume,#advPop) .ig-dodont > div { border-radius:14px;padding:18px 20px;display:grid;gap:8px;align-content:start;border:1px solid var(--ig-line);background:var(--ig-surface) }
+:is(#view-advice-resume,#advPop) .ig-dodont h3 { font-size:1.1rem;display:flex;gap:8px;align-items:center }
+:is(#view-advice-resume,#advPop) .ig-dodont ul { list-style:none;padding:0;display:grid;gap:7px;font-size:.94rem }
+:is(#view-advice-resume,#advPop) .ig-dodont li { position:relative;padding-left:24px }
+:is(#view-advice-resume,#advPop) .ig-dodont li::before { position:absolute;left:0;top:0 }
+:is(#view-advice-resume,#advPop) .ig-dodont .is-do li::before { content:"✓";font-weight:700;color:var(--ig-good) }
+:is(#view-advice-resume,#advPop) .ig-dodont .is-dont li::before { content:"✗";font-weight:700;color:var(--ig-bad) }
+:is(#view-advice-resume,#advPop) .ig-dodont .is-do { border-top:4px solid var(--ig-good) }
+:is(#view-advice-resume,#advPop) .ig-dodont .is-dont { border-top:4px solid var(--ig-bad) }
+:is(#view-advice-resume,#advPop) .ig-template { font-family:var(--ig-font-mono);font-size:.84rem;line-height:1.55;white-space:pre-wrap;background:var(--ig-paper);border:1px solid var(--ig-line);border-radius:12px;padding:18px;max-height:520px;overflow:auto }
+:is(#view-advice-resume,#advPop) .ig-cta__btns { display:flex;flex-wrap:wrap;gap:10px }
+:is(#view-advice-resume,#advPop) .ig a.ig-cta__btn2 { color:var(--ig-paper);border-color:var(--ig-paper) }
+@media (max-width:900px) {
+  :is(#view-advice-resume,#advPop) .ig-cv { max-width:440px;justify-self:start }
+  :is(#view-advice-resume,#advPop) .ig-evidence, :is(#view-advice-resume,#advPop) .ig-bullet, :is(#view-advice-resume,#advPop) .ig-kw, :is(#view-advice-resume,#advPop) .ig-callouts, :is(#view-advice-resume,#advPop) .ig-dodont { grid-template-columns:1fr }
+  :is(#view-advice-resume,#advPop) .ig-three { grid-template-columns:1fr }
+  :is(#view-advice-resume,#advPop) .ig-anatomy > li { grid-template-columns:36px minmax(0,1fr) }
+  :is(#view-advice-resume,#advPop) .ig-anatomy .ig-example { grid-column:2 }
+}
+@media (max-width:620px) {
+  :is(#view-advice-resume,#advPop) .ig-prep__cols, :is(#view-advice-resume,#advPop) .ig-faq { grid-template-columns:1fr }
+  :is(#view-advice-resume,#advPop) .ig-kwout { grid-template-columns:1fr }
+  :is(#view-advice-resume,#advPop) .ig-numbers, :is(#view-advice-resume,#advPop) .ig-verbs { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  :is(#view-advice-resume,#advPop) .ig-cv__sheet { padding:24px 18px 24px }
+  :is(#view-advice-resume,#advPop) .ig-cv__corner { right:4px }
+}
+@media print {
+  :is(#view-advice-resume,#advPop) .ig-toc, :is(#view-advice-resume,#advPop) .ig-actions, :is(#view-advice-resume,#advPop) .ig-tool, :is(#view-advice-resume,#advPop) .ig-cta, :is(#view-advice-resume,#advPop) .ig-linkbtn { display:none!important }
+}

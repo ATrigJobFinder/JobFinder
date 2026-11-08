@@ -1,12 +1,18 @@
 /* ===================== Interview prep ===================== */
 const IV_KEY = "jobfinder.interview.v1", IV_TAB_KEY = "jobfinder.ivtab.v1";
 const IV_MODES = [
-  { key: "single", label: "One question at a time" },
-  { key: "screen", label: "Phone screening (6 quick questions)" },
-  { key: "mock", label: "Mock interview (5 questions)" },
-  { key: "video", label: "Timed, like a video interview" }
+  { key: "single", label: "One question", desc: "Pick the kinds of question you want and practise them one at a time.", meta: "As many as you like" },
+  { key: "screen", label: "Phone screening", desc: "Six quick questions, like a recruiter's first call: your background, why you applied, pay, start date.", meta: "6 questions · about 10 minutes" },
+  { key: "mock", label: "Mock interview", desc: "Five questions in a row, like the real thing, with a score at the end.", meta: "5 questions · about 20 minutes" }
 ];
-const iv = { tab: lsGet(IV_TAB_KEY) || "formats", mode: "single", types: new Set(["essential"]), useJob: true, asked: new Set(), q: null, mock: null, attempts: [], where: "loading", doc: null, timer: null, last: null, rec: null };
+// How the interview will be held decides how you practise: typing, or speaking with the question read aloud
+const IV_HOWS = [
+  { key: "type", label: "Type my answer", short: "typed", desc: "Write your answer the way you'd say it. Good for a first draft.", meta: "No camera or microphone" },
+  { key: "phone", label: "Phone call", short: "phone call", desc: "You hear each question and answer out loud. No camera.", meta: "Microphone" },
+  { key: "video", label: "Video call", short: "video call", desc: "Camera on, like Teams or Zoom. Hear the question, answer, then watch yourself back.", meta: "Camera and microphone" },
+  { key: "oneway", label: "One-way video", short: "one-way video", desc: "Like HireVue: 30 seconds to think, up to 2 minutes to answer, no second go.", meta: "Camera and microphone · timed" }
+];
+const iv = { tab: lsGet(IV_TAB_KEY) || "formats", mode: "single", how: "type", hideText: false, noAI: false, types: new Set(["essential"]), useJob: true, asked: new Set(), q: null, mock: null, attempts: [], where: "loading", doc: null, timer: null, last: null, voiceT: null };
 
 /* --- Saved practice history (private) --- */
 const ivReady = memoryReady.then(async () => {
@@ -30,21 +36,13 @@ function saveIv() {
   return ivChain;
 }
 
-/* --- Formats --- */
-function renderFormats() {
-  $("ivFormatList").innerHTML = IV_FORMATS.map(f => `<details class="iv-fmt" data-fmt="${f.key}"><summary><span class="iv-fmt-name">${esc(f.name)}</span><span class="iv-fmt-where">${esc(f.where)}</span><span class="iv-sounds">${f.sounds.map(s => `“${esc(s)}”`).join(" ")}</span></summary>
-    <div class="iv-fmt-body">
-      <p>${esc(f.why)}</p>
-      <div><div class="iv-k">How to answer</div><ol class="iv-steps">${f.how.map(([h, t]) => `<li><span><b>${esc(h)}</b>${esc(t)}</span></li>`).join("")}</ol></div>
-      <p><span class="iv-k">Length</span><br>${esc(f.time)}</p>
-      <div><div class="iv-k">Watch out for</div><ul class="iv-watch">${f.watch.map(w => `<li>${esc(w)}</li>`).join("")}</ul></div>
-      <div class="b-actions"><button class="btn primary" type="button" data-practise="${f.practise.join(",")}" data-video="${f.key === "video" ? 1 : 0}">Practise ${f.key === "video" ? "with a timer" : "these questions"}</button></div>
-    </div></details>`).join("");
-}
+/* --- Formats: the "Interview guide" tab is plain page content now (25b-interview-guide.js). IV_FORMATS still drives the practice feedback. --- */
 
 /* --- Questions for the job you scanned (or the one you're aiming for) --- */
 const aOrAn = w => /^[aeiou]/i.test(w) ? "an" : "a";
 function jobContext() {
+  const chosen = typeof ivJobContext === "function" ? ivJobContext() : null;   // the job picked in Get ready comes first
+  if (chosen) return chosen;
   if (lastResult && lastScan) {
     const title = detectTitle(lastScan.jd, lastScan.title) || "";
     const hard = [...lastResult.hard].sort((a, b) => ((b.priority === "Required") - (a.priority === "Required")) || (b.rel - a.rel)).map(x => x.name);
@@ -102,23 +100,99 @@ function mockSet() {
   return [IV_QUESTIONS.find(x => x.text === "Tell me about yourself."), take("motivation", true), take("behavioural", true), Math.random() < 0.5 || !jq.some(x => x.type === "technical") ? take("situational", true) : take("technical", true), IV_QUESTIONS.find(x => x.text === "Do you have any questions for us?")];
 }
 
-/* --- Practice settings --- */
+/* --- Practice settings: three plain steps (how it's held, what to practise, start) --- */
+const IV_ICON = {
+  type: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+  video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="13" height="12" rx="2.5"/><path d="m15.5 10 6-3.5v11l-6-3.5z"/></svg>',
+  oneway: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2" fill="currentColor"/></svg>',
+  single: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M9 10h6"/></svg>',
+  screen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/></svg>',
+  mock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>'
+};
+const ivTile = (attr, key, label, desc, meta, on, off, rec) => `<button type="button" class="iv-tile" role="radio" data-${attr}="${key}" aria-checked="${on}" aria-pressed="${on}"${off ? " disabled" : ""}><span class="iv-tile-ico" aria-hidden="true">${IV_ICON[key] || ""}</span><span class="iv-tile-txt">${rec ? `<span class="iv-rec-badge">${esc(typeof rec === "string" ? rec : "Recommended for you")}</span>` : ""}<b>${esc(label)}</b><span>${esc(desc)}</span><em>${esc(meta)}</em></span><span class="iv-tile-check" aria-hidden="true"></span></button>`;
+const ivJobShort = j => { const t = [j.title, j.company].filter(Boolean).join(" at "); return t.length > 44 ? t.slice(0, 42) + "…" : t || "this job"; };
+// Which kind of practice suits you now, and why (you can always pick another)
+function recommendMode() {
+  const j = ivPrep.data.job || {}, it = j.id && typeof T === "function" && trk.where !== "loading" ? T().find(x => x.id === j.id) : null;
+  const days = it ? ivDaysTo(it.interviewAt) : null, done = iv.attempts.length;
+  if ((it && it.stage === "screening") || j.format === "phone") return { key: "screen", why: "your interview starts with a phone call, so a phone screening is the closest match" };
+  if (days != null && days >= 0 && days <= 7) return { key: "mock", why: `your interview is ${days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}, so a full mock interview is the best use of your time` };
+  if (!done) return { key: "single", why: "it's your first practice, so start with one question and get a feel for it" };
+  if (done >= 3) return { key: "mock", why: "you've practised a few answers already, so try them back to back in a mock interview" };
+  return { key: "single", why: "a few more single questions will warm you up before a mock interview" };
+}
+
+/* --- The interview room: practice opens on a page of its own, with nothing else on it --- */
+function openRoom() {
+  const d = $("ivRoomDlg");
+  if (!d.open) d.showModal();
+  document.documentElement.classList.add("iv-in-room");
+  iv.running = true;
+  $("ivExitAsk").hidden = true;
+  d.scrollTop = 0;
+  const how = IV_HOWS.find(h => h.key === iv.how) || IV_HOWS[0], m = IV_MODES.find(x => x.key === (iv.mock ? iv.mock.kind : iv.mode)) || IV_MODES[0], j = iv.useJob ? jobContext() : null;
+  $("ivRoomTitle").textContent = `${m.label} · ${how.label}${j ? " · " + ivJobShort(j) : ""}`;
+}
+function closeRoom(then) {
+  stopTimer(); stopMic(); stopSpeaking(); endPractice();
+  if (iv.sess) iv.sess.items.forEach(x => { if (x.url) URL.revokeObjectURL(x.url); });
+  iv.sess = null; iv.mock = null; iv.running = false; iv.prechecked = false; iv.onSummary = false;
+  const d = $("ivRoomDlg");
+  if (d.open) d.close();
+  document.documentElement.classList.remove("iv-in-room");
+  $("ivStage").innerHTML = "";
+  renderSetup();
+  if (then === "progress") setIvTab("history");
+  else if (then !== "quiet") $("ivPracticeRoot").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+}
+// Leaving part-way: offer the summary of what's been answered
+function askExit() {
+  const s = iv.sess, answered = s ? s.items.filter(x => wordCount(x.answer || "") >= 3).length : 0;
+  if (!answered || iv.onSummary) { closeRoom(); return; }
+  $("ivExitP").textContent = `You've answered ${answered} question${answered === 1 ? "" : "s"}. Take a look at the summary before you go?`;
+  $("ivExitAsk").hidden = false;
+  const b = $("ivExitAsk").querySelector("button"); if (b) b.focus();
+}
+const sessItem = () => iv.sess ? iv.sess.items[iv.sess.idx] : null;
+const ivIsLast = () => !!iv.mock && iv.mock.i >= iv.mock.list.length - 1;
+
 function renderSetup() {
-  $("ivModes").innerHTML = IV_MODES.map(m => `<button type="button" class="opt-chip" role="radio" data-mode="${m.key}" aria-checked="${iv.mode === m.key}" aria-pressed="${iv.mode === m.key}">${esc(m.label)}</button>`).join("");
+  // the job picked in Get ready sets how you practise, once
+  const jb = ivPrep.data.job || {}, jkey = jb.format ? jb.format + "|" + jb.id + "|" + jb.title : "";
+  if (jkey && iv.howSeen !== jkey) { iv.howSeen = jkey; const m = { phone: "phone", video: "video", oneway: "oneway", person: "video", panel: "video", group: "video" }[jb.format]; if (m && voiceCan().camera) { iv.how = m; iv.howFromJob = true; } }
+  const can = voiceCan();
+  const rec = recommendMode();
+  if (!iv.modeChosen) iv.mode = rec.key;
+  $("ivHows").innerHTML = IV_HOWS.map(h => ivTile("how", h.key, h.label, h.desc, h.meta, iv.how === h.key, h.key !== "type" && !can.camera)).join("");
+  $("ivModes").innerHTML = IV_MODES.map(m => ivTile("mode", m.key, m.label, m.desc, m.meta, iv.mode === m.key, false, rec.key === m.key)).join("");
+  $("ivRecNote").innerHTML = `<b>Recommended for you:</b> ${esc((IV_MODES.find(m => m.key === rec.key) || {}).label || "")}, because ${esc(rec.why)}.${iv.mode !== rec.key ? " You've picked something different, which is fine." : ""}`;
   const typeChips = [["essential", "Most common"], ...Object.entries(IV_TYPES).map(([k, v]) => [k, v.label])];
   $("ivTypes").innerHTML = typeChips.map(([k, l]) => `<button type="button" class="opt-chip" data-type="${k}" aria-pressed="${iv.types.has(k)}">${esc(l)}</button>`).join("");
-  $("ivTypeBox").hidden = iv.mode === "mock" || iv.mode === "screen";
+  $("ivTypeBox").hidden = iv.mode !== "single";
   $("ivScreenSheet").hidden = iv.mode !== "screen";
   if (iv.mode === "screen") renderScreenSheet($("ivScreenSheet"), true);
+  const how = IV_HOWS.find(h => h.key === iv.how) || IV_HOWS[0], notes = [];
+  if (iv.howFromJob && iv.how !== "type") notes.push(`Your interview is a ${how.short}, so we picked this for you.`);
+  if (iv.how !== "type") {
+    if (!can.speak) notes.push("This browser can't read the question aloud, so you'll read it on screen.");
+    if (!can.listen) notes.push("It also can't write down what you say (Chrome and Edge can), so you'll speak, watch or listen back, then type a few notes to get a rating.");
+    notes.push("The camera and microphone only turn on when you start, and everything stays on this device.");
+  }
+  if (!can.camera) notes.push("Phone and video practice need a browser that allows the microphone and camera.");
+  $("ivHowNote").textContent = notes.join(" ");
+  $("ivVoiceOpts").hidden = iv.how === "type";
+  $("ivHideQ").checked = iv.hideText; $("ivNoAI").checked = iv.noAI;
   const j = jobContext();
   $("ivJob").innerHTML = j
-    ? `<label class="q-check"><input type="checkbox" id="ivUseJob"${iv.useJob ? " checked" : ""}> Include questions written for ${esc(j.title ? `${aOrAn(j.title)} ${j.title}` : "this job")}${j.company ? ` at ${esc(j.company)}` : ""} ${j.from === "scan" ? "(from the job ad you scanned)" : "(from the resume builder)"}</label>`
-    : `Scan a job ad in <a href="#scanner">Tailor to a job</a> to get questions written for that role.`;
-  const u = $("ivUseJob");
-  if (u) u.onchange = () => { iv.useJob = u.checked; };
-  $("ivStart").textContent = iv.mode === "mock" ? "Start the mock interview" : iv.mode === "screen" ? "Start the screening call" : iv.q ? "Ask me another question" : "Ask me a question";
+    ? `<div class="iv-jobline"><span class="iv-jobline-l">Questions</span><div class="seg" role="group" aria-label="Which questions"><button type="button" data-usejob="0" aria-pressed="${!iv.useJob}">General</button><button type="button" data-usejob="1" aria-pressed="${iv.useJob}">Written for ${esc(ivJobShort(j))}</button></div><button class="ig-linkbtn" type="button" data-ivtab="prepare">Change job</button></div>`
+    : `<p class="iv-lead">Want questions written for a particular job? <button class="ig-linkbtn" type="button" data-ivtab="prepare">Choose one in Get ready</button>, or scan an ad in <a href="#scanner">Tailor to a job</a>.</p>`;
+  const modeName = (IV_MODES.find(m => m.key === iv.mode) || IV_MODES[0]);
+  $("ivSummary").innerHTML = `<b>${esc(how.label)}</b> · ${esc(modeName.label)} · ${esc(modeName.meta.split(" · ")[0])}${j && iv.useJob ? ` · questions for ${esc(ivJobShort(j))}` : ""}`;
+  $("ivStart").textContent = iv.mode === "mock" ? "Start the mock interview" : iv.mode === "screen" ? "Start the phone screening" : "Start practising";
 }
 async function describeIvEngine() {
+  if (iv.noAI) { $("ivEngine").textContent = "Answers are rated by the built-in checks only (structure, evidence and length), as you chose."; return; }
   const st = await chromeAIState();
   $("ivEngine").textContent = smallEngine() ? `Answers are rated by ${SMALL()}, ${smallWhere()}, in short steps.`
     : st === "available" ? `Answers are rated by ${BROWSER_AI()}, on this device.`
@@ -130,42 +204,101 @@ async function describeIvEngine() {
 /* --- Asking --- */
 function startPractice() {
   stopTimer(); stopMic();
+  let first;
+  $("ivStartNote").textContent = "";
   if (iv.mode === "mock" || iv.mode === "screen") {
     iv.mock = { list: iv.mode === "screen" ? screenSet() : mockSet(), i: 0, results: [], kind: iv.mode };
-    showQuestion(iv.mock.list[0]);
+    first = iv.mock.list[0];
   } else {
     iv.mock = null;
-    const q = pickQuestion(questionPool());
-    if (!q) { $("ivStage").innerHTML = `<p class="empty">Pick at least one kind of question above.</p>`; return; }
-    showQuestion(q);
+    first = pickQuestion(questionPool());
+    if (!first) { $("ivStartNote").textContent = "Pick at least one kind of question above."; $("ivTypes").scrollIntoView({ block: "center" }); return; }
   }
-  renderSetup();
+  iv.sess = null;   // a new practice begins
+  showQuestion(first);
 }
+// Which of Listen / Answer / Review you're on
+function ivStepTo(n) { document.querySelectorAll("#ivStepper li").forEach((li, i) => { li.classList.toggle("on", i === n); li.classList.toggle("done", i < n); }); }
 function showQuestion(q, opts = {}) {
+  stopTimer(); stopMic();
+  const voice = iv.how !== "type", dlg = $("ivRoomDlg");
+  if (!iv.sess || !dlg.open) { iv.sess = { kind: iv.mock ? iv.mock.kind : "single", items: [], idx: -1, started: Date.now() }; iv.prechecked = false; }
+  iv.onSummary = false;
+  openRoom();
+  // phone and video practice start with a check of the microphone and camera
+  if (voice && !iv.prechecked) { resetTake(true); iv.sess.first = q; iv.sess.firstOpts = opts; return renderPrecheck(); }
+  resetTake(true);   // a new question: any recording or speaking stops (the camera stays on until practice ends)
   iv.q = q; iv.last = opts.keepLast ? iv.last : null;
+  // the list for the summary: a retry reuses its entry; asking for a different question before answering replaces it
+  const s = iv.sess, cur = s.items[s.idx];
+  if (opts.keepLast && cur) { cur.answer = ""; cur.take = null; cur.rating = null; cur.blob = null; if (cur.url) { URL.revokeObjectURL(cur.url); cur.url = ""; } }
+  else if (cur && !cur.answer && !iv.mock) s.items[s.idx] = { q };
+  else { s.items.push({ q }); s.idx = s.items.length - 1; }
+  $("ivRoomProg").textContent = iv.mock ? `Question ${iv.mock.i + 1} of ${iv.mock.list.length}` : `Question ${s.idx + 1}`;
   const T = IV_TYPES[q.type];
   const fmt = IV_FORMATS.find(f => f.key === q.type) || IV_FORMATS.find(f => f.practise.includes(q.type));
   const isAsk = /questions for us/i.test(q.text);
-  const progress = iv.mock ? `<span class="iv-badge plain">Question ${iv.mock.i + 1} of ${iv.mock.list.length}</span>` : "";
-  $("ivStage").innerHTML = `<section class="panel iv-q" aria-labelledby="ivQText">
-    <div class="iv-q-top"><span class="iv-badge">${esc(T.label)}</span>${q.job ? '<span class="iv-badge job">For this job</span>' : ""}${q.followUp ? '<span class="iv-badge plain">Follow-up</span>' : ""}${progress}<span class="iv-timer" id="ivTimer" hidden></span></div>
-    <h2 class="iv-qtext" id="ivQText" tabindex="-1">${esc(q.text)}</h2>
-    <details class="iv-hint"><summary>How to approach this</summary><div><p>${esc(T.framework)}</p>${isAsk ? `<p>Questions that work well:</p><ul>${QUESTIONS_TO_ASK.slice(0, 4).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}<p class="muted">Aim for about ${Math.round(T.ideal[0] / 2.2 / 10) * 10 || 30} to ${Math.round(T.ideal[1] / 2.2 / 10) * 10} seconds when spoken.${fmt ? ` <button class="linkish" type="button" data-showfmt="${fmt.key}">More on ${esc(fmt.name.toLowerCase())}</button>` : ""}</p></div></details>
-    <label class="field" for="ivAnswer">Your answer. Type it the way you'd say it out loud.</label>
-    <textarea id="ivAnswer" rows="8" spellcheck="true" placeholder="${esc(q.type === "behavioural" || q.type === "competency" ? "Start with the situation: “In my second year at uni, I…”" : q.type === "intro" ? "Start with who you are now: “I'm a final-year…”" : "Start answering here")}"></textarea>
-    <div class="iv-meta"><span id="ivCount">0 words</span><button class="btn ghost iv-mic" id="ivMic" type="button" aria-pressed="false" hidden>Speak instead</button></div>
-    <div class="b-actions"><button class="btn primary" id="ivRate" type="button">Rate my answer</button>${iv.mock ? "" : '<button class="btn" id="ivSkip" type="button">Different question</button>'}<span class="status-line" id="ivRateStatus" role="status"></span></div>
+  $("ivStage").innerHTML = `<section class="iv-room${voice && iv.hideText ? " q-hidden" : ""}" aria-labelledby="ivQText">
+    <ol class="iv-stepper" id="ivStepper" aria-label="Where you are"><li class="on"><span>1</span>${voice ? "Listen" : "Read"}</li><li><span>2</span>Answer</li><li><span>3</span>Review</li></ol>
+    <div class="iv-ask">
+      <div class="iv-q-top"><span class="iv-badge">${esc(T.label)}</span>${q.job ? '<span class="iv-badge job">For this job</span>' : ""}${q.followUp ? '<span class="iv-badge plain">Follow-up</span>' : ""}<span class="iv-timer" id="ivTimer" hidden></span></div>
+      <p class="iv-ask-who">${voice ? "The interviewer asks" : "The question"}</p>
+      <h2 class="iv-qtext" id="ivQText" tabindex="-1">${esc(q.text)}</h2>${voice ? '<p class="iv-qhidden" aria-hidden="true">Listen to the question. <button class="ig-linkbtn" type="button" data-take="showq">Show it on screen</button></p>' : ""}
+      <details class="iv-hint"><summary>How to approach this</summary><div><p>${esc(T.framework)}</p>${isAsk ? `<p>Questions that work well:</p><ul>${QUESTIONS_TO_ASK.slice(0, 4).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}<p class="muted">Aim for about ${Math.round(T.ideal[0] / 2.2 / 10) * 10 || 30} to ${Math.round(T.ideal[1] / 2.2 / 10) * 10} seconds when spoken.${fmt ? ` <button class="ig-linkbtn" type="button" data-showfmt="${fmt.key}">More on ${esc(fmt.name.toLowerCase())}</button>` : ""}</p></div></details>
+    </div>
+    <div class="iv-choice" id="ivChoice" hidden></div>
+    ${voice ? voiceHtml() : ""}
+    <div class="iv-answer">
+      <label class="iv-ans-label" for="ivAnswer">${voice ? "What we heard" : "Your answer"}<span>${voice ? "It's punctuated for you. Fix anything it got wrong, or type your own notes." : "Type it the way you'd say it out loud. Press I'm finished when you're done."}</span></label>
+      <textarea id="ivAnswer" rows="8" spellcheck="true" placeholder="${voice ? "Your answer appears here as you speak." : esc(q.type === "behavioural" || q.type === "competency" ? "Start with the situation: “In my second year at uni, I…”" : q.type === "intro" ? "Start with who you are now: “I'm a final-year…”" : "Start answering here")}"></textarea>
+      <div class="iv-meta"><span id="ivCount">0 words</span><button class="ig-linkbtn iv-mic" id="ivMic" type="button" aria-pressed="false" hidden>Speak instead</button></div>
+      <div class="iv-actions" id="ivAnsActs"><button class="ig-btn ig-btn--primary" id="ivDone" type="button"${voice ? " hidden" : ""}>I'm finished</button>${iv.mock ? "" : '<button class="ig-btn ig-btn--ghost" id="ivSkip" type="button">Different question</button>'}<span class="status-line" id="ivRateStatus" role="status"></span></div>
+    </div>
     <div id="ivFeedback" aria-live="polite"></div>
   </section>`;
   const ta = $("ivAnswer");
-  ta.addEventListener("input", updateCount);
-  $("ivRate").onclick = rateAnswer;
+  ta.addEventListener("input", () => { updateCount(); const it = sessItem(); if (it) it.answer = ta.value; if (!voice && ta.value.trim() && $("ivChoice").hidden) ivStepTo(1); });
+  $("ivDone").onclick = finishAnswer;
   if ($("ivSkip")) $("ivSkip").onclick = () => { stopTimer(); stopMic(); const n = pickQuestion(questionPool().filter(x => x.text !== q.text)); if (n) showQuestion(n); };
   setupMic();
-  $("ivStage").querySelector("[data-showfmt]") && ($("ivStage").querySelector("[data-showfmt]").onclick = e => openFormat(e.target.dataset.showfmt));
+  $("ivStage").querySelector("[data-showfmt]") && ($("ivStage").querySelector("[data-showfmt]").onclick = e => { closeRoom("quiet"); openFormat(e.target.dataset.showfmt); });
+  $("ivRoomDlg").scrollTop = 0;
   $("ivQText").focus({ preventScroll: true });
-  $("ivStage").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
-  if (iv.mode === "video") startTimer();
+  if (voice) voiceBegin(q);
+}
+// "I'm finished": the answer is kept, then you choose to rate it or move on
+function finishAnswer() {
+  const q = iv.q, ta = $("ivAnswer"), ans = ta.value.trim(), st = $("ivRateStatus");
+  if (wordCount(ans) < 3) { st.textContent = "Give your answer first, even a rough one, then press I'm finished."; ta.focus(); return; }
+  st.textContent = "";
+  stopTimer(); stopMic();
+  const it = sessItem(), tk = takeResult(q);
+  if (it) { it.answer = ans; if (tk) it.take = { ...tk }; }
+  showChoice();
+}
+function showChoice() {
+  const box = $("ivChoice"); if (!box) return;
+  const last = ivIsLast(), voice = iv.how !== "type";
+  box.hidden = false;
+  box.innerHTML = `<h3 class="iv-choice-h">Answer finished. What next?</h3>
+    <div class="iv-actions"><button class="ig-btn ig-btn--primary" id="ivRate" type="button" data-iv="rate">Rate my answer</button><button class="ig-btn ig-btn--ghost" type="button" data-iv="next-q">${last ? "See my summary" : "Next question"}</button></div>
+    <p class="iv-choice-more">${voice ? '<button class="ig-linkbtn" type="button" data-take="retake">Record it again</button>' : '<button class="ig-linkbtn" type="button" data-iv="edit">Keep editing</button>'}<button class="ig-linkbtn" type="button" data-iv="again">Start this question again</button>${last ? "" : '<button class="ig-linkbtn" type="button" data-iv="summary-now">Finish and see my summary</button>'}</p>`;
+  const done = $("ivDone"); if (done) done.hidden = true;
+  const sk = $("ivSkip"); if (sk) sk.hidden = true;
+  ivStepTo(2);
+  box.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "center" });
+}
+function hideChoice() { const b = $("ivChoice"); if (b) { b.hidden = true; b.innerHTML = ""; } $("ivFeedback").innerHTML = ""; const d = $("ivDone"); if (d) d.hidden = false; }
+// After the last answer in a voice practice, move on by itself to the choice
+function ivAfterTake() {
+  const ta = $("ivAnswer"); if (!ta) return;
+  if (wordCount(ta.value) >= 3) finishAnswer(); else { const d = $("ivDone"); if (d) d.hidden = false; }
+}
+function ivNext() {
+  if (iv.mock) { if (iv.mock.i < iv.mock.list.length - 1) { iv.mock.i++; showQuestion(iv.mock.list[iv.mock.i]); } else renderSessionSummary(); return; }
+  const q = pickQuestion(questionPool());
+  if (!q) { renderSessionSummary(); return; }
+  showQuestion(q);
 }
 function updateCount() {
   const w = wordCount($("ivAnswer").value), s = Math.round(w / 2.2);
@@ -190,29 +323,26 @@ function startTimer() {
   iv.timer = setInterval(tick, 1000);
 }
 function stopTimer() { if (iv.timer) clearInterval(iv.timer); iv.timer = null; }
-// Speaking your answer (only where the browser allows speech recognition)
+// Speaking your answer when you're typing (only where the browser allows speech recognition). Punctuation is added as you speak.
 function setupMic() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const b = $("ivMic");
-  if (!SR || !b || iv.micBlocked) return;
+  if (!voiceCan().listen || !b || iv.micBlocked || iv.how !== "type") return;
   b.hidden = false;
   b.onclick = () => {
-    if (iv.rec) { stopMic(); return; }
-    let rec;
-    try { rec = new SR(); } catch { b.hidden = true; return; }
-    rec.lang = "en-AU"; rec.continuous = true; rec.interimResults = true;
-    const ta = $("ivAnswer"), base = ta.value.trim() ? ta.value.trim() + " " : "";
-    rec.onresult = e => { let txt = ""; for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript; ta.value = base + txt.trim(); updateCount(); };
-    rec.onerror = e => { if (["not-allowed", "service-not-allowed", "audio-capture"].includes(e.error)) { iv.micBlocked = true; b.hidden = true; $("ivRateStatus").textContent = "Voice input isn't available on this page, so type your answer instead."; } stopMic(); };
-    rec.onend = () => { if (iv.rec === rec) stopMic(); };
-    try { rec.start(); iv.rec = rec; b.setAttribute("aria-pressed", "true"); b.textContent = "Stop listening"; } catch { b.hidden = true; }
+    if (iv.voiceT) { stopMic(); return; }
+    const ta = $("ivAnswer");
+    const v = createVoice({ base: ta.value.trim(), names: ivNames(),
+      onText: (txt, interim) => { ta.value = txt + (interim ? (txt ? " " : "") + interim : ""); updateCount(); },
+      onError: () => { iv.micBlocked = true; b.hidden = true; $("ivRateStatus").textContent = "Voice input isn't available on this page, so type your answer instead."; stopMic(); },
+      onEnd: () => {} });
+    try { v.start(); iv.voiceT = v; b.setAttribute("aria-pressed", "true"); b.textContent = "Stop listening"; } catch { b.hidden = true; }
   };
 }
 function stopMic() {
-  if (iv.rec) { try { iv.rec.stop(); } catch { /* already stopped */ } }
-  iv.rec = null;
+  if (iv.voiceT) { const v = iv.voiceT; iv.voiceT = null; const t = v.stop(), ta = $("ivAnswer"); if (ta && t) { ta.value = t; updateCount(); } }
   const b = $("ivMic");
   if (b) { b.setAttribute("aria-pressed", "false"); b.textContent = "Speak instead"; }
+  if (typeof takeStopIfRunning === "function") takeStopIfRunning();
 }
 
 /* --- Rating: built-in checks (always) and AI coaching (when available) --- */
@@ -476,119 +606,211 @@ function mergeAI(ai, rule, T) {
   const strs = (a, n) => (Array.isArray(a) ? a : []).map(s => stripMarkup(String(s)).trim()).filter(Boolean).slice(0, n);
   return { overall, cap: rule.cap, scores, f: rule.f, strengths: strs(ai.strengths, 3).length ? strs(ai.strengths, 3) : rule.strengths, improvements: strs(ai.improvements, 3).length ? strs(ai.improvements, 3) : rule.improvements, stronger: stripMarkup(String(ai.stronger_answer || "")).trim() || rule.stronger, follow_up: stripMarkup(String(ai.follow_up || "")).trim() || rule.follow_up };
 }
+// The rating itself (built-in checks always; AI coaching on top when it's available and allowed). Used in the room and in the summary.
+async function computeRating(q, ans, tk, progress) {
+  const T = IV_TYPES[q.type], rule = ruleRate(q, ans);
+  let res = null, via = "Rated with built-in checks for structure, evidence and length (no AI on this page).";
+  if (iv.noAI) via = "Rated with the built-in checks only (no AI), as you chose: structure, evidence and length.";
+  const say = progress || (() => {});
+  const chrome = iv.noAI ? null : await withChromeAI(say, async make => {
+    say(`Rating with ${SMALL()}…`);
+    // three short steps in one conversation (see 25a): scores, then coaching points from them, then a stronger answer using those
+    return mergeAI(await ivRateInSteps(make, q, ans, T, say), rule, T);
+  });
+  if (chrome) { res = chrome; via = `Rated by ${SMALL()}, held to the built-in checks.`; }
+  const big = iv.noAI ? null : afterSmall();
+  if (!res && big) {
+    say("Rating with " + BIG_NAME() + ". This takes about 20 seconds…");
+    try { res = mergeAI(await big.json(IV_RULES + "\n\n" + ivPrompt(q, ans), { cache: false }), rule, T); if (res) via = "Rated by " + BIG_NAME() + ", held to the built-in checks."; } catch { /* use the built-in checks */ }
+  }
+  if (!res) res = rule;
+  if (tk) res = { ...res, delivery: deliveryChecks(tk, [T.ideal[0] / 2.2, T.ideal[1] / 2.2]), take: takeMetrics(tk) };
+  return { res, via };
+}
+// Every rated answer is kept for Your progress
+function commitAttempt(q, ans, res) {
+  iv.attempts.push({ q: q.text, type: q.type, job: !!q.job, score: res.overall, words: wordCount(ans), date: new Date().toISOString(), answer: ans.slice(0, 1500), how: iv.how, jobKey: typeof ivJobKey === "function" ? ivJobKey() : "", ...(res.take ? { secs: res.take.secs, wpm: res.take.wpm, fillers: res.take.fillers, pause: res.take.longest } : {}) });
+  iv.attempts = iv.attempts.slice(-60);
+  saveIv();
+}
 async function rateAnswer() {
   const q = iv.q, ans = $("ivAnswer").value.trim(), st = $("ivRateStatus"), btn = $("ivRate");
-  if (wordCount(ans) < 3) { st.textContent = "Write your answer first. Even a rough one gets useful feedback."; $("ivAnswer").focus(); return; }
+  if (wordCount(ans) < 3) { st.textContent = "Give your answer first. Even a rough one gets useful feedback."; $("ivAnswer").focus(); return; }
   stopTimer(); stopMic();
-  const T = IV_TYPES[q.type];
-  const rule = ruleRate(q, ans);
-  btn.disabled = true;
-  const progress = m => { st.textContent = m; };
-  let res = null, via = "Rated with built-in checks for structure, evidence and length (no AI on this page).";
-  try {
-    const chrome = await withChromeAI(progress, async make => {
-      progress(`Rating with ${SMALL()}…`);
-      // three short steps in one conversation (see 25a): scores, then coaching points from them, then a stronger answer using those
-      return mergeAI(await ivRateInSteps(make, q, ans, T, progress), rule, T);
-    });
-    if (chrome) { res = chrome; via = `Rated by ${SMALL()}, held to the built-in checks.`; }
-    const big = afterSmall();
-    if (!res && big) {
-      progress("Rating with " + BIG_NAME() + ". This takes about 20 seconds…");
-      try { res = mergeAI(await big.json(IV_RULES + "\n\n" + ivPrompt(q, ans), { cache: false }), rule, T); if (res) via = "Rated by " + BIG_NAME() + ", held to the built-in checks."; } catch { /* use the built-in checks */ }
-    }
-  } finally { btn.disabled = false; }
-  if (!res) res = rule;
+  const it = sessItem(), tk = (it && it.take) || takeResult(q);
+  if (btn) btn.disabled = true;
+  let out;
+  try { out = await computeRating(q, ans, tk, m => { st.textContent = m; }); } finally { if (btn) btn.disabled = false; }
+  const { res, via } = out;
   st.textContent = "";
   const prev = iv.last && iv.last.q === q.text ? iv.last.overall : null;
   iv.last = { q: q.text, overall: res.overall };
-  iv.attempts.push({ q: q.text, type: q.type, job: !!q.job, score: res.overall, words: wordCount(ans), date: new Date().toISOString(), answer: ans.slice(0, 1500) });
-  iv.attempts = iv.attempts.slice(-60);
-  saveIv();
-  if (iv.mock) iv.mock.results[iv.mock.i] = { q, score: res.overall, top: res.improvements[0] || "" };
+  commitAttempt(q, ans, res);
+  if (it) { it.answer = ans; it.rating = res; it.via = via; }
+  if (btn) btn.hidden = true;
   renderFeedback(res, via, prev);
 }
-function renderFeedback(r, via, prev) {
+function renderFeedback(r, via, prev, box = $("ivFeedback"), inline = false) {
   const verdict = r.overall >= 9 ? "Outstanding" : r.overall >= 7 ? "Strong answer" : r.overall >= 5 ? "Solid, with room to improve" : r.overall >= 3 ? "A start. Build it out" : "Too thin to judge yet";
   const ring = r.overall >= 7 ? "var(--good)" : r.overall >= 5 ? "var(--accent)" : "var(--warn)";
   const delta = prev != null ? (r.overall > prev ? `<span class="iv-delta up">Up from ${prev} last try</span>` : r.overall < prev ? `<span class="iv-delta down">Down from ${prev} last try</span>` : `<span class="iv-delta">Same as last try (${prev})</span>`) : "";
   const better = esc(r.stronger).replace(/\[([^\]]{2,140})\]/g, "<mark>[$1]</mark>").replace(/^([A-Z][A-Za-z' ]{2,28}):/gm, "<b>$1:</b>");
-  const mockNext = iv.mock ? (iv.mock.i < iv.mock.list.length - 1 ? `<button class="btn primary" type="button" data-iv="mock-next">Next question (${iv.mock.i + 2} of ${iv.mock.list.length})</button>` : `<button class="btn primary" type="button" data-iv="mock-done">See your results</button>`) : `<button class="btn primary" type="button" data-iv="next">Next question</button>`;
-  $("ivFeedback").innerHTML = `<div class="iv-fb">
-    <div class="iv-score"><div class="iv-ring" style="--v:${r.overall * 10};--ring:${ring}"><div><b>${r.overall}</b><span>out of 10</span></div></div><div><p class="iv-verdict">${verdict}</p>${delta}<p class="small muted">${esc(via)} A practice guide, not how a real panel will mark you.</p></div></div>
-    <div class="iv-crit">${r.scores.map(s => `<div class="iv-crit-row"><span>${esc(s.criterion)}</span><div class="bar"><i style="width:${s.score * 10}%;background:${s.score >= 7 ? "var(--good)" : s.score >= 5 ? "var(--accent)" : "var(--warn)"}"></i></div><span class="val">${s.score}</span>${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}</div>`).join("")}</div>
+  const q = inline ? null : iv.q, T = q ? IV_TYPES[q.type] : null;
+  const last = ivIsLast();
+  box.innerHTML = `<div class="iv-fb${inline ? " inline" : ""}">
+    <div class="iv-score"><div class="iv-ring" style="--v:${r.overall * 10};--ring:${ring}"><div><b>${r.overall}</b><span>out of 10</span></div></div><div><p class="iv-verdict">${verdict}</p>${delta}<p class="iv-via">${esc(via)} A practice guide, not how a real panel will mark you.</p></div></div>
+    <div class="iv-paper"><div class="iv-paper-head"><span>Interview scorecard</span>${T ? `<small>${esc(T.label)}</small>` : ""}</div>
+      <div class="iv-crit">${r.scores.map(s => `<div class="iv-crit-row"><span>${esc(s.criterion)}</span><div class="bar"><i style="width:${s.score * 10}%;background:${s.score >= 7 ? "var(--good)" : s.score >= 5 ? "var(--accent)" : "var(--warn)"}"></i></div><span class="val">${s.score}</span>${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}</div>`).join("")}</div></div>
+    ${r.delivery ? deliveryHtml(r.delivery) : ""}
     <div class="iv-lists"><div><h3>What worked</h3><ul>${(r.strengths.length ? r.strengths : ["Keep going: the next try will give more to work with."]).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div><div><h3>To make it stronger</h3><ul>${(r.improvements.length ? r.improvements : ["Try it out loud with a timer."]).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
-    ${r.stronger ? `<div><h3>A stronger answer would look like</h3><div class="iv-better">${better}</div></div>` : ""}
-    ${r.follow_up && !iv.mock ? `<div class="iv-follow"><span><b>Likely follow-up:</b> “${esc(r.follow_up)}”</span><button class="btn" type="button" data-iv="follow">Answer it</button></div>` : ""}
-    <div class="b-actions"><button class="btn" type="button" data-iv="again">Try this question again</button>${mockNext}</div>
+    ${r.stronger ? `<div class="iv-betterwrap"><h3>A stronger answer would look like</h3><div class="iv-better">${better}</div></div>` : ""}
+    ${!inline && r.follow_up && !iv.mock ? `<div class="iv-follow"><span><b>Likely follow-up:</b> “${esc(r.follow_up)}”</span><button class="ig-btn ig-btn--ghost ig-btn--small" type="button" data-iv="follow">Answer it</button></div>` : ""}
+    ${inline ? "" : `<div class="iv-actions"><button class="ig-btn ig-btn--ghost" type="button" data-iv="again">Try this question again</button><button class="ig-btn ig-btn--primary" type="button" data-iv="next-q">${last ? "See my summary" : "Next question"}</button>${last ? "" : '<button class="ig-linkbtn" type="button" data-iv="summary-now">Finish and see my summary</button>'}</div>`}
   </div>`;
+  if (inline) return;
   iv.followText = r.follow_up;
-  $("ivFeedback").querySelector(".iv-fb").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
+  ivStepTo(2);
+  box.querySelector(".iv-fb").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" });
 }
-function renderMockSummary() {
-  const m = iv.mock, done = m.results.filter(Boolean);
-  const avg = done.length ? Math.round(done.reduce((a, x) => a + x.score, 0) / done.length * 10) / 10 : 0;
-  const best = done.slice().sort((a, b) => b.score - a.score)[0], worst = done.slice().sort((a, b) => a.score - b.score)[0];
-  iv.lastMockKind = m.kind;
-  $("ivStage").innerHTML = `<section class="panel iv-q iv-summary" aria-labelledby="ivSumTitle"><h2 id="ivSumTitle" tabindex="-1">${m.kind === "screen" ? "Phone screening results" : "Mock interview results"}</h2>${m.kind === "screen" ? `<p class="small">Recruiters use screening calls to check the basics fast. Keep <button class="linkish" type="button" data-iv="sheet">your screening answers</button> in front of you on the real call.</p>` : ""}
-    <div class="iv-stats"><div class="iv-stat"><b>${avg}</b><span>average out of 10</span></div><div class="iv-stat"><b>${done.length}/${m.list.length}</b><span>questions answered</span></div></div>
-    <ol class="iv-sum-list">${m.list.map((q, i) => { const r = m.results[i]; return `<li><span class="sc">${r ? r.score : "–"}</span><span><b>${esc(q.text)}</b>${r && r.top ? `<br><span class="muted">${esc(r.top)}</span>` : ""}</span></li>`; }).join("")}</ol>
-    ${best && worst && best !== worst ? `<p class="small">Your strongest answer was “${esc(best.q.text)}”. Practise “${esc(worst.q.text)}” again next.</p>` : ""}
-    <div class="b-actions"><button class="btn primary" type="button" data-iv="mock-again">Do another mock interview</button>${worst ? `<button class="btn" type="button" data-iv="retry-worst">Practise my weakest answer</button>` : ""}</div></section>`;
-  iv.mockWorst = worst ? worst.q : null;
-  iv.mock = null;
-  $("ivSumTitle").focus();
+// "How you sounded": worked out from your voice recording on this device, with no AI
+function deliveryHtml(d) {
+  if (!d.rows.length) return "";
+  return `<div class="iv-deliv"><h3>How you sounded <span class="iv-badge plain">Checked on this device, no AI</span></h3>
+    <dl class="iv-dl">${d.rows.map(x => `<div class="${x.status}"><dt>${esc(x.label)}</dt><dd><b>${esc(x.value)}</b><span>${esc(x.note)}</span></dd></div>`).join("")}</dl>
+    ${d.tips.length ? `<ul class="iv-dl-tips">${d.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : `<p class="small">Nothing to fix in how you delivered it. Keep that up.</p>`}</div>`;
+}
+// The end of a practice: how you did overall, and each answer with its recording and rating
+function renderSessionSummary() {
+  const s = iv.sess; if (!s) { closeRoom(); return; }
+  stopTimer(); stopMic(); endPractice();   // the camera and microphone are off from here
+  iv.onSummary = true; iv.mock = null;
+  $("ivExitAsk").hidden = true; $("ivRoomProg").textContent = "Summary";
+  const all = s.items.map((x, k) => ({ ...x, k })), answered = all.filter(x => wordCount(x.answer || "") >= 3), rated = answered.filter(x => x.rating);
+  const avg = rated.length ? ivRound(rated.reduce((a, x) => a + x.rating.overall, 0) / rated.length) : null;
+  const byScore = rated.slice().sort((a, b) => b.rating.overall - a.rating.overall), best = byScore[0], worst = rated.length > 1 ? byScore[byScore.length - 1] : null;
+  const spoken = answered.filter(x => x.take && x.take.secs);
+  const mets = spoken.map(x => takeMetrics(x.take)), secs = mets.reduce((a, m) => a + m.secs, 0), paces = mets.filter(m => m.wpm).map(m => m.wpm), fillers = mets.reduce((a, m) => a + m.fillers, 0);
+  const pace = paces.length ? Math.round(paces.reduce((a, b) => a + b, 0) / paces.length) : 0;
+  const tips = [], add = t => { if (t && !tips.includes(t) && tips.length < 5) tips.push(t); };
+  rated.forEach(x => add((x.rating.improvements || [])[0]));
+  spoken.forEach(x => (deliveryChecks(x.take, [60, 150]).tips || []).slice(0, 1).forEach(add));
+  const head = !answered.length ? "No answers <mark>this time.</mark>" : avg == null ? "Practice done. <mark>Rate your answers to see how you did.</mark>" : avg >= 7 ? "A strong round. <mark>Well done.</mark>" : avg >= 5 ? "A solid round. <mark>Here's what to polish.</mark>" : "A useful first round. <mark>Here's where to focus.</mark>";
+  const mode = s.kind === "screen" ? "Phone screening" : s.kind === "mock" ? "Mock interview" : "Practice";
+  const unrated = answered.filter(x => !x.rating);
+  s.items.forEach(x => { if (x.blob && !x.url) x.url = URL.createObjectURL(x.blob); });
+  $("ivStage").innerHTML = `<section class="iv-room iv-summary" aria-labelledby="ivSumTitle"><p class="ig-phase">${mode} · finished</p><h2 class="iv-sum-h" id="ivSumTitle" tabindex="-1">${head}</h2>
+    <div class="ig-facts2"><div><h3>${answered.length}</h3><p>question${answered.length === 1 ? "" : "s"} answered</p></div>${avg != null ? `<div><h3>${avg}</h3><p>average score out of 10 (${rated.length} rated)</p></div>` : `<div><h3>–</h3><p>not rated yet</p></div>`}${best ? `<div><h3>${best.rating.overall}</h3><p>your best answer</p></div>` : ""}${secs ? `<div><h3>${fmtSecs(secs)}</h3><p>spent speaking${pace ? `, about ${pace} words a minute` : ""}</p></div>` : ""}${spoken.length ? `<div><h3>${fillers}</h3><p>filler words picked up</p></div>` : ""}</div>
+    ${unrated.length ? `<div class="iv-next"><div><h3>${unrated.length} answer${unrated.length === 1 ? "" : "s"} not rated yet</h3><p>Rate them now to get a score and tips for each one.</p></div><div class="iv-next-btns"><button class="ig-btn ig-btn--primary" type="button" data-iv="rate-all">Rate ${unrated.length === 1 ? "it" : "them all"}</button></div></div><p class="status-line" id="ivSumStatus" role="status"></p>` : ""}
+    ${tips.length ? `<div class="iv-focus"><h3>Where to focus next</h3><ul>${tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>` : ""}
+    <div class="iv-sitems"><h3>Your answers</h3>${all.map(x => {
+      const ans = wordCount(x.answer || "") >= 3, sc = x.rating ? x.rating.overall : null;
+      const m = x.take ? takeMetrics(x.take) : null;
+      return `<details class="iv-sitem${ans ? "" : " skipped"}"${x.k === (s.openK != null ? s.openK : 0) ? " open" : ""}><summary><span class="iv-sc ${sc != null ? scoreCls(sc) : ""}">${sc != null ? sc : "–"}</span><span class="iv-sq"><b>${esc(x.q.text)}</b><span class="muted">${esc((IV_TYPES[x.q.type] || {}).label || "")}${!ans ? " · skipped" : sc == null ? " · not rated" : ""}${m && m.secs ? ` · ${fmtSecs(m.secs)}${m.wpm ? `, ${m.wpm} wpm` : ""}` : ""}</span></span></summary>
+        <div class="iv-sbody">${ans ? `<h4>Your answer</h4><blockquote class="iv-yours">${esc(x.answer)}</blockquote>` : `<p class="muted">You moved on from this one without answering.</p>`}
+        ${x.url ? (x.blob && /video/.test(x.blob.type) ? `<video controls playsinline src="${x.url}"></video>` : `<audio controls src="${x.url}"></audio>`) : ""}
+        ${m && x.take ? deliveryHtml(deliveryChecks(x.take, [(IV_TYPES[x.q.type] || IV_TYPES.behavioural).ideal[0] / 2.2, (IV_TYPES[x.q.type] || IV_TYPES.behavioural).ideal[1] / 2.2])) : ""}
+        <div class="iv-sfb" data-k="${x.k}"></div>
+        <div class="iv-actions">${ans && !x.rating ? `<button class="ig-btn ig-btn--primary ig-btn--small" type="button" data-iv="rate-item" data-k="${x.k}">Rate this answer</button>` : ""}<button class="ig-btn ig-btn--ghost ig-btn--small" type="button" data-iv="redo-item" data-k="${x.k}">Practise this question again</button></div></div></details>`;
+    }).join("")}</div>
+    <div class="iv-actions iv-sum-actions"><button class="ig-btn ig-btn--primary" type="button" data-iv="restart">Practise again</button>${worst ? `<button class="ig-btn ig-btn--ghost" type="button" data-iv="retry-worst" data-k="${worst.k}">Practise my weakest answer</button>` : ""}<button class="ig-btn ig-btn--ghost" type="button" data-iv="to-progress">See Your progress</button><button class="ig-linkbtn" type="button" data-iv="exit-now">Back to setup</button></div></section>`;
+  rated.forEach(x => { const b = $("ivStage").querySelector(`.iv-sfb[data-k="${x.k}"]`); if (b) renderFeedback(x.rating, x.via || "", null, b, true); });
+  $("ivRoomDlg").scrollTop = 0;
+  $("ivSumTitle").focus({ preventScroll: true });
+}
+async function rateSessionItem(k, status) {
+  const s = iv.sess, it = s && s.items[k]; if (!it || it.rating || wordCount(it.answer || "") < 3) return;
+  const { res, via } = await computeRating(it.q, it.answer.trim(), it.take, m => { if (status) status.textContent = m; });
+  commitAttempt(it.q, it.answer, res);
+  it.rating = res; it.via = via;
 }
 
 /* --- Progress --- */
+const ivAvg = l => l.length ? l.reduce((s, x) => s + x.score, 0) / l.length : 0;
+const ivRound = n => Math.round(n * 10) / 10;
+const scoreCls = s => s >= 7 ? "good" : s >= 5 ? "mid" : "low";
+// Spoken practice: how your delivery is changing
+function voiceStatsHtml(a) {
+  const v = a.filter(x => x.how && x.how !== "type" && x.secs);
+  if (!v.length) return "";
+  const avg = k => { const l = v.filter(x => x[k]); return l.length ? Math.round(l.reduce((s, x) => s + x[k], 0) / l.length) : 0; };
+  const last = v.slice(-5), prev = v.slice(-10, -5);
+  const mean = (l, k) => { const z = l.filter(x => x[k] != null); return z.length ? z.reduce((s, x) => s + (x[k] || 0), 0) / z.length : null; };
+  const trend = (k) => { const m1 = mean(last, k), m0 = mean(prev, k); if (m1 == null || m0 == null || !prev.length) return ""; const d = m1 - m0; return Math.abs(d) < 0.5 ? "steady lately" : d < 0 ? "improving lately" : "creeping up lately"; };
+  const pace = avg("wpm"), fil = ivRound(v.reduce((s, x) => s + (x.fillers || 0), 0) / v.length), pause = ivRound(v.reduce((s, x) => s + (x.pause || 0), 0) / v.length);
+  return `<section class="iv-stepsec"><p class="ig-phase">How you sound</p><h2>Your spoken answers</h2><p class="iv-lead">Worked out from your recordings, on this device.</p>
+    <div class="ig-facts2"><div><h3>${v.length}</h3><p>spoken answers</p></div>${pace ? `<div><h3>${pace}</h3><p>words a minute on average. About 120 to 160 is easy to follow.</p></div>` : ""}<div><h3>${fil}</h3><p>filler words per answer ${trend("fillers") ? `(${trend("fillers")})` : ""}</p></div><div><h3>${pause} s</h3><p>longest pause on average ${trend("pause") ? `(${trend("pause")})` : ""}</p></div></div></section>`;
+}
+// Each job you've practised for
+function byJobHtml(a) {
+  const g = {};
+  for (const x of a) if (x.jobKey) (g[x.jobKey] = g[x.jobKey] || []).push(x.score);
+  const rows = Object.entries(g).sort((p, q) => q[1].length - p[1].length).slice(0, 5);
+  if (!rows.length) return "";
+  return `<section class="iv-stepsec"><p class="ig-phase">By job</p><h2>The jobs you've practised for</h2><ol class="iv-list">${rows.map(([k, s]) => `<li><span class="iv-sc ${scoreCls(ivAvg(s.map(x => ({ score: x }))))}">${ivRound(s.reduce((x, y) => x + y, 0) / s.length)}</span><span><b>${esc(ivJobKeyLabel(k))}</b><span class="muted">${s.length} answer${s.length === 1 ? "" : "s"} practised</span></span></li>`).join("")}</ol></section>`;
+}
 function renderHistory() {
   const a = iv.attempts, box = $("ivHistoryPanel");
-  if (!a.length) { box.innerHTML = `<div class="panel-head"><h2>Your progress</h2></div><p class="empty">No practice yet. Your scores will appear here, saved ${iv.where === "account" ? accountWords().replace(/^saved /, "") : iv.where === "browser" ? "in this browser" : "for this visit only"}.</p>`; return; }
-  const last10 = a.slice(-10), avg = Math.round(last10.reduce((x, y) => x + y.score, 0) / last10.length * 10) / 10;
+  const where = iv.where === "account" ? accountWords().replace(/^saved /, "") : iv.where === "browser" ? "in this browser" : "for this visit only";
+  const hero = (h1, lede, actions, fig) => `<header class="ig-hero iv-hero"><div><p class="ig-eyebrow">Your progress · saved ${esc(where)}</p><h2 class="ig-h1">${h1}</h2><p class="ig-lede">${lede}</p><div class="ig-actions">${actions}</div></div>${fig}</header>`;
+  const fig = (list, pen, sample) => `<figure class="ig-score iv-progfig${sample ? " is-sample" : ""}" aria-hidden="true"><div class="ig-score__sheet"><div class="ig-score__head"><span class="ig-score__title">Your scores</span><span class="ig-score__meta">${sample ? "an example" : `last ${list.length}`}</span></div><div class="iv-pbars">${list.map(s => `<i class="${scoreCls(s)}" style="height:${s * 10}%"></i>`).join("")}</div><p class="ig-pen">${esc(pen)}</p></div></figure>`;
+  const go = `<button type="button" class="ig-btn ig-btn--primary" data-iv-go="practice">Practise now</button><button type="button" class="ig-btn ig-btn--ghost" data-iv-go="prepare">Get ready for a job</button>`;
+  if (!a.length) {
+    box.innerHTML = hero(`Your first score <mark>starts here.</mark>`, "Practise an answer and it's scored on the spot. Every answer you practise is kept here, so you can see what's improving and what needs another go.", go, fig([4, 5, 5, 6, 7, 7, 8], "your first score goes here ✓", true))
+      + `<div class="iv-flow"><section class="iv-stepsec"><p class="ig-phase">How it works</p><h2>Three steps to your first score</h2><ol class="ig-quick"><li><span><strong>Pick the job (optional).</strong> In Get ready, choose a saved job or type one in, and the questions follow it.</span></li><li><span><strong>Practise out loud or typed.</strong> Phone, video or one-way, with the question read aloud.</span></li><li><span><strong>Read your scorecard, then try again.</strong> Small fixes add up quickly.</span></li></ol></section></div>`;
+    return;
+  }
+  const last10 = a.slice(-10), avg = ivRound(ivAvg(last10));
   const byType = {};
   for (const x of a) (byType[x.type] = byType[x.type] || []).push(x.score);
-  const typeAvg = Object.entries(byType).map(([t, s]) => [t, s.reduce((p, c) => p + c, 0) / s.length, s.length]).sort((x, y) => y[1] - x[1]);
-  const strongest = typeAvg[0], weakest = typeAvg.length > 1 ? typeAvg[typeAvg.length - 1] : null;
-  box.innerHTML = `<div class="panel-head"><h2>Your progress</h2><p>Saved ${iv.where === "account" ? accountWords().replace(/^saved /, "") : iv.where === "browser" ? "in this browser" : "for this visit only"}.</p></div>
-    <div class="iv-stats"><div class="iv-stat"><b>${a.length}</b><span>answers practised</span></div><div class="iv-stat"><b>${avg}</b><span>average of your last ${last10.length}</span></div>${strongest ? `<div class="iv-stat"><b>${esc(IV_TYPES[strongest[0]].short)}</b><span>your strongest kind (${strongest[1].toFixed(1)})</span></div>` : ""}${weakest ? `<div class="iv-stat"><b>${esc(IV_TYPES[weakest[0]].short)}</b><span>worth more practice (${weakest[1].toFixed(1)})</span></div>` : ""}</div>
-    <div><h3>Last ${Math.min(30, a.length)} scores</h3><div class="iv-trend" role="img" aria-label="Scores over time: ${a.slice(-30).map(x => x.score).join(", ")}">${a.slice(-30).map(x => `<i style="height:${x.score * 10}%" title="${x.score}/10"></i>`).join("")}</div></div>
-    <ol class="iv-sum-list">${a.slice(-15).reverse().map((x, i) => `<li><span class="sc">${x.score}</span><span><b>${esc(x.q)}</b><br><span class="muted">${esc(IV_TYPES[x.type] ? IV_TYPES[x.type].label : x.type)} · ${new Date(x.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })} · ${x.words} words</span> <button class="linkish" type="button" data-iv-redo="${a.length - 1 - i}">Practise again</button></span></li>`).join("")}</ol>
-    <div class="b-actions"><button class="btn ghost" type="button" id="ivClear">Clear my history</button></div>`;
-  $("ivClear").onclick = () => { const b = $("ivClear"); if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Clear all practice history?"; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Clear my history"; } }, 4000); return; } iv.attempts = []; saveIv(); renderHistory(); };
+  const typeAvg = Object.entries(byType).map(([t, s]) => [t, s.reduce((p, c) => p + c, 0) / s.length, s.length]).filter(x => IV_TYPES[x[0]]).sort((x, y) => x[1] - y[1]);
+  const weakest = typeAvg.length > 1 ? typeAvg[0] : null, strongest = typeAvg.length > 1 ? typeAvg[typeAvg.length - 1] : null;
+  const l5 = a.slice(-5), p5 = a.slice(-10, -5), diff = p5.length ? ivAvg(l5) - ivAvg(p5) : 0;
+  const week = a.filter(x => Date.now() - new Date(x.date).getTime() < 7 * 864e5).length;
+  const best = Math.max(...a.map(x => x.score));
+  const h1 = a.length < 3 ? `A good start. <mark>Keep practising.</mark>` : !p5.length ? `You're building a <mark>practice habit.</mark>` : diff >= 0.5 ? `Your answers are <mark>getting stronger.</mark>` : diff <= -0.5 ? `Every try <mark>teaches something.</mark>` : `Steady practice <mark>builds confidence.</mark>`;
+  const lede = `You've practised ${a.length} answer${a.length === 1 ? "" : "s"}${typeAvg.length > 1 ? ` across ${typeAvg.length} kinds of question` : ""}. Your average over the last ${last10.length} is ${avg} out of 10${p5.length ? (diff >= 0.5 ? `, up ${ivRound(diff)} on the five before` : diff <= -0.5 ? `, down ${ivRound(-diff)} on the five before` : ", about the same as before") : ""}.`;
+  const lowIdx = a.length - 1 - a.slice().reverse().slice(0, 30).reduce((m, x, i, arr) => x.score < arr[m].score ? i : m, 0);
+  const next = weakest
+    ? `<div class="iv-next"><div><h3>Practise ${esc(IV_TYPES[weakest[0]].label.toLowerCase())} next</h3><p>It's your lowest kind so far (${ivRound(weakest[1])} out of 10 over ${weakest[2]} answer${weakest[2] === 1 ? "" : "s"}). A few more tries here will lift your overall score the most.</p></div><div class="iv-next-btns"><button class="ig-btn ig-btn--primary" type="button" data-iv-type="${weakest[0]}">Practise ${esc(IV_TYPES[weakest[0]].short.toLowerCase())}</button>${a[lowIdx] ? `<button class="ig-btn ig-btn--ghost" type="button" data-iv-redo="${lowIdx}">Redo my lowest answer</button>` : ""}</div></div>`
+    : `<div class="iv-next"><div><h3>Try a different kind of question</h3><p>You've only practised ${typeAvg[0] ? esc(IV_TYPES[typeAvg[0][0]].label.toLowerCase()) : "one kind"} so far. Interviews mix several, so a mock interview is a good next step.</p></div><div class="iv-next-btns"><button class="ig-btn ig-btn--primary" type="button" data-iv-mock>Do a mock interview</button></div></div>`;
+  box.innerHTML = hero(h1, lede, go, fig(a.slice(-14).map(x => x.score), diff >= 0.5 ? `up ${ivRound(diff)} ✓` : a.length < 5 ? "keep going ✓" : `average ${avg} ✓`, false))
+    + `<div class="iv-flow">
+      <section class="iv-stepsec"><p class="ig-phase">At a glance</p><h2>Where you are</h2><div class="ig-facts2"><div><h3>${a.length}</h3><p>answers practised</p></div><div><h3>${avg}</h3><p>average of your last ${last10.length}</p></div><div><h3>${best}</h3><p>your best score</p></div><div><h3>${week}</h3><p>answer${week === 1 ? "" : "s"} in the last 7 days</p></div></div></section>
+      <section class="iv-stepsec"><p class="ig-phase">Next step</p><h2>What to practise next</h2>${next}</section>
+      ${typeAvg.length ? `<section class="iv-stepsec"><p class="ig-phase">By kind of question</p><h2>Strongest and weakest</h2><div class="iv-bars">${typeAvg.slice().reverse().map(([t, av, n]) => `<div class="iv-barrow"><span>${esc(IV_TYPES[t].short)}</span><div class="iv-bartrack"><i class="${scoreCls(av)}" style="width:${Math.round(av * 10)}%"></i></div><b>${ivRound(av)}</b><em>${n} answer${n === 1 ? "" : "s"}</em></div>`).join("")}</div>${strongest ? `<p class="iv-lead">Your strongest is ${esc(IV_TYPES[strongest[0]].label.toLowerCase())}, and ${esc(IV_TYPES[weakest[0]].label.toLowerCase())} needs the most work.</p>` : ""}</section>` : ""}
+      ${voiceStatsHtml(a)}${byJobHtml(a)}
+      <section class="iv-stepsec"><p class="ig-phase">History</p><h2>Your recent answers</h2><ol class="iv-list">${a.slice(-15).reverse().map((x, i) => `<li><span class="iv-sc ${scoreCls(x.score)}">${x.score}</span><span><b>${esc(x.q)}</b><span class="muted">${esc(IV_TYPES[x.type] ? IV_TYPES[x.type].label : x.type)} · ${new Date(x.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })} · ${x.words} words${x.how && x.how !== "type" ? ` · ${esc((IV_HOWS.find(h => h.key === x.how) || {}).short || x.how)}${x.wpm ? `, ${x.wpm} wpm` : ""}` : ""}</span></span><button class="ig-linkbtn" type="button" data-iv-redo="${a.length - 1 - i}">Practise again</button></li>`).join("")}</ol>
+      <p class="iv-clear"><button class="ig-linkbtn" type="button" id="ivClear">Clear my history</button></p></section>
+    </div>`;
+  $("ivClear").onclick = () => { const b = $("ivClear"); if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Clear all practice history? Click again"; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Clear my history"; } }, 4000); return; } iv.attempts = []; saveIv(); renderHistory(); };
 }
 
 /* --- Tabs and wiring --- */
 function setIvTab(tab, focus) {
   iv.tab = tab; lsSet(IV_TAB_KEY, tab);
   const map = { formats: "ivFormats", prepare: "ivPrepare", practice: "ivPractice", history: "ivHistory" };
-  document.querySelectorAll("[data-ivtab]").forEach(b => { const on = b.dataset.ivtab === tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
+  if (tab !== "practice" && typeof endPractice === "function") endPractice();   // the camera and microphone go off when you leave practice
+  document.querySelectorAll("#view-interview [role=tablist] [data-ivtab]").forEach(b => { const on = b.dataset.ivtab === tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
   for (const [k, id] of Object.entries(map)) $(id).hidden = k !== tab;
   if (tab === "history") ivReady.then(renderHistory);
-  if (tab === "practice") renderSetup();
+  if (tab === "practice") { renderSetup(); trk.ready.then(renderJobPanels); }
   if (tab === "prepare") ivPrep.ready.then(renderPrepare);
 }
-function openFormat(key) {
-  setIvTab("formats");
-  const d = document.querySelector(`#ivFormatList [data-fmt="${key}"]`);
-  if (d) { d.open = true; d.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); d.querySelector("summary").focus({ preventScroll: true }); }
-}
+function openFormat() { setIvTab("formats"); const g = $("ivFormats"); if (g) g.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); }
 onInit(() => {
-  renderFormats();
-  document.querySelectorAll("[data-ivtab]").forEach(b => b.addEventListener("click", () => setIvTab(b.dataset.ivtab)));
+  document.querySelectorAll('[data-ivtab][role="tab"]').forEach(b => b.addEventListener("click", () => setIvTab(b.dataset.ivtab)));
+  // links inside the page that go to another tab ("Get ready")
+  $("view-interview").addEventListener("click", e => { const l = e.target.closest("[data-ivtab]"); if (l && l.getAttribute("role") !== "tab") { e.preventDefault(); setIvTab(l.dataset.ivtab); } });
+  $("ivHows").addEventListener("click", e => { const b = e.target.closest("[data-how]"); if (!b || b.disabled) return; iv.how = b.dataset.how; iv.howFromJob = false; if (iv.how === "type") endPractice(); renderSetup(); });
+  $("ivHideQ").addEventListener("change", e => { iv.hideText = e.target.checked; });
+  $("ivNoAI").addEventListener("change", e => { iv.noAI = e.target.checked; describeIvEngine(); });
   $("view-interview").querySelector('[role="tablist"]').addEventListener("keydown", e => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
     const tabs = ["formats", "prepare", "practice", "history"], i = tabs.indexOf(iv.tab);
     const n = e.key === "Home" ? 0 : e.key === "End" ? 3 : (i + (e.key === "ArrowRight" ? 1 : -1) + 4) % 4;
     e.preventDefault(); setIvTab(tabs[n], true);
   });
-  $("ivFormatList").addEventListener("click", e => {
-    const b = e.target.closest("[data-practise]"); if (!b) return;
-    iv.types = new Set(b.dataset.practise.split(","));
-    iv.mode = b.dataset.video === "1" ? "video" : "single";
-    setIvTab("practice");
-    startPractice();
-  });
-  $("ivModes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (!b) return; iv.mode = b.dataset.mode; renderSetup(); });
+  $("ivModes").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (!b) return; iv.mode = b.dataset.mode; iv.modeChosen = true; renderSetup(); });
   $("ivTypes").addEventListener("click", e => {
     const b = e.target.closest("[data-type]"); if (!b) return;
     const k = b.dataset.type;
@@ -597,19 +819,42 @@ onInit(() => {
     renderSetup();
   });
   $("ivStart").addEventListener("click", startPractice);
-  $("ivStage").addEventListener("click", e => {
+  // everything in the interview room: finishing, rating, moving on, the summary, leaving
+  $("ivRoomDlg").addEventListener("click", async e => {
     const b = e.target.closest("[data-iv]"); if (!b) return;
     const a = b.dataset.iv;
-    if (a === "again") { const q = iv.q; showQuestion(q, { keepLast: true }); }
-    else if (a === "next") startPractice();
+    if (a === "exit") askExit();
+    else if (a === "exit-cancel") $("ivExitAsk").hidden = true;
+    else if (a === "exit-summary") renderSessionSummary();
+    else if (a === "exit-now") closeRoom();
+    else if (a === "to-progress") closeRoom("progress");
+    else if (a === "rate") rateAnswer();
+    else if (a === "edit") { hideChoice(); $("ivAnswer").focus(); }
+    else if (a === "again") { hideChoice(); showQuestion(iv.q, { keepLast: true }); }
+    else if (a === "next-q") ivNext();
+    else if (a === "summary-now") renderSessionSummary();
     else if (a === "follow") showQuestion({ id: "f" + Date.now(), type: iv.q.type, text: iv.followText, followUp: true, job: iv.q.job });
-    else if (a === "mock-next") { iv.mock.i++; showQuestion(iv.mock.list[iv.mock.i]); }
-    else if (a === "mock-done") renderMockSummary();
-    else if (a === "mock-again") { iv.mode = iv.lastMockKind || "mock"; startPractice(); }
-    else if (a === "sheet") setIvTab("prepare");
-    else if (a === "retry-worst" && iv.mockWorst) { iv.mode = "single"; renderSetup(); showQuestion(iv.mockWorst); }
+    else if (a === "pre-go") { stopPrecheck(); iv.prechecked = true; showQuestion(iv.sess.first, iv.sess.firstOpts || {}); }
+    else if (a === "pre-back") closeRoom();
+    else if (a === "restart") { iv.sess = null; iv.prechecked = false; iv.mode === "mock" || iv.mode === "screen" ? startPractice() : startPractice(); }
+    else if (a === "sheet") { closeRoom("quiet"); setIvTab("prepare"); }
+    else if (a === "redo-item" || a === "retry-worst") { const it = iv.sess && iv.sess.items[+b.dataset.k]; if (it) { iv.mode = "single"; iv.mock = null; iv.sess = null; showQuestion(it.q); } }
+    else if (a === "rate-item") { b.disabled = true; const st = $("ivSumStatus"); iv.sess.openK = +b.dataset.k; await rateSessionItem(+b.dataset.k, st); renderSessionSummary(); }
+    else if (a === "rate-all") {
+      b.disabled = true; const st = $("ivSumStatus"), todo = iv.sess.items.map((x, k) => k).filter(k => { const x = iv.sess.items[k]; return !x.rating && wordCount(x.answer || "") >= 3; });
+      for (let n = 0; n < todo.length; n++) { if (st) st.textContent = `Rating answer ${n + 1} of ${todo.length}…`; await rateSessionItem(todo[n], st); }
+      renderSessionSummary();
+    }
   });
+  // Esc asks before leaving, rather than throwing the practice away
+  $("ivRoomDlg").addEventListener("cancel", e => { e.preventDefault(); if (!$("ivExitAsk").hidden) $("ivExitAsk").hidden = true; else askExit(); });
+  $("ivJob").addEventListener("click", e => { const b = e.target.closest("[data-usejob]"); if (!b) return; iv.useJob = b.dataset.usejob === "1"; renderSetup(); });
+  document.querySelectorAll("[data-iv-jump]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); const t = $(a.getAttribute("href").slice(1)); if (t) t.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); }));
   $("ivHistoryPanel").addEventListener("click", e => {
+    const g = e.target.closest("[data-iv-go]"), t = e.target.closest("[data-iv-type]"), mk = e.target.closest("[data-iv-mock]");
+    if (g) { setIvTab(g.dataset.ivGo); return; }
+    if (t) { iv.mode = "single"; iv.modeChosen = true; iv.types = new Set([t.dataset.ivType]); setIvTab("practice"); return; }
+    if (mk) { iv.mode = "mock"; iv.modeChosen = true; setIvTab("practice"); return; }
     const b = e.target.closest("[data-iv-redo]"); if (!b) return;
     const x = iv.attempts[+b.dataset.ivRedo]; if (!x) return;
     iv.mode = "single"; iv.mock = null; setIvTab("practice");

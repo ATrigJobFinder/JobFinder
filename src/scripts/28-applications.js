@@ -96,7 +96,7 @@ onInit(() => {
     else if (a === "next") { setStage(it, STAGES_T[stageIx(it.stage) + 1].key); trk.save(); renderTracker(); }
     else if (a === "del") { if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Remove it?"; return; } trk.data.items = T().filter(x => x !== it); trkOpen = null; trk.save(); renderTracker(); }
     else if (a === "tailor") { els.jd.value = it.jd; els.title.value = it.title; updateCounts(); updateFlow(); openView("scanner"); setTimeout(() => goTo(els.resume.value.trim() ? "scanRow" : "step-resume"), 80); }
-    else if (a === "prep") openView("interview");
+    else if (a === "prep") { ivPrep.ready.then(() => { setIvJobFromTracker(it.id); openView("interview"); setIvTab("prepare"); }); }
   });
   box.addEventListener("change", e => {
     const card = e.target.closest(".trk-card"); if (!card) return;

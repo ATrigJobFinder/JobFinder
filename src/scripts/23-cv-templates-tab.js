@@ -196,7 +196,7 @@ onInit(() => {
     const b = e.target.closest("[data-cv]"); if (!b) return;
     if (b.dataset.cv === "build") openView("builder");
     else if (b.dataset.cv === "letter") openView("letter");
-    else if (b.dataset.cv === "import") { openView("builder"); setTimeout(() => { $("bImport").hidden = false; $("bImportBtn").setAttribute("aria-expanded", "true"); $("bFromScanner").hidden = !(els.resume.value.trim() && wordCount(els.resume.value) > 40); $("bPick").focus(); }, 60); }
+    else if (b.dataset.cv === "import") { openView("builder"); setTimeout(() => showWelcome("bPick"), 60); }
     else if (b.dataset.cv === "scan") { const st = document.createElement("p"); if (await importResumeText(finalText(), st, "the resume from Tailor to a job")) renderCv(); }
   });
   if (window.ResizeObserver) new ResizeObserver(() => { if (currentView === "cv") fitThumbs(); }).observe($("cvGallery"));

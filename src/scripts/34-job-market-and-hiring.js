@@ -120,12 +120,10 @@ function jobFilters(list) {
     && (!jobsUI.source || (jobsUI.source === "site" ? j.sourceType === "site" : jobsUI.source === "user" ? (j.sourceType === "user" || j.also.some(a => a.sourceType === "user")) : j.sourceType !== "site" && j.sourceType !== "user")));
 }
 /* --- The filter bar: the "Searching by" roller, search box, pay, where you'll work --- */
-let jbRest = () => {};   // set up below: tucks the roller away a moment after it's used
 const RO_H = 34;   // height of one roller row (matches .jb-ro in the stylesheet)
 function jbSetMode(by, scroll) {
   if (!JB_MODES[by]) return;
-  jobsUI.by = by; jobsUI.limit = 40; jbRest();
-  if (scroll) { const t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by); if (t) t.scrollTo({ top: i * RO_H, behavior: scroll === "smooth" && !reduceMotion() ? "smooth" : "auto" }); }
+  jobsUI.by = by; jobsUI.limit = 40;
   renderJobs();
 }
 function jbPaintWheel(t) {
@@ -133,7 +131,6 @@ function jbPaintWheel(t) {
   const pos = t.scrollTop / RO_H;
   [...t.children].forEach((b, i) => { const d = i - pos, a = Math.abs(d); b.style.opacity = String(Math.max(0.2, 1 - 0.5 * a)); b.style.transform = `perspective(160px) rotateX(${Math.max(-70, Math.min(70, -d * 38))}deg) scale(${Math.max(0.78, 1 - 0.1 * a)})`; });
 }
-const jbPaintRoller = () => jbPaintWheel($("jbRollerTrack"));
 const jbDragging = t => !!t && t.classList.contains("drag");
 // A mouse can drag a wheel up and down (a finger already can). It snaps to the nearest row when let go.
 function jbDragWheel(track) {
@@ -241,11 +238,8 @@ function jbRecommended() {
 function syncJobFilters() {
   const by = jobsUI.by, mode = JB_MODES[by], q = $("jbQ");
   if (!q) return;
-  const edu = by === "education", t = $("jbRollerTrack"), i = Object.keys(JB_MODES).indexOf(by);
-  document.querySelectorAll("#jbRollerTrack .jb-ro").forEach(b => b.setAttribute("aria-checked", String(b.dataset.by === by)));
-  if (t && Math.abs(t.scrollTop - i * RO_H) > 1 && !t.matches(":active") && !jbDragging(t)) t.scrollTop = i * RO_H;
-  jbPaintRoller();
-  const now = document.querySelector(`#jbRollerTrack .jb-ro[data-by="${by}"]`); if (now) { $("jbByNowText").textContent = now.textContent; $("jbByNow").classList.toggle("on", by !== "title"); }
+  const edu = by === "education";
+  document.querySelectorAll("#jbBySeg .jb-segb").forEach(b => b.setAttribute("aria-checked", String(b.dataset.by === by)));
   if (edu) jbEduAssist(); else $("jbEduNote").hidden = true;
   jbPaySync();
   // the field it says: a search box, or for education the Level and Type drop-downs; the location box is always to the right
@@ -315,8 +309,7 @@ function renderJobs() {
       <button type="button" class="job-main" data-jb="open" aria-expanded="${open}"><span class="job-title">${esc(j.title)}</span><span class="job-co">${esc(j.company || "")}${j.location ? ` · ${esc(j.location)}` : ""}</span>
         <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span></button>
       <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${j.srcUrl ? `<a href="${esc(j.srcUrl)}" target="_blank" rel="noopener">${esc(j.source)}</a>` : esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
-      ${open && !wide ? jobDetail(j, tr, myApplied.has(j.key)) : ""}
-      ${warn}
+      ${open && !wide ? jobDetail(j, tr, myApplied.has(j.key)) + warn : ""}
     </article>`;
   }).join("") + (list.length > jobsUI.limit ? `<button class="btn" type="button" id="jbMore">Show more (${list.length - jobsUI.limit} left)</button>` : "");
   const openJ = wide ? list.find(j => (j.key || j.id) === jobsUI.open) : null;
@@ -517,34 +510,15 @@ onInit(() => {
   $("jbEduLevel").insertAdjacentHTML("beforeend", Object.keys(EDU_LEVELS).map(k => `<option>${k}</option>`).join(""));
   $("jbEduType").insertAdjacentHTML("beforeend", Object.keys(EDU_TYPES).map(k => `<option>${k}</option>`).join(""));
   trk.on(jbBell); jbBell();
-  const track = $("jbRollerTrack"), roller = $("jbRoller"), pick = $("jbByPick"), nowBtn = $("jbByNow");
-  if (track) {
-    // the wheel stays out of sight until you hover, tap, focus or arrow-key the "Searching by" choice
-    let closeT = 0;
-    const showRoller = on => {
-      clearTimeout(closeT);
-      pick.classList.toggle("open", on); nowBtn.setAttribute("aria-expanded", String(on)); roller.setAttribute("aria-hidden", String(!on));
-      if (on) { track.scrollTop = Math.max(0, Object.keys(JB_MODES).indexOf(jobsUI.by)) * RO_H; jbPaintRoller(); }
-    };
-    jbRest = () => { clearTimeout(closeT); if (!pick.classList.contains("open")) return; closeT = setTimeout(() => { if (!(pick.matches(":hover") && matchMedia("(hover: hover)").matches) && !jbDragging(track)) showRoller(false); }, 1100); };
-    pick.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") showRoller(true); });
-    pick.addEventListener("pointerleave", () => { if (pick.classList.contains("open") && !jbDragging(track)) { clearTimeout(closeT); closeT = setTimeout(() => { if (!jbDragging(track)) showRoller(false); }, 300); } });
-    nowBtn.addEventListener("click", () => showRoller(true));
-    pick.addEventListener("focusout", e => { if (!pick.contains(e.relatedTarget)) showRoller(false); });
-    jbDragWheel(track);
-    // spinning the wheel picks whatever row settles in the middle
-    let settle = null, raf = 0;
-    const settleNow = () => { if (jbDragging(track)) return; const by = Object.keys(JB_MODES)[Math.max(0, Math.min(Object.keys(JB_MODES).length - 1, Math.round(track.scrollTop / RO_H)))]; if (by !== jobsUI.by) jbSetMode(by); else jbRest(); };
-    track.addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; jbPaintRoller(); }); clearTimeout(settle); settle = setTimeout(settleNow, 140); }, { passive: true });
-    pick.addEventListener("keydown", e => {
-      if (e.key === "Escape" && pick.classList.contains("open")) { e.preventDefault(); showRoller(false); return; }
-      const keys = Object.keys(JB_MODES), i = keys.indexOf(jobsUI.by);
-      const n = e.key === "ArrowDown" || e.key === "ArrowRight" ? i + 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? keys.length - 1 : null;
-      if (n === null) return;
-      e.preventDefault(); showRoller(true); jbSetMode(keys[Math.max(0, Math.min(keys.length - 1, n))], "smooth");
-    });
-    document.addEventListener("click", e => { if (pick.classList.contains("open") && !e.target.closest("#jbByPick")) showRoller(false); });
-  }
+  // "Searching by": three buttons, like a tab bar (no wheel). Arrow keys move between them.
+  const seg = $("jbBySeg");
+  if (seg) seg.addEventListener("keydown", e => {
+    const keys = Object.keys(JB_MODES), i = keys.indexOf(jobsUI.by);
+    const n = e.key === "ArrowRight" || e.key === "ArrowDown" ? i + 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? keys.length - 1 : null;
+    if (n === null) return;
+    e.preventDefault(); jbSetMode(keys[Math.max(0, Math.min(keys.length - 1, n))]);
+    const b = seg.querySelector('[aria-checked="true"]'); if (b) b.focus();
+  });
   // pay: a drop-down with a From wheel and a To wheel
   const payBtn = $("jbPayBtn"), payPop = $("jbPayPop");
   const showPay = on => { payPop.hidden = !on; payBtn.setAttribute("aria-expanded", String(on)); if (on) jbPaySync(); };
@@ -578,8 +552,8 @@ onInit(() => {
   $("view-jobs").addEventListener("change", e => { const f = e.target.dataset.jbf; if (f) { jobsUI[f] = e.target.value; renderJobs(); } });
   $("view-jobs").addEventListener("click", async e => {
     if (e.target.closest("[data-edu-fill]")) { const s = jbEduFromMe(); if (s) { jobsUI.eduLevel = s.level; jobsUI.eduType = s.type; jobsUI.limit = 40; renderJobs(); } return; }
-    const ro = e.target.closest(".jb-ro");
-    if (ro) { jbSetMode(ro.dataset.by, "smooth"); return; }
+    const ro = e.target.closest(".jb-segb");
+    if (ro) { jbSetMode(ro.dataset.by); return; }
     const sg = e.target.closest("[data-sg]");
     if (sg) { const v = sg.dataset.sg; jobsUI.q = jobsUI.q.toLowerCase() === v.toLowerCase() ? "" : v; if (jobsUI.by === "education") jobsUI.by = "title"; if (jobsUI.q) jbRemember(jobsUI.q); $("jbQ").value = jobsUI.q; jobsUI.limit = 40; renderJobs(); return; }
     const clr = e.target.closest("[data-clear]");

@@ -284,20 +284,7 @@ onInit(() => {
     if (open) { await savedLetters.ready; renderLetterPick(); }
   });
   $("ltImport").addEventListener("click", () => $("ltFile").click());
-  $("ltFile").addEventListener("change", async () => {
-    const f = $("ltFile").files[0], st = $("ltStatus"); $("ltFile").value = "";
-    if (!f) return;
-    st.textContent = `Reading ${f.name}…`;
-    try {
-      const { text } = await readFile(f);
-      const paras = text.split(/\n\s*\n/).map(t => t.replace(/\s+/g, " ").trim()).filter(t => wordCount(t) >= 12 && !/^(dear|yours|kind regards|regards|sincerely)\b/i.test(t));
-      if (!paras.length) throw new Error(`Couldn't find the paragraphs in ${f.name}.`);
-      const five = paras.length <= 5 ? paras : [paras[0], paras.slice(1, -2).join(" "), paras[paras.length - 2], "", paras[paras.length - 1]];
-      BL().parts = COVER_PARTS.map((p, i) => ({ part: p.key, text: five[i] || "" }));
-      baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
-      st.textContent = `Brought in ${paras.length} paragraph${paras.length === 1 ? "" : "s"} from ${f.name}. Check each one sits under the right heading.`;
-    } catch (e) { st.textContent = e && e.message ? e.message : "Couldn't read that file."; }
-  });
+  $("ltFile").addEventListener("change", async () => { const f = $("ltFile").files[0]; $("ltFile").value = ""; if (f) await ltImportFile(f); });
   dlMenu("ltDl", { docx: b => downloadBaseLetter("docx", b), pdf: b => downloadBaseLetter("pdf", b), txt: b => downloadBaseLetter("txt", b) });
   $("ltCopy").addEventListener("click", async () => {
     const L = baseLetterParts(), b = $("ltCopy");
@@ -554,8 +541,31 @@ function renderSavedLetters() {
   const pick = $("ltPick"); if (pick && !pick.hidden) renderLetterPick();
 }
 // "Use a cover letter from my profile": the letters you've saved to your profile, to start from
-function renderLetterPick() {
-  const box = $("ltPick"), list = savedLetters.data.list || [];
+// Bring in a letter (a file, or text pasted on the opening page): sort it into the five paragraphs. Returns true when it worked.
+async function ltImportFile(f) {
+  ltSay(`Reading ${f.name}…`);
+  try { return ltImportText((await readFile(f)).text, f.name); }
+  catch (e) { ltSay(e && e.message ? e.message : "Couldn't read that file.", true); return false; }
+}
+function ltImportText(text, label) {
+  try {
+    const paras = String(text || "").split(/\n\s*\n/).map(t => t.replace(/\s+/g, " ").trim()).filter(t => wordCount(t) >= 12 && !/^(dear|yours|kind regards|regards|sincerely)\b/i.test(t));
+    if (!paras.length) throw new Error(`Couldn't find the paragraphs in ${label}.`);
+    const five = paras.length <= 5 ? paras : [paras[0], paras.slice(1, -2).join(" "), paras[paras.length - 2], "", paras[paras.length - 1]];
+    BL().parts = COVER_PARTS.map((p, i) => ({ part: p.key, text: five[i] || "" }));
+    baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
+    if (typeof ltShowStep === "function") ltShowStep(1);
+    ltSay(`Brought in ${paras.length} paragraph${paras.length === 1 ? "" : "s"} from ${label}. Check each one sits under the right heading.`);
+    return true;
+  } catch (e) { ltSay(e && e.message ? e.message : "Couldn't read that.", true); return false; }
+}
+// A message under the buttons; on the opening page it shows there too
+function ltSay(m, bad) {
+  const st = $("ltStatus"); if (st) st.textContent = m;
+  const w = $("ltwStatus"); if (w) { w.textContent = typeof ltWelcomeOn !== "undefined" && ltWelcomeOn ? m : ""; w.classList.toggle("err", !!bad); }
+}
+function renderLetterPick(box = $("ltPick")) {
+  const list = savedLetters.data.list || [];
   box.innerHTML = `<div class="b-sub">Cover letters in your profile</div>` + (list.length ? savedLetterRows(list, false) : `<p class="small muted">You haven't saved a cover letter to your profile yet. Write one, then press <b>Save to my profile…</b> on the Cover letter tab, and it will be here next time.</p>`);
 }
 async function saveLetterTemplate() {

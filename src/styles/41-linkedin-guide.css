@@ -1,0 +1,117 @@
+/* ===================== LinkedIn advice: the LinkedIn guide ===================== */
+/* Shares the interview guide's look (38-interview-guide.css). Only what that file doesn't already say is here, and it's scoped to this page. */
+.ig { --ig-font-mono: var(--font-mono); }
+#view-advice-linkedin .ig :where(p,ul,ol,dl,figure,pre) { margin:0 }
+#view-advice-linkedin .ig-hero .ig-h1 mark { background:linear-gradient(transparent 60%,var(--ig-mark) 60%,var(--ig-mark) 94%,transparent 94%);color:inherit;padding:0 .04em;border-radius:0 }
+#view-advice-linkedin .ig-btn { display:inline-flex;align-items:center;gap:8px;font:700 1rem/1 var(--ig-font-body);padding:14px 18px;border-radius:10px;text-decoration:none;border:2px solid var(--ig-accent);cursor:pointer;transition:transform .15s ease }
+#view-advice-linkedin .ig-prof { position:relative;justify-self:center;width:100%;max-width:470px;margin:0 }
+#view-advice-linkedin .ig-prof__card { position:relative;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:12px;overflow:visible; transform:rotate(-1.2deg);box-shadow:0 1px 0 var(--ig-line),0 24px 48px -22px var(--ig-shadow);font-size:.84rem;line-height:1.45 }
+#view-advice-linkedin .ig-prof__banner { height:92px;border-radius:12px 12px 0 0;background: linear-gradient(135deg,var(--ig-accent-soft) 0 55%,transparent 55%), repeating-linear-gradient(45deg,var(--ig-line) 0 2px,transparent 2px 12px),var(--ig-paper); display:flex;align-items:flex-end;justify-content:flex-end;text-align:right;padding:10px 14px 10px 134px;color:var(--ig-muted);font-size:.74rem;font-weight:700 }
+#view-advice-linkedin .ig-prof__photo { position:absolute;left:22px;top:44px;width:96px;height:96px;border-radius:50%;border:4px solid var(--ig-surface);background:#C9D3E6;overflow:hidden }
+#view-advice-linkedin .ig-prof__photo svg { width:100%;height:100%;display:block }
+#view-advice-linkedin .ig-prof__body { padding:56px 22px 22px;display:grid;gap:6px }
+#view-advice-linkedin .ig-prof__name { font-family:var(--ig-font-display);font-weight:800;font-size:1.4rem;line-height:1.1;display:flex;gap:8px;align-items:center;flex-wrap:wrap }
+#view-advice-linkedin .ig-prof__badge { font-family:var(--ig-font-body);font-size:.7rem;font-weight:700;color:var(--ig-good);background:var(--ig-good-soft);border-radius:999px;padding:2px 8px }
+#view-advice-linkedin .ig-prof__headline { font-size:.92rem;font-weight:700 }
+#view-advice-linkedin .ig-prof__meta { color:var(--ig-muted);font-size:.78rem }
+#view-advice-linkedin .ig-prof__chips { display:flex;flex-wrap:wrap;gap:6px;margin-top:4px }
+#view-advice-linkedin .ig-prof__chip { font-size:.72rem;font-weight:700;border:1px solid var(--ig-line);border-radius:999px;padding:3px 9px;background:var(--ig-paper) }
+#view-advice-linkedin .ig-prof__about { margin-top:10px;padding-top:10px;border-top:1px solid var(--ig-line);display:grid;gap:5px }
+#view-advice-linkedin .ig-prof__about b { font-family:var(--ig-font-display);font-size:.95rem }
+#view-advice-linkedin .ig-prof__line { display:block;height:6px;border-radius:4px;background:var(--ig-line);width:var(--w) }
+#view-advice-linkedin .ig-prof__more { color:var(--ig-muted);font-size:.76rem }
+#view-advice-linkedin .ig-prof .ig-pen { font-size:1.16rem;transform:rotate(-1.5deg);display:inline-block;transform-origin:left }
+#view-advice-linkedin .ig-prof__photonote { position:absolute;left:128px;top:100px }
+#view-advice-linkedin .ig-prof__corner { position:absolute;right:-4px;bottom:-34px;transform:rotate(-4deg)!important;max-width:230px;text-align:right }
+#view-advice-linkedin .ig-prof figcaption { margin-top:48px;font-size:.84rem;color:var(--ig-muted);max-width:46ch }
+#view-advice-linkedin .ig-ring { position:relative;display:inline }
+#view-advice-linkedin .ig-ringwrap { position:relative;display:inline-block }
+#view-advice-linkedin .ig-ringwrap svg { position:absolute;inset:-7px -10px;width:calc(100% + 20px);height:calc(100% + 14px);overflow:visible;pointer-events:none }
+#view-advice-linkedin .ig-ringwrap path { fill:none;stroke:var(--ig-accent);stroke-width:2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0;animation:ig-draw .6s ease-out .2s both }
+#view-advice-linkedin p.ig-prose { display:block }
+#view-advice-linkedin .ig-three { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px }
+#view-advice-linkedin .ig-stats { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px }
+#view-advice-linkedin .ig-stat { background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:12px;padding:16px;display:grid;gap:4px;align-content:start }
+#view-advice-linkedin .ig-stat b { font-family:var(--ig-font-display);font-size:2rem;font-weight:800;line-height:1;color:var(--ig-accent);font-variant-numeric:tabular-nums }
+#view-advice-linkedin .ig-stat span { font-size:.9rem }
+#view-advice-linkedin .ig-anatomy { list-style:none;padding:0;display:grid;gap:0;border-top:2px solid var(--ig-ink);counter-reset:a }
+#view-advice-linkedin .ig-anatomy > li { counter-increment:a;display:grid;grid-template-columns:44px minmax(0,1fr) minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--ig-line) }
+#view-advice-linkedin .ig-anatomy > li::before { content:counter(a);font-family:var(--ig-font-display);font-weight:800;font-size:1.4rem;color:var(--ig-accent);font-variant-numeric:tabular-nums }
+#view-advice-linkedin .ig-anatomy h3 { font-size:1.08rem;margin-bottom:4px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap }
+#view-advice-linkedin .ig-anatomy p { font-size:.95rem }
+#view-advice-linkedin .ig-tag { font-family:var(--ig-font-body);font-size:.72rem;font-weight:700;color:var(--ig-muted);background:var(--ig-surface);border:1px solid var(--ig-line);padding:2px 8px;border-radius:999px;white-space:nowrap }
+#view-advice-linkedin .ig-example { font-size:.9rem;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:10px;padding:10px 12px;align-self:start;display:grid;gap:4px }
+#view-advice-linkedin .ig-example b { font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ig-muted) }
+#view-advice-linkedin .ig-field { display:grid;gap:6px;align-content:start }
+#view-advice-linkedin .ig input[type="text"], #view-advice-linkedin .ig textarea { width:100%;font:inherit;font-size:.96rem;color:var(--ig-ink);background:var(--ig-paper);border:1px solid var(--ig-line);border-radius:8px;padding:10px 12px }
+#view-advice-linkedin .ig textarea { resize:vertical;min-height:70px;line-height:1.5 }
+#view-advice-linkedin .ig-hb { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:24px;align-items:start }
+#view-advice-linkedin .ig-hb__fields { display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end }
+#view-advice-linkedin .ig-hb__fields .ig-field--wide { grid-column:1 / -1 }
+#view-advice-linkedin .ig-variants { list-style:none;padding:0;display:grid;gap:12px }
+#view-advice-linkedin .ig-variant { border:1px solid var(--ig-line);border-radius:12px;padding:14px;background:var(--ig-paper);display:grid;gap:8px }
+#view-advice-linkedin .ig-variant__text { font-weight:700;font-size:1rem;line-height:1.4;word-break:break-word }
+#view-advice-linkedin .ig-variant__meta { display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.84rem;color:var(--ig-muted);font-variant-numeric:tabular-nums }
+#view-advice-linkedin .ig-variant__meta b.is-over { color:var(--ig-bad) }
+#view-advice-linkedin .ig-variant__cut { font-size:.84rem;color:var(--ig-muted) }
+#view-advice-linkedin .ig-variant__cut span { color:var(--ig-ink);background:var(--ig-surface);border:1px dashed var(--ig-line);border-radius:4px;padding:1px 4px }
+#view-advice-linkedin .ig-variant .ph { background:var(--ig-mark);color:var(--ig-mark-ink);border-radius:3px;padding:0 3px;font-weight:400 }
+#view-advice-linkedin .ig-checker { display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:start }
+#view-advice-linkedin .ig-checker__in { display:grid;gap:12px }
+#view-advice-linkedin .ig-checker__in textarea { min-height:320px;font-size:.92rem }
+#view-advice-linkedin .ig-panel { display:grid;gap:14px;padding:18px;border-radius:12px;background:var(--ig-paper);border:1px solid var(--ig-line) }
+#view-advice-linkedin .ig-verdict { font-family:var(--ig-font-display);font-weight:800;font-size:1.5rem;line-height:1.1 }
+#view-advice-linkedin .ig-verdict small { display:block;font-family:var(--ig-font-body);font-weight:400;font-size:.84rem;color:var(--ig-muted);margin-top:4px }
+#view-advice-linkedin .ig-meter { display:flex;gap:3px;margin-top:8px }
+#view-advice-linkedin .ig-meter span { flex:1;height:10px;border-radius:3px;background:var(--ig-line) }
+#view-advice-linkedin .ig-meter span.is-on { background:var(--ig-good) }
+#view-advice-linkedin .ig-meter.is-mid span.is-on { background:var(--ig-warn) }
+#view-advice-linkedin .ig-meter.is-low span.is-on { background:var(--ig-bad) }
+#view-advice-linkedin .ig-checks { list-style:none;padding:0;display:grid;gap:6px;font-size:.92rem }
+#view-advice-linkedin .ig-checks li { position:relative;padding-left:26px }
+#view-advice-linkedin .ig-checks li::before { content:"✗";position:absolute;left:0;top:0;font-weight:700;color:var(--ig-bad) }
+#view-advice-linkedin .ig-checks li.is-ok::before { content:"✓";color:var(--ig-good) }
+#view-advice-linkedin .ig-checks li.is-mid::before { content:"!";color:var(--ig-warn) }
+#view-advice-linkedin .ig-fold { border:1px dashed var(--ig-line);border-radius:10px;padding:10px 12px;background:var(--ig-surface);font-size:.88rem;white-space:pre-wrap }
+#view-advice-linkedin .ig-fold em { color:var(--ig-muted) }
+#view-advice-linkedin .ig-callout ul { display:grid;gap:6px;font-size:.94rem;padding-left:1.1em }
+#view-advice-linkedin .ig-callout .ig-pen { font-size:1.5rem;transform:rotate(-1.5deg);transform-origin:left;display:block }
+#view-advice-linkedin .ig-settings { list-style:none;padding:0;display:grid;gap:0;border-top:2px solid var(--ig-ink) }
+#view-advice-linkedin .ig-settings li { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) auto;gap:16px;padding:14px 0;border-bottom:1px solid var(--ig-line);align-items:start }
+#view-advice-linkedin .ig-settings h3 { font-size:1.02rem }
+#view-advice-linkedin .ig-settings p { font-size:.93rem }
+#view-advice-linkedin .ig-settings code { font-family:var(--ig-font-mono);font-size:.82rem;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:4px;padding:1px 5px }
+#view-advice-linkedin .ig-prep__cols { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px }
+#view-advice-linkedin .ig-prep__col h4 { font-size:1rem;padding-bottom:8px;border-bottom:2px solid var(--ig-ink) }
+#view-advice-linkedin .ig-templates { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px }
+#view-advice-linkedin .ig-templates > div { display:grid;gap:10px;align-content:start }
+#view-advice-linkedin .ig-templates h3 { font-size:1.04rem }
+#view-advice-linkedin .ig-template { font-family:var(--ig-font-body);font-size:.9rem;line-height:1.55;white-space:pre-wrap;background:var(--ig-surface);border:1px solid var(--ig-line);border-radius:12px;padding:16px }
+#view-advice-linkedin .ig-format h3 { font-size:1.15rem }
+#view-advice-linkedin .ig-cta__btns { display:flex;flex-wrap:wrap;gap:10px }
+#view-advice-linkedin .ig a.ig-cta__btn2 { color:var(--ig-paper);border-color:var(--ig-paper) }
+@media (max-width:1100px) {
+  #view-advice-linkedin .ig-stats { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  #view-advice-linkedin .ig-hb, #view-advice-linkedin .ig-templates { grid-template-columns:1fr }
+}
+@media (max-width:900px) {
+  #view-advice-linkedin .ig-prof { max-width:440px;justify-self:start }
+  #view-advice-linkedin .ig-checker, #view-advice-linkedin .ig-callouts, #view-advice-linkedin .ig-formats { grid-template-columns:1fr }
+  #view-advice-linkedin .ig-three { grid-template-columns:1fr }
+  #view-advice-linkedin .ig-anatomy > li { grid-template-columns:36px minmax(0,1fr) }
+  #view-advice-linkedin .ig-anatomy .ig-example { grid-column:2 }
+  #view-advice-linkedin .ig-settings li { grid-template-columns:1fr }
+  #view-advice-linkedin .ig-prep__cols { grid-template-columns:1fr 1fr }
+}
+@media (max-width:620px) {
+  #view-advice-linkedin .ig-prep__cols, #view-advice-linkedin .ig-faq, #view-advice-linkedin .ig-hb__fields { grid-template-columns:1fr }
+  #view-advice-linkedin .ig-prof__photonote { left:124px;top:96px }
+  #view-advice-linkedin .ig-prof__corner { right:4px }
+  #view-advice-linkedin .ig-stat b { font-size:1.6rem }
+}
+@media print {
+  #view-advice-linkedin .ig-toc, #view-advice-linkedin .ig-actions, #view-advice-linkedin .ig-tool, #view-advice-linkedin .ig-cta, #view-advice-linkedin .ig-linkbtn { display:none!important }
+}
+
+/* the page has no header above the guide, so give the hero some room */
+#view-advice-linkedin .ig-hero { padding-top: 28px; }

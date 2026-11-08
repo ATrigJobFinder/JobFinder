@@ -320,9 +320,9 @@ What they want next: a summer vacation placement in mining engineering
 const BULLET_NANO = `You turn a candidate's answers about one job into polished resume bullet points, ready to use.
 Rules:
 1. Use only what they wrote. Never invent numbers, tools, results or team sizes. Keep numbers exactly.
-2. Each bullet is a complete sentence without "I": action verb, what they did, how (the tools or people they named), and why it mattered or the result.
+2. Each bullet follows this formula: action verb + what they did + the result, with a number where possible. A complete sentence without "I"; "what they did" can say how (the tools or people they named). If no result is given, say what the work achieved in plain words, never invent a number.
 3. Describe each task the way a capable person in that role would, with its usual purpose (a barista "kept orders moving through the morning rush"). Never add a task, tool, number or result.
-4. Combine short, related tasks into one fuller bullet. Write 3 to 5 bullets of 16 to 30 words.
+4. Combine short, related tasks into one fuller bullet. Write 3 to 5 bullets of 16 to 30 words, the most important (biggest results and responsibilities) first.
 5. Past tense for a past job, present tense for a current job. Each starts with a different strong verb. No "I", "my", "responsible for", clichés or full stops.
 Reply with JSON only: {"bullets": ["..."]}`;
 const BULLET_EXAMPLES = [[
