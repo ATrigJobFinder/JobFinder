@@ -4,8 +4,8 @@
 //   talent/<id>  a job seeker's opt-in profile for employers to find
 //   outbox/<id>  an employer's invitations to apply (toIds lists who they're for)
 //   apps/<id>    a job seeker's applications to jobs posted here (employerIds lists who they're for)
-const market = { started: false, db: null, uid: null, user: null, canWrite: null, canEdit: false, employers: [], talent: [], invites: [], incoming: [], myApps: null, outbox: null, myJobs: null, error: "" };
-const hiring = privateDoc("hiring", "jobfinder.hiring.v1", () => ({ status: {}, notes: {} }));
+const market = { started: false, settled: false, db: null, uid: null, user: null, canWrite: null, canEdit: false, employers: [], talent: [], invites: [], incoming: [], myApps: null, outbox: null, myJobs: null, error: "" };
+const hiring = privateDoc("hiring", "jobfinder.hiring.v1", () => ({ status: {}, notes: {}, ratings: {}, log: {}, seen: {}, pools: [], searches: [], local: null, localApps: [], localOutbox: null, demo: null }));
 const EXAMPLE_JOBS = [
   { id: "ex1", title: "Graduate Mechanical Engineer", company: "Coastline Energy Services", location: "Brisbane, QLD", workType: "Full time", remote: "Hybrid", salary: "$75,000 to $82,000 + super", posted: "2026-10-20", source: "Coastline Energy careers page", sourceType: "company", url: "https://example.com/coastline/careers/grad-mech", description: "Join our engineering team delivering solar, battery storage and HVAC projects for commercial clients across Queensland. You will produce 3D models and drawings in SolidWorks or AutoCAD, carry out FEA and hand calculations, support HVAC and piping design, and prepare technical reports. Requirements: Bachelor of Engineering (Mechanical), SolidWorks or AutoCAD, FEA, strong written communication. Job reference: CES-2041.", example: true },
   { id: "ex2", title: "Graduate Mechanical Engineer - Brisbane", company: "Coastline Energy Services Pty Ltd", location: "Brisbane QLD 4000", workType: "Full time", remote: "", salary: "", posted: "2026-10-22", source: "Example job board", sourceType: "board", url: "https://example.com/board/job/88123", description: "Coastline Energy Services is hiring a graduate mechanical engineer for solar, battery and HVAC projects. Job reference: CES-2041.", example: true },
@@ -24,12 +24,14 @@ async function startMarket() {
     await memoryReady;
     // the job board, talent pool and applications are shared through Claude; a Job Finder account keeps only your own things
     market.db = memory.viaAccount ? null : memory.db; market.uid = memory.viaAccount ? null : memory.uid;
+    if (!market.db || !market.uid) market.settled = true;   // (outside Claude there's nothing to wait for)
+    else setTimeout(() => { if (!market.settled) { market.settled = true; marketChanged(); } }, 3000);
     try { market.user = window.claude && window.claude.use ? await window.claude.use("user") : null; } catch { market.user = null; }
     if (market.user) { try { market.canWrite = await market.user.can("data.write"); } catch { market.canWrite = null; } try { market.canEdit = await market.user.canEdit(); } catch { market.canEdit = false; } }
     if (!market.db || !market.uid) return;
     const db = market.db, uid = market.uid;
     const live = (ref, fn) => { try { ref.onSnapshot(fn, e => { market.error = e && e.code; }); } catch (e) { market.error = "unavailable"; } };
-    live(db.collection("jobs"), snap => { market.employers = snap.docs.filter(d => d.exists).map(d => ({ uid: d.id, ...JSON.parse(JSON.stringify(d.data())) })); market.myJobs = market.employers.find(e => e.uid === uid) || null; marketChanged(); });
+    live(db.collection("jobs"), snap => { market.employers = snap.docs.filter(d => d.exists).map(d => ({ uid: d.id, ...JSON.parse(JSON.stringify(d.data())) })); market.myJobs = market.employers.find(e => e.uid === uid) || null; market.settled = true; marketChanged(); });
     live(db.collection("talent"), snap => { market.talent = snap.docs.filter(d => d.exists).map(d => ({ uid: d.id, ...JSON.parse(JSON.stringify(d.data())) })).filter(t => t.visible !== false); marketChanged(); });
     live(db.collection("outbox").where("toIds", "array-contains", uid), snap => { market.invites = snap.docs.flatMap(d => ((d.data() || {}).invites || []).filter(i => i.to === uid).map(i => ({ ...i, from: d.id }))); marketChanged(); });
     live(db.collection("apps").where("employerIds", "array-contains", uid), snap => { market.incoming = snap.docs.flatMap(d => ((d.data() || {}).items || []).filter(i => i.employerId === uid).map(i => ({ ...i, candidate: d.id, name: (d.data() || {}).name }))); marketChanged(); });
@@ -40,7 +42,7 @@ async function startMarket() {
   return market.ready;
 }
 let mkTimer = null;
-function marketChanged() { clearTimeout(mkTimer); mkTimer = setTimeout(() => { if (currentView === "jobs") renderJobs(); if (currentView === "employer") renderEmployer(); if (currentView === "home") renderHome(); if (currentView === "companies" && typeof refreshJobTabs === "function") refreshJobTabs(); }, 120); }
+function marketChanged() { clearTimeout(mkTimer); mkTimer = setTimeout(() => { if (currentView === "jobs") renderJobs(); emRefresh(); if (currentView === "home") renderHome(); if (currentView === "companies" && typeof refreshJobTabs === "function") refreshJobTabs(); }, 120); }
 const canPost = () => market.db && market.uid && market.canWrite !== false;
 const shareNote = () => !market.db ? "Posting, the talent pool and applications need this page to be opened in Claude, where they're shared between everyone who can open Job Finder." : market.canWrite === false ? "You can browse, but your access to this page is view-only, so you can't post or apply here. Ask the owner for Contributor or Editor access." : "";
 // Status messages survive the re-renders that live updates cause
@@ -61,7 +63,13 @@ async function safeWrite(fn, statusId) {
 // shared data comes from other people, so only ever link to web pages
 const safeUrl = u => /^https?:\/\/[^\s"'<>]+$/i.test(String(u || "").trim()) ? String(u).trim() : "";
 function allJobs() {
-  const site = market.employers.flatMap(e => (e.jobs || []).filter(j => j.status !== "closed" && j.status !== "draft").map(j => ({ ...j, company: (e.employer || {}).name || "Employer", employerUid: e.uid, key: e.uid + ":" + j.id, source: "Job Finder", sourceType: "site", url: "" })));
+  // ads people posted here: shared ones, and (outside Claude) the ones posted from this browser
+  const docs = [...market.employers];
+  if ((!market.db || market.canWrite === false) && hiring.data.local) docs.push({ uid: EM_LOCAL_ID, ...hiring.data.local });
+  const site = docs.flatMap(e => (e.jobs || []).filter(j => j.status !== "closed" && j.status !== "draft" && !(j.closes && j.closes < todayISO())).map(j => {
+    const t = emTier(j), co = e.employer || {};
+    return { ...j, company: co.name || "Employer", employerUid: e.uid, key: e.uid + ":" + j.id, source: "Job Finder", sourceType: "site", url: "", promo: t.promo, brand: t.brand ? { name: co.name, logo: co.logo, colour: co.colour, about: co.about } : null, sellingPoints: t.brand ? (j.sellingPoints || []).filter(Boolean) : [], questions: j.questions || [] };
+  }));
   const mine = T().filter(i => i.title && (i.jd || i.url)).map(i => ({ id: "t" + i.id, trackerId: i.id, title: i.title, company: i.company, location: i.location, url: safeUrl(i.url), description: i.jd, source: "Saved by you", sourceType: "user", posted: (i.created || "").slice(0, 10) }));
   // made-up examples only show when nothing real has been posted yet
   const list = site.length ? [...site, ...mine] : [...EXAMPLE_JOBS, ...mine];
@@ -290,11 +298,12 @@ function renderJobs() {
   for (const j of merged) j.m = jobMatch(j);
   const total = merged.reduce((a, j) => a + 1 + j.also.length, 0), dupes = total - merged.length;
   syncJobFilters();
-  const list = jobFilters(merged).sort((a, b) => jobsUI.sort === "new" ? String(b.posted || "").localeCompare(String(a.posted || "")) : ((b.m ? b.m.pct : -1) - (a.m ? a.m.pct : -1)));
+  const rank = j => (j.m ? j.m.pct : -1) + (j.promo ? 12 : 0);
+  const list = jobFilters(merged).sort((a, b) => jobsUI.sort === "new" ? (b.promo ? 1 : 0) - (a.promo ? 1 : 0) || String(b.posted || "").localeCompare(String(a.posted || "")) : rank(b) - rank(a));
   const examples = merged.some(j => j.example);
   $("jbSummary").innerHTML = `${list.length} job${list.length === 1 ? "" : "s"}${dupes ? `. <b>${dupes} duplicate${dupes === 1 ? "" : "s"} merged</b> from ${total} listings` : ""}.${jobsUI.payMin || jobsUI.payMax ? " Jobs that don't list their pay are hidden while a pay filter is on." : ""}${examples ? ' <span class="tag">Examples</span> These are made-up listings to show how it works, until employers post jobs or listings are imported.' : ""}`;
   $("jbNote").textContent = ""; $("jbNote").hidden = true;   // (the note about posting and applications is for the hiring pages)
-  const myApplied = new Set(((market.myApps || {}).items || []).map(i => i.jobKey));
+  const myApplied = new Set([...((market.myApps || {}).items || []).map(i => i.jobKey), ...(hiring.data.localApps || []).map(a => EM_LOCAL_ID + ":" + a.jobId)]);
   const tracked = jobTracked;
   jbBell();
   // keep the open job on the page even if it's past the limit
@@ -306,8 +315,8 @@ function renderJobs() {
   const cardsHtml = list.slice(0, jobsUI.limit).map(j => {
     const tr = tracked(j), m = j.m, open = jobsUI.open === (j.key || j.id);
     return `<article class="job${open ? " open" : ""}" data-job="${esc(j.key || j.id)}">
-      <button type="button" class="job-main" data-jb="open" aria-expanded="${open}"><span class="job-title">${esc(j.title)}</span><span class="job-co">${esc(j.company || "")}${j.location ? ` · ${esc(j.location)}` : ""}</span>
-        <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span></button>
+      <button type="button" class="job-main" data-jb="open" aria-expanded="${open}"><span class="job-title">${j.brand ? emLogo(j.brand, "sm") : ""}${esc(j.title)}${j.promo ? ' <span class="emp-promo-tag">Promoted</span>' : ""}</span><span class="job-co">${esc(j.company || "")}${j.location ? ` · ${esc(j.location)}` : ""}</span>
+        <span class="job-meta">${[j.workType, j.remote, j.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${j.posted ? `<span>Posted ${fmtDay(j.posted)}</span>` : ""}</span>${j.sellingPoints && j.sellingPoints.length ? `<span class="job-sp">${j.sellingPoints.map(x => `<span>${esc(x)}</span>`).join("")}</span>` : ""}</button>
       <div class="job-side">${m && m.pct > 0 ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}<span class="job-src">${j.srcUrl ? `<a href="${esc(j.srcUrl)}" target="_blank" rel="noopener">${esc(j.source)}</a>` : esc(j.source)}${j.also.length ? ` + ${j.also.length} more` : ""}</span>${j.example ? '<span class="tag">Example</span>' : ""}${myApplied.has(j.key) ? '<span class="chip found">Applied</span>' : tr ? `<span class="chip found">${esc((STAGES_T.find(s => s.key === tr.stage) || {}).label)}</span>` : ""}</div>
       ${open && !wide ? jobDetail(j, tr, myApplied.has(j.key)) + warn : ""}
     </article>`;
@@ -315,16 +324,17 @@ function renderJobs() {
   const openJ = wide ? list.find(j => (j.key || j.id) === jobsUI.open) : null;
   if (openJ) {
     const k = openJ.key || openJ.id;
-    box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${esc(openJ.title)}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div>${(t => `<button class="jb-bm${t ? " on" : ""}" type="button" data-jb="bookmark" aria-pressed="${!!t}" aria-label="${t ? "Saved to your Application tracker. Press to remove it" : "Save to your Application tracker"}" title="${t ? "Saved" : "Save to Application tracker"}"><svg viewBox="0 0 24 24" width="20" height="20" fill="${t ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z"/></svg></button>`)(tracked(openJ))}</div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key), true)}${warn}</aside></div>`;
+    box.innerHTML = `<div class="jb-split"><div class="jb-split-list">${cardsHtml}</div><aside class="jb-split-detail" data-job="${esc(k)}" aria-label="Job details"><div class="jb-dh"><div><h2>${openJ.brand ? emLogo(openJ.brand, "sm") : ""}${esc(openJ.title)}${openJ.promo ? ' <span class="emp-promo-tag">Promoted</span>' : ""}</h2><p>${esc(openJ.company || "")}${openJ.location ? ` · ${esc(openJ.location)}` : ""}</p><p class="job-meta">${[openJ.workType, openJ.remote, openJ.salary].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join("")}${openJ.posted ? `<span>Posted ${fmtDay(openJ.posted)}</span>` : ""}</p></div>${(t => `<button class="jb-bm${t ? " on" : ""}" type="button" data-jb="bookmark" aria-pressed="${!!t}" aria-label="${t ? "Saved to your Application tracker. Press to remove it" : "Save to your Application tracker"}" title="${t ? "Saved" : "Save to Application tracker"}"><svg viewBox="0 0 24 24" width="20" height="20" fill="${t ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z"/></svg></button>`)(tracked(openJ))}</div>${jobDetail(openJ, tracked(openJ), myApplied.has(openJ.key), true)}${warn}</aside></div>`;
   } else box.innerHTML = cardsHtml || `<p class="empty">${jobsUI.by === "strong" ? "No strong matches yet. Add your skills in the resume builder, or scan your resume, and the jobs you're a strong fit for show up here." : "No jobs match those filters."}</p>`;
   renderInvites();
-  if (typeof renderDbExtras === "function") renderDbExtras(list);   // (the database listings are not connected in this build)
 }
 function jobDetail(j, tr, applied, split) {
   const m = j.m, cl = j.sourceType === "site" ? null : careerLink(j), dupe = cl && cl.exact && cl.url === safeUrl(j.url);
   return `<div class="job-detail">
     ${m ? `<div class="job-skills">${m.have.length ? `<span class="small">You have:</span>${m.have.map(s => `<span class="chip found">${esc(s)}</span>`).join("")}` : ""}${m.missing.length ? `<span class="small">You're missing:</span>${m.missing.map(s => `<span class="chip missing">${esc(s)}</span>`).join("")}` : ""}</div>` : ""}
+    ${j.sellingPoints && j.sellingPoints.length ? `<ul class="emp-sp">${j.sellingPoints.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
     <p class="job-desc">${esc(j.description || "No description.")}</p>
+    ${j.brand && j.brand.about ? `<p class="small job-about"><b>About ${esc(j.company)}.</b> ${esc(j.brand.about)}</p>` : ""}
     ${j.requirements && j.requirements.length ? `<ul class="small">${j.requirements.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
     ${j.also.length ? `<p class="small muted">Also listed on: ${j.also.map(a => a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.source)}</a>` : esc(a.source)).join(", ")}. Shown once here.</p>` : ""}
     ${j.example ? `<p class="small muted">This is a made-up example listing.</p>` : ""}
@@ -341,22 +351,48 @@ function talentFromProfile() {
   const p = P();
   return { name: p.contact.name, headline: p.target.title || (p.experience[0] || {}).title || "", location: p.contact.location, summary: p.summary.slice(0, 600), skills: [...new Set([...p.skills.hard, ...p.skills.software, ...p.skills.certs])].slice(0, 30), titles: p.experience.filter(e => e.title).slice(0, 4).map(e => `${e.title}${e.org ? ` at ${e.org}` : ""}`), education: p.education.filter(e => e.degree).slice(0, 2).map(e => `${e.degree}${e.inst ? `, ${e.inst}` : ""}${e.current ? " (studying)" : ""}`), workRights: p.contact.workRights, stage: p.target.stage, jobType: p.target.jobType };
 }
+const apQ = (q, i) => {
+  const n = "apq-" + q.id, lab = `<span class="ap-q-t">${i + 1}. ${esc(q.text)}</span>`;
+  if (q.type === "yes") return `<fieldset class="ap-q"><legend>${lab}</legend><label class="q-check"><input type="radio" name="${n}" value="Yes"> Yes</label><label class="q-check"><input type="radio" name="${n}" value="No"> No</label></fieldset>`;
+  if (q.type === "choice") return `<label class="field ap-q">${lab}<select name="${n}"><option value="">Choose one…</option>${(q.options || []).map(o => `<option>${esc(o)}</option>`).join("")}</select></label>`;
+  if (q.type === "number") return `<label class="field ap-q">${lab}<input type="number" name="${n}" min="0" step="any" inputmode="decimal"></label>`;
+  return `<label class="field ap-q">${lab}<textarea name="${n}" rows="3" maxlength="800"></textarea></label>`;
+};
 function applyForm(j) {
   const t = market.talent.find(x => x.uid === market.uid);
+  const local = j.employerUid === EM_LOCAL_ID;
   return `<form class="apply-form" data-apply="${esc(j.key)}"><h3>Apply for ${esc(j.title)}</h3>
     ${!t ? `<p class="small">Applying shares your Job Finder profile with ${esc(j.company)}: ${esc([talentFromProfile().name, talentFromProfile().headline].filter(Boolean).join(", ") || "add your details in the resume builder first")}.</p>` : ""}
     <label class="field" for="apNote">A short note to the employer <span class="muted">(optional)</span><textarea id="apNote" rows="3" placeholder="Why you're interested, in two or three sentences"></textarea></label>
+    ${(j.questions || []).length ? `<fieldset class="ap-qs" data-nohelp><legend>Questions from ${esc(j.company)}</legend>${j.questions.map(apQ).join("")}</fieldset>` : ""}
     <label class="q-check"><input type="checkbox" id="apResume" checked> Include my resume from the resume builder</label>
-    <p class="small muted">On this prototype, applications are stored where other people using this Job Finder could technically read them. Don't include anything you wouldn't put on a resume.</p>
+    <p class="small muted">${local ? "This ad was posted from this browser, so your application is saved here, for the employer view on this browser." : "On this prototype, applications are stored where other people using this Job Finder could technically read them. Don't include anything you wouldn't put on a resume."}</p>
     <div class="b-actions"><button class="btn primary" type="submit">Send my application</button><button class="btn ghost" type="button" data-jb="cancel">Cancel</button></div>${statusHTML("apStatus", "status-line", "p")}</form>`;
 }
 async function submitApplication(form, j) {
-  if (!canPost()) { say("apStatus", shareNote(), true); return; }
+  const local = j.employerUid === EM_LOCAL_ID;
+  if (!local && !canPost()) { say("apStatus", shareNote(), true); return; }
   const p = P();
   if (!hasProfile(p)) { say("apStatus", "Add your details in the resume builder first, so the employer can see who you are.", true); return; }
+  // the employer's questions: every one needs an answer
+  const answers = [];
+  for (const q of j.questions || []) {
+    const els = form.querySelectorAll('[name="apq-' + q.id + '"]');
+    const v = q.type === "yes" ? ((form.querySelector('[name="apq-' + q.id + '"]:checked') || {}).value || "") : String((els[0] && els[0].value) || "").trim();
+    if (!v) { say("apStatus", "Answer every question from " + j.company + " first: “" + q.text.slice(0, 70) + (q.text.length > 70 ? "…" : "") + "”", true); if (els[0]) els[0].focus(); return; }
+    answers.push({ qid: q.id, q: q.text, a: v });
+  }
+  if (local) {
+    const rest = (hiring.data.localApps || []).filter(a => a.jobId !== j.id);
+    rest.push({ candidate: EM_LOCAL_ID, name: p.contact.name, jobId: j.id, title: j.title, company: j.company, note: $("apNote").value.trim().slice(0, 1200), resume: $("apResume").checked ? profileToText(p).slice(0, 12000) : "", applied: new Date().toISOString(), answers, profile: talentFromProfile() });
+    hiring.data.localApps = rest.slice(-60); hiring.save(true);
+    trackJob({ title: j.title, company: j.company, location: j.location, jd: j.description, source: "Job Finder" }, "applied");
+    jobsUI.applyFor = null; toast("Application sent. It's saved in this browser, for the employer view."); renderJobs(); emNavBadge();
+    return;
+  }
   const doc = market.db.doc("apps/" + market.uid);
   const cur = market.myApps || { items: [], employerIds: [] };
-  const item = { jobKey: j.key, employerId: j.employerUid, jobId: j.id, title: j.title, company: j.company, note: $("apNote").value.trim().slice(0, 1200), resume: $("apResume").checked ? profileToText(p).slice(0, 12000) : "", applied: new Date().toISOString() };
+  const item = { jobKey: j.key, employerId: j.employerUid, jobId: j.id, title: j.title, company: j.company, note: $("apNote").value.trim().slice(0, 1200), resume: $("apResume").checked ? profileToText(p).slice(0, 12000) : "", applied: new Date().toISOString(), answers };
   const items = [...cur.items.filter(i => i.jobKey !== j.key), item].slice(-40);
   const body = { name: p.contact.name, items, employerIds: [...new Set(items.map(i => i.employerId))], updated: new Date().toISOString() };
   say("apStatus", "Sending…");
@@ -370,13 +406,12 @@ async function submitApplication(form, j) {
 }
 function renderInvites() {
   const box = $("jbInvites"); if (!box) return;
-  const inv = market.invites;
+  const inv = [...market.invites, ...((hiring.data.localOutbox || {}).invites || []).filter(i => i.to === EM_LOCAL_ID).map(i => ({ ...i, from: EM_LOCAL_ID }))].sort((a, b) => String(b.sent || "").localeCompare(String(a.sent || "")));
   box.hidden = !inv.length;
-  box.innerHTML = inv.length ? `<h2>Invitations to apply</h2><ul class="inv-list">${inv.map(i => `<li><p><b>${esc(i.company || "An employer")}</b> invited you to apply for <b>${esc(i.title || "a job")}</b>.</p>${i.message ? `<p class="small">“${esc(i.message)}”</p>` : ""}<button class="btn" type="button" data-inv="${esc(i.from + ":" + i.jobId)}">View the job</button></li>`).join("")}</ul>` : "";
+  box.innerHTML = inv.length ? `<h2>Messages and invitations</h2><ul class="inv-list">${inv.map(i => `<li><p><b>${esc(i.company || "An employer")}</b> ${i.kind === "message" ? "sent you a message about" : "invited you to apply for"} <b>${esc(i.title || "a job")}</b>.</p>${i.message ? `<p class="small inv-msg">${esc(i.message)}</p>` : ""}${i.kind === "message" ? "" : `<button class="btn" type="button" data-inv="${esc(i.from + ":" + i.jobId)}">View the job</button>`}</li>`).join("")}</ul>` : "";
 }
 
 /* --- Employer: company profile, job ads, candidates, applicants --- */
-const emUI = { tab: lsGet("jobfinder.emtab.v1") || "jobs", edit: null, forJob: "", q: "" };
 const JOBAD_NANO = `You write clear, inclusive Australian job ads from an employer's notes.
 Rules:
 1. Use only what the notes say. Never invent pay, benefits, requirements, locations or company facts.
@@ -409,102 +444,29 @@ const emptyJobAd = () => ({ id: uid8(), title: "", location: "", workType: "Full
 const jobAdText = j => [j.summary, j.duties.length ? "What you'll do:\n" + j.duties.map(x => "- " + x).join("\n") : "", j.musts.length ? "What you'll need:\n" + j.musts.map(x => "- " + x).join("\n") : "", j.nices.length ? "Nice to have:\n" + j.nices.map(x => "- " + x).join("\n") : "", j.offer.length ? "What we offer:\n" + j.offer.map(x => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
 // the skills an ad asks for (not what it offers)
 const adSkills = j => [...skillSet([j.title, j.summary, ...(j.duties || []), ...(j.musts || []), ...(j.nices || [])].join("\n"))];
+// How well a person fits an ad, 0 to 100: the ad's hard skills (full marks for covering half of them, or three), the words of the job title,
+// the place, and the kind of work they want. Soft skills only count when the ad names nothing else.
+let EM_STOP = null;
+const emTitleStems = t => { EM_STOP = EM_STOP || new Set("and the for with senior junior mid level assistant team member officer".split(" ")); return new Set(String(t || "").toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2 && !EM_STOP.has(w)).map(w => w.slice(0, 6))); };
 function candidateMatch(c, job) {
-  const want = adSkills(job);
+  const all = adSkills(job), isHard = s => (SKILLS.find(k => k.name === s) || {}).kind === "hard";
+  const hard = all.filter(isHard), want = hard.length >= 2 ? hard : all;
   const have = new Set([...skillSet([c.headline, c.summary, (c.skills || []).join(", "), (c.titles || []).join("; ")].join("\n"))]);
   const hit = want.filter(s => have.has(s));
-  const t = similarity(zoneKey(job.title), zoneKey([c.headline, ...(c.titles || [])].join(" "))) >= 0.3 ? 15 : 0;
-  const loc = job.remote === "Remote" || !job.location || !c.location || DEDUP.place(job.location) === DEDUP.place(c.location) ? 10 : 0;
-  return { pct: want.length ? Math.min(100, Math.round(hit.length / want.length * 75) + t + loc) : t + loc, hit, missing: want.filter(s => !have.has(s)) };
+  const skillPart = want.length ? 60 * Math.min(1, hit.length / Math.max(3, want.length * 0.5)) : 30;
+  const ad = emTitleStems(job.title), cand = emTitleStems([c.headline, ...(c.titles || [])].join(" "));
+  const overlap = ad.size ? [...ad].filter(w => cand.has(w)).length / ad.size : 0;
+  const titlePart = 25 * Math.min(1, overlap / 0.6);
+  const locPart = job.remote === "Remote" || !job.location || !c.location || DEDUP.place(job.location) === DEDUP.place(c.location) ? 10 : 0;
+  const typePart = c.jobType && job.workType && c.jobType === job.workType ? 5 : 0;
+  return { pct: Math.min(100, Math.round(skillPart + titlePart + locPart + typePart)), hit, missing: want.filter(s => !have.has(s)) };
 }
-function myCompany() { return (market.myJobs && market.myJobs.employer) || { name: "", website: "", location: "", about: "" }; }
-function myAds() { return (market.myJobs && market.myJobs.jobs) || []; }
 async function saveEmployer(employer, jobs, st) {
   if (!canPost()) { say(st, shareNote(), true); return false; }
   const body = { employer, jobs: jobs.slice(0, 30).map(j => ({ ...j, summary: String(j.summary || "").slice(0, 3000) })), updated: new Date().toISOString() };
   const ok = await safeWrite(() => market.db.doc("jobs/" + market.uid).set(body), st);
   if (ok) { market.myJobs = { uid: market.uid, ...body }; const i = market.employers.findIndex(e => e.uid === market.uid); if (i >= 0) market.employers[i] = market.myJobs; else market.employers.push(market.myJobs); }
   return ok;
-}
-function renderEmployer() {
-  const box = $("emBody"); if (!box) return;
-  document.querySelectorAll("[data-emtab]").forEach(b => { const on = b.dataset.emtab === emUI.tab; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-  $("emNote").textContent = shareNote(); $("emNote").hidden = !shareNote();
-  if (emUI.tab === "jobs") box.innerHTML = emJobsHTML();
-  else if (emUI.tab === "people") box.innerHTML = emPeopleHTML();
-  else box.innerHTML = emApplicantsHTML();
-  if (emUI.tab === "jobs" && emUI.edit) renderAdChecks();
-}
-function emJobsHTML() {
-  const co = myCompany(), ads = myAds();
-  const edit = emUI.edit;
-  const list = (k, label, hint) => `<label class="field" for="ad-${k}">${label}<textarea id="ad-${k}" data-ad="${k}" data-list="1" rows="3" placeholder="${esc(hint)}">${esc((edit[k] || []).join("\n"))}</textarea></label>`;
-  const coForm = `<div class="q-grid"><label class="field" for="co-name">Company name<input type="text" id="co-name" data-co="name" value="${esc(co.name)}"></label><label class="field" for="co-website">Website<input type="url" id="co-website" data-co="website" value="${esc(co.website)}" placeholder="https://"></label><label class="field" for="co-location">Location<input type="text" id="co-location" data-co="location" value="${esc(co.location)}"></label><label class="field wide" for="co-about">About the company<textarea id="co-about" data-co="about" rows="3" placeholder="Two or three sentences candidates will read on every ad">${esc(co.about)}</textarea></label></div>
-      <div class="b-actions"><button class="btn${co.name ? "" : " primary"}" type="button" data-em="save-co">Save company</button></div>`;
-  return `${co.name ? `<details class="panel co-panel"><summary><span><span class="small muted">Your company</span><b>${esc(co.name)}</b>${co.location ? `<span class="small muted"> · ${esc(co.location)}</span>` : ""}</span><span class="linkish">Edit</span></summary>${coForm}</details>` : `<section class="panel" aria-labelledby="coH"><div class="panel-head"><h2 id="coH">Your company</h2><p>Start here. It's shown on every job you post.</p></div>${coForm}</section>`}
-    ${statusHTML("coStatus", "status-line", "p")}
-    <section class="panel" aria-labelledby="adsH"><div class="panel-head"><h2 id="adsH">Your jobs</h2><button class="btn primary" type="button" data-em="new">+ Post a job</button></div>
-      ${ads.length ? `<ul class="em-ads">${ads.map(a => { const n = market.incoming.filter(i => i.jobId === a.id).length; const pool = market.talent.filter(c => c.uid !== market.uid && candidateMatch(c, a).pct >= 50).length; return `<li><div><b>${esc(a.title)}</b> <span class="small muted">${esc(a.location)} · ${esc(a.workType)} · ${a.status === "open" ? "Open" : a.status === "draft" ? "Draft" : "Closed"}</span><div class="small">${n} applicant${n === 1 ? "" : "s"} · ${pool} strong match${pool === 1 ? "" : "es"} in the talent pool</div></div><div class="b-actions"><button class="btn" type="button" data-em="edit" data-id="${a.id}">Edit</button><button class="btn" type="button" data-em="find" data-id="${a.id}">Find candidates</button>${n ? `<button class="btn" type="button" data-em="apps" data-id="${a.id}">Applicants</button>` : ""}</div></li>`; }).join("")}</ul>` : `<p class="small muted">No jobs posted yet.</p>`}
-    </section>
-    ${edit ? `<section class="panel em-edit" aria-labelledby="edH"><div class="panel-head"><h2 id="edH">${ads.some(a => a.id === edit.id) ? "Edit job" : "Post a job"}</h2><p>Write it yourself, or jot down notes and let AI draft it. Either way it's checked for clarity and inclusive language.</p></div>
-      <div class="q-grid"><label class="field" for="ad-title">Job title<input type="text" id="ad-title" data-ad="title" value="${esc(edit.title)}"></label><label class="field" for="ad-location">Location<input type="text" id="ad-location" data-ad="location" value="${esc(edit.location)}" placeholder="e.g. Brisbane, QLD"></label>
-        <label class="field" for="ad-workType">Work type<select id="ad-workType" data-ad="workType">${["Full time", "Part time", "Casual", "Contract", "Internship", "Graduate program"].map(x => `<option${x === edit.workType ? " selected" : ""}>${x}</option>`).join("")}</select></label><label class="field" for="ad-remote">Where<select id="ad-remote" data-ad="remote">${["On-site", "Hybrid", "Remote"].map(x => `<option${x === edit.remote ? " selected" : ""}>${x}</option>`).join("")}</select></label>
-        <label class="field" for="ad-salary">Pay<input type="text" id="ad-salary" data-ad="salary" value="${esc(edit.salary)}" placeholder="e.g. $75,000 to $82,000 + super"></label><label class="field" for="ad-closes">Applications close<input type="date" id="ad-closes" data-ad="closes" value="${esc(edit.closes)}"></label></div>
-      <label class="field" for="ad-notes">Notes for the ad <span class="q-hint">Optional. Jot down the duties, must-haves and what you offer, in any words, then draft it.</span><textarea id="ad-notes" data-ad="notes" rows="3">${esc(edit.notes || "")}</textarea></label>
-      <div class="b-actions"><button class="btn" type="button" data-em="draft">Draft the ad from my notes</button>${statusHTML("adEngine", "engine-note")}</div>
-      <label class="field" for="ad-summary">Summary<textarea id="ad-summary" data-ad="summary" rows="3">${esc(edit.summary)}</textarea></label>
-      <div class="q-grid">${list("duties", "What they'll do", "One per line")}${list("musts", "What they'll need", "Essentials only, one per line")}${list("nices", "Nice to have", "One per line")}${list("offer", "What you offer", "Pay extras, flexibility, training… one per line")}</div>
-      <div class="em-checks" id="adChecks" aria-live="polite"></div>
-      <div class="b-actions"><button class="btn primary" type="button" data-em="publish">${edit.status === "draft" || !ads.some(a => a.id === edit.id) ? "Post the job" : "Save changes"}</button>${ads.some(a => a.id === edit.id) ? `<button class="btn" type="button" data-em="close-ad">${edit.status === "closed" ? "Reopen" : "Close the job"}</button>` : ""}<button class="btn ghost" type="button" data-em="cancel">Cancel</button>${statusHTML("adStatus")}</div>
-    </section>` : ""}`;
-}
-function renderAdChecks() { const box = $("adChecks"); if (box && emUI.edit) box.innerHTML = `<h3>Ad check</h3><ul>${checkAd(emUI.edit).map(([k, m]) => `<li class="${k}">${esc(m)}</li>`).join("")}</ul>`; }
-function emPeopleHTML() {
-  const ads = myAds(), job = ads.find(a => a.id === emUI.forJob) || ads[0];
-  const pool = market.talent.filter(c => c.uid !== market.uid);
-  const q = emUI.q.toLowerCase();
-  const scored = pool.map(c => ({ c, m: job ? candidateMatch(c, job) : { pct: 0, hit: [], missing: [] } })).filter(x => !q || JSON.stringify(x.c).toLowerCase().includes(q)).sort((a, b) => b.m.pct - a.m.pct);
-  const strong = scored.filter(x => x.m.pct >= 60).length;
-  const gaps = {};
-  scored.slice(0, 10).forEach(x => x.m.missing.forEach(s => { gaps[s] = (gaps[s] || 0) + 1; }));
-  const topGaps = Object.entries(gaps).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const invited = new Set(((market.outbox || {}).invites || []).map(i => i.to + ":" + i.jobId));
-  return `<section class="panel" aria-labelledby="ppH"><div class="panel-head"><h2 id="ppH">Find candidates</h2><p>People who've joined the talent pool, including those who haven't applied to you.</p></div>
-    <div class="q-grid"><label class="field" for="em-job">Match against<select id="em-job" data-emf="forJob">${ads.length ? ads.map(a => `<option value="${a.id}"${job && a.id === job.id ? " selected" : ""}>${esc(a.title)}</option>`).join("") : "<option value=''>Post a job first</option>"}</select></label><label class="field" for="em-q">Search<input type="text" id="em-q" data-emf="q" value="${esc(emUI.q)}" placeholder="Skill, title or location"></label></div>
-    <div class="iv-stats"><div class="iv-stat"><b>${pool.length}</b><span>${pool.length === 1 ? "person" : "people"} in the talent pool</span></div><div class="iv-stat"><b>${strong}</b><span>strong matches (60%+)</span></div>${topGaps.length ? `<div class="iv-stat wide-stat"><b>${topGaps.map(([s]) => esc(s)).join(", ")}</b><span>skills most of your top matches are missing</span></div>` : ""}</div>
-    ${scored.length ? `<ul class="cand-list">${scored.slice(0, 40).map(({ c, m }) => `<li class="cand"><div class="cand-main"><div><b>${esc(c.name || "Candidate")}</b>${c.headline ? ` · ${esc(c.headline)}` : ""}</div><div class="small muted">${esc([c.location, c.workRights].filter(Boolean).join(" · "))}</div>${c.titles && c.titles.length ? `<div class="small">${esc(c.titles.join("; "))}</div>` : ""}<div class="chips">${m.hit.slice(0, 8).map(s => `<span class="chip found">${esc(s)}</span>`).join("")}${m.missing.slice(0, 4).map(s => `<span class="chip missing">${esc(s)}</span>`).join("")}</div></div>
-      <div class="cand-side">${job ? `<span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span>` : ""}${job ? (invited.has(c.uid + ":" + job.id) ? `<span class="chip found">Invited</span>` : `<button class="btn" type="button" data-em="invite" data-to="${esc(c.uid)}">Invite to apply</button>`) : ""}</div></li>`).join("")}</ul>` : `<p class="small muted">${pool.length ? "Nobody matches that search." : "Nobody has joined the talent pool yet. When job seekers opt in from Find jobs, they'll appear here."}</p>`}
-    ${statusHTML("invStatus", "status-line", "p")}</section>`;
-}
-function emApplicantsHTML() {
-  const ads = myAds(), apps = market.incoming;
-  const st = hiring.data.status;
-  if (!apps.length) return `<section class="panel"><h2>Applicants</h2><p class="small muted">No applications yet. Invite people from Find candidates, or share your jobs.</p></section>`;
-  return ads.filter(a => apps.some(x => x.jobId === a.id)).map(a => `<section class="panel" aria-label="Applicants for ${esc(a.title)}"><div class="panel-head"><h2>${esc(a.title)}</h2><p>${apps.filter(x => x.jobId === a.id).length} applicant(s)</p></div>
-    <ul class="cand-list">${apps.filter(x => x.jobId === a.id).map(x => { const c = market.talent.find(t => t.uid === x.candidate) || { name: x.name }; const m = candidateMatch(c, a); const key = x.candidate + ":" + a.id; return `<li class="cand"><div class="cand-main"><div><b>${esc(c.name || x.name || "Candidate")}</b>${c.headline ? ` · ${esc(c.headline)}` : ""}</div><div class="small muted">Applied ${fmtDay((x.applied || "").slice(0, 10))}</div>${x.note ? `<p class="small">“${esc(x.note)}”</p>` : ""}${x.resume ? `<details><summary class="small">Resume</summary><pre class="li-pre">${esc(x.resume)}</pre></details>` : ""}</div>
-      <div class="cand-side"><span class="job-match ${m.pct >= 70 ? "hi" : m.pct >= 45 ? "mid" : "lo"}">${m.pct}% match</span><label class="visually-hidden" for="hs-${esc(key)}">Status</label><select id="hs-${esc(key)}" data-hs="${esc(key)}">${["New", "Shortlisted", "Interview", "Offer", "Not progressing"].map(s => `<option${(st[key] || "New") === s ? " selected" : ""}>${s}</option>`).join("")}</select></div></li>`; }).join("")}</ul></section>`).join("");
-}
-async function draftAd() {
-  const e = emUI.edit, btn = document.querySelector('[data-em="draft"]');
-  if (!(e.notes || "").trim() && !e.title) { say("adEngine", "Add a job title and a few notes first.", true); return; }
-  btn.disabled = true;
-  const src = [e.title, e.notes, e.location, e.salary, myCompany().about].join("\n");
-  const r = await aiJSON({ nano: JOBAD_NANO, prompt: `Company: ${myCompany().name || "(not given)"}\nAbout the company: ${myCompany().about || "(not given)"}\nJob title: ${e.title}\nLocation: ${e.location || "(not given)"}\nWork type: ${e.workType}, ${e.remote}\nPay: ${e.salary || "(not given: don't mention pay)"}\nEmployer's notes:\n${e.notes}`, schema: JOBAD_SCHEMA, label: "Drafting the ad", progress: m => say("adEngine", m),
-    check: d => { const all = [d.summary, ...(d.duties || []), ...(d.musts || []), ...(d.nices || []), ...(d.offer || [])].join("\n"); const why = factCheck(all, src, { min: 40 }); return why ? { ok: false, why } : { ok: true, value: d }; } });
-  btn.disabled = false;
-  if (!r.data) {
-    // no AI: sort the notes into sections by their wording
-    const lines = listOf(String(e.notes || "").replace(/\n/g, ";"));
-    const tidy = l => { const t = l.replace(/^(you )?(must have|must be|must|need(s)? to have|needs?|required|essential|nice to have|bonus|desirable|ideally|we offer|we provide|we'll provide|offer|benefits?)\b[:\s-]*/i, "").trim(); return t.charAt(0).toUpperCase() + t.slice(1); };
-    const isMust = l => /\b(must|need|require|essential)/i.test(l), isNice = l => /\b(nice to have|bonus|desirable|ideally)/i.test(l), isOffer = l => /\b(we offer|offer|benefit|we provide|flexib|training|leave|salary|super\b)/i.test(l);
-    e.musts = lines.filter(l => isMust(l) && !isNice(l)).map(tidy);
-    e.nices = lines.filter(isNice).map(tidy);
-    e.offer = lines.filter(l => isOffer(l) && !isMust(l) && !isNice(l)).map(tidy);
-    e.duties = lines.filter(l => !isMust(l) && !isNice(l) && !isOffer(l)).map(tidy);
-    if (!e.summary) e.summary = `${myCompany().name || "We"} ${myCompany().name ? "is" : "are"} looking for ${aOrAn(e.title)} ${e.title}${e.location ? ` in ${e.location}` : ""}.`;
-    say("adEngine", r.rejected ? "The AI's draft added things that weren't in your notes, so your notes were sorted into sections instead." : "No AI here, so your notes were sorted into sections. Edit them below.");
-  } else { Object.assign(e, { summary: r.data.summary, duties: r.data.duties, musts: r.data.musts, nices: r.data.nices, offer: r.data.offer }); say("adEngine", `Drafted by ${viaWords(r.via)} from your notes. Check it before posting.`); }
-  renderEmployer();
 }
 onInit(() => {
   $("jbEduLevel").insertAdjacentHTML("beforeend", Object.keys(EDU_LEVELS).map(k => `<option>${k}</option>`).join(""));
@@ -590,52 +552,7 @@ onInit(() => {
     }
   });
   $("view-jobs").addEventListener("submit", e => { const f = e.target.closest("[data-apply]"); if (!f) return; e.preventDefault(); const j = allJobs().find(x => x.key === f.dataset.apply); if (j) submitApplication(f, j); });
-  // employer
-  document.querySelectorAll("[data-emtab]").forEach(b => b.addEventListener("click", () => { emUI.tab = b.dataset.emtab; lsSet("jobfinder.emtab.v1", emUI.tab); renderEmployer(); }));
-  const em = $("view-employer");
-  em.addEventListener("input", e => {
-    const t = e.target;
-    if (t.dataset.ad && emUI.edit) { emUI.edit[t.dataset.ad] = t.dataset.list ? t.value.split("\n").map(s => s.replace(BULLET_RE, "").trim()).filter(Boolean) : t.value; clearTimeout(emUI.t); emUI.t = setTimeout(renderAdChecks, 250); }
-    if (t.dataset.emf === "q") { emUI.q = t.value; clearTimeout(emUI.t2); emUI.t2 = setTimeout(() => { const pos = t.selectionStart; renderEmployer(); const n = $("em-q"); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 300); }
-  });
-  em.addEventListener("change", e => {
-    const t = e.target;
-    if (t.dataset.ad && emUI.edit && !t.dataset.list) { emUI.edit[t.dataset.ad] = t.value; renderAdChecks(); }
-    if (t.dataset.emf === "forJob") { emUI.forJob = t.value; renderEmployer(); }
-    if (t.dataset.hs) { hiring.data.status[t.dataset.hs] = t.value; hiring.save(); }
-  });
-  em.addEventListener("click", async e => {
-    const b = e.target.closest("[data-em]"); if (!b) return;
-    const a = b.dataset.em, ads = myAds().slice();
-    if (a === "save-co") { const co = { ...myCompany() }; document.querySelectorAll("[data-co]").forEach(f => { co[f.dataset.co] = f.value.trim(); }); if (!co.name) { say("coStatus", "Add your company name.", true); return; } if (await saveEmployer(co, ads, "coStatus")) { say("coStatus", "Saved."); renderEmployer(); } }
-    else if (a === "new") { emUI.edit = { ...emptyJobAd(), location: myCompany().location }; renderEmployer(); $("ad-title").focus(); }
-    else if (a === "edit") { emUI.edit = JSON.parse(JSON.stringify(ads.find(x => x.id === b.dataset.id))); renderEmployer(); $("ad-title").focus(); }
-    else if (a === "cancel") { emUI.edit = null; renderEmployer(); }
-    else if (a === "draft") draftAd();
-    else if (a === "publish" || a === "close-ad") {
-      const ed = emUI.edit;
-      if (!ed.title.trim()) { say("adStatus", "Add a job title.", true); $("ad-title").focus(); return; }
-      if (!myCompany().name) { say("adStatus", "Add your company name above first, and save it.", true); $("co-name").focus(); return; }
-      if (a === "close-ad") ed.status = ed.status === "closed" ? "open" : "closed"; else if (ed.status === "draft") ed.status = "open";
-      ed.skills = adSkills(ed).slice(0, 20);
-      ed.description = jobAdText(ed);
-      const next = ads.filter(x => x.id !== ed.id); next.unshift(ed);
-      if (await saveEmployer(myCompany(), next, "adStatus")) { emUI.edit = null; say("coStatus", a === "close-ad" ? (ed.status === "closed" ? `Closed “${ed.title}”.` : `Reopened “${ed.title}”.`) : `Posted “${ed.title}”. It's now in Find jobs.`); renderEmployer(); }
-    }
-    else if (a === "find") { emUI.tab = "people"; emUI.forJob = b.dataset.id; renderEmployer(); }
-    else if (a === "apps") { emUI.tab = "applicants"; renderEmployer(); }
-    else if (a === "invite") {
-      const job = ads.find(x => x.id === ($("em-job") || {}).value) || ads[0];
-      if (!job || !canPost()) { say("invStatus", shareNote() || "Post a job first.", true); return; }
-      const cur = market.outbox || { invites: [], toIds: [] };
-      const inv = { id: uid8(), to: b.dataset.to, jobId: job.id, title: job.title, company: myCompany().name, message: `We think you'd be a good fit for our ${job.title} role. Have a look and apply if you're interested.`, sent: new Date().toISOString() };
-      const invites = [...cur.invites, inv].slice(-200);
-      const body = { invites, toIds: [...new Set(invites.map(i => i.to))], updated: new Date().toISOString() };
-      if (await safeWrite(() => market.db.doc("outbox/" + market.uid).set(body), "invStatus")) { market.outbox = body; say("invStatus", "Invitation sent. They'll see it in Find jobs and on their Home page."); renderEmployer(); }
-    }
-  });
   viewHooks.jobs = () => { renderJobs(); startMarket().then(() => { if (currentView === "jobs") renderJobs(); }); };
-  viewHooks.employer = () => { hiring.ready.then(() => {}); renderEmployer(); startMarket().then(() => { if (currentView === "employer") renderEmployer(); }); };
   // invitations show on Home too
   memoryReady.then(() => setTimeout(startMarket, 1500));
 });

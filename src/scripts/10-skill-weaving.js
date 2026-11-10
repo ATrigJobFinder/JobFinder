@@ -94,7 +94,7 @@ async function describeEngine() {
   if (smallEngine()) el.textContent = `Wording by ${SMALL()}, ${smallWhere()}.${smallEngine() === "key" ? "" : " The corner shows roughly how long it takes."}`;
   else if (st === "available") el.textContent = `Wording by ${BROWSER_AI()}, on this device.`;
   else if (st === "downloadable" || st === "downloading") el.textContent = `${BROWSER_AI()} is tried first. The first time, the browser downloads its model, which can take a few minutes${sample ? ". If it can't run, " + AI_NAME() + " words it instead." : "."}`;
-  else if (sample) el.textContent = "Wording by " + AI_LONG() + ".";
+  else if (sample) el.textContent = "Wording by " + AI_NAME() + ".";
   else el.textContent = "No AI on this page, so your notes are added as you wrote them.";
 }
 
@@ -247,6 +247,10 @@ function finishPlan(g, plan) {
 
 // The small-model path: the AI downloaded into this browser if that's the choice, otherwise Chrome's own.
 // make(rules, examples) gives a session with prompt(), clone() and destroy(), whichever it is.
+async function chromeSampling() {
+  try { const pr = self.LanguageModel.params && await self.LanguageModel.params(); if (pr && pr.defaultTopK) return { temperature: Math.min(AI_WRITING.temperature, pr.maxTemperature || AI_WRITING.temperature), topK: pr.defaultTopK }; } catch { /* leave it at the browser's own settings */ }
+  return {};
+}
 async function withChromeAI(progress, fn) {
   const gen = aiBegin();
   try { return await withChromeAIInner(progress, fn); }
@@ -255,7 +259,7 @@ async function withChromeAI(progress, fn) {
 async function withChromeAIInner(progress, fn) {
   const be = smallEngine();
   if (be) {
-    try { return await fn(async (rules, examples = [], expect) => browserSession(be, rules, examples, undefined, expect)); }
+    try { return await fn(async (rules, examples = [], expect, mo = {}) => browserSession(be, rules, examples, undefined, expect, mo)); }
     catch (e) { aiLastProblem = e; return null; }
   }
   const st = await chromeAIState();
@@ -263,11 +267,14 @@ async function withChromeAIInner(progress, fn) {
   const sessions = [];
   try {
     // rules: a short system prompt; examples: [[user, assistant], …] worked examples for the small model
-    const make = async (rules, examples = []) => {
-      const s = await self.LanguageModel.create({
+    const make = async (rules, examples = [], expect, mo = {}) => {
+      const base = {
         ...LM_OPTS, initialPrompts: [{ role: "system", content: rules }, ...fewShot(examples)],
         monitor(m) { if (st !== "available") m.addEventListener("downloadprogress", e => aiDownloadProgress(e.loaded || 0, progress)); }
-      });
+      };
+      // writing prose: a warmer temperature, only where the browser says what it allows (it takes a temperature and a topK together); otherwise its own settings
+      const samp = mo.writing ? await chromeSampling() : {};
+      let s; try { s = await self.LanguageModel.create({ ...base, ...samp }); } catch (e) { if (!Object.keys(samp).length) throw e; s = await self.LanguageModel.create(base); }
       sessions.push(s); return s;
     };
     return await fn(make);
@@ -303,7 +310,7 @@ async function planWeaving(groups, profileJob, progress) {
     if (profileJob) profile = { text: chrome.profile, via: `Woven in by ${SMALL()}` };
     return { plans, profile };
   }
-  // 2. A bigger AI (a key, or Claude on the viewer's account): one call for every job and the profile
+  // 2. A bigger AI (a key): one call for every job and the profile
   const big = afterSmall();
   if (big && (groups.length || profileJob)) {
     progress(`Weaving your skills in with ${BIG_NAME()}…`);

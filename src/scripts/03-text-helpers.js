@@ -10,7 +10,8 @@ function norm(t) {
     .replace(/defense/g, "defence");
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const words = t => (String(t).match(/[A-Za-z0-9][A-Za-z0-9'+#.\-]*/g) || []);
+// (a cover letter placeholder, [CAPS: guidance], counts as one word: its guidance text is not part of the letter)
+const words = t => (String(t).replace(/\[[A-Z][A-Z0-9 &\/'-]{1,34}:[^\[\]\n]{3,80}\]/g, " gap ").match(/[A-Za-z0-9][A-Za-z0-9'+#.\-]*/g) || []);
 const wordCount = t => words(t).length;
 
 function aliasPattern(a) {
@@ -56,3 +57,13 @@ function containsSeq(hay, needle) {
   return false;
 }
 
+// Resume bullet points have no "I", "we" or "my": "I served customers" → "served customers", "my manager" → "the manager".
+// (It does not change the case of the first letter or the tense: the caller does that.)
+function dropFirstPerson(s) {
+  let t = String(s || "").trim();
+  t = t.replace(/^(?:(?:and|also|then)\s+)?(?:I|we)(?:['’](?:ve|m|d))?\s+(?:(?:have|am|had|also|then)\s+)*/i, "");
+  t = t.replace(/\b(and|then|while|where|which|that|but|so)\s+(?:I|we)(?:['’]ve)?\s+(?:(?:have|had|also)\s+)?/gi, "$1 ");
+  t = t.replace(/,\s*(?:I|we)(?:['’]ve)?\s+(?:(?:am|have|had|also)\s+)*(?=[a-z])/g, ", ");
+  t = t.replace(/\bmy\b/g, "the").replace(/\bMy\b/g, "The");
+  return t;
+}

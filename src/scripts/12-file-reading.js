@@ -89,15 +89,16 @@ async function handleFile(file) {
   try {
     const { text, ext, spaced, buffer } = await readFile(file);
     els.resume.value = text;
+    tlFileLoaded(file);   // (before anything redraws: on the opening page the file stays until Next is pressed)
     fileInfo = { name: file.name, ext, words: wordCount(text), spaced, buffer, text };
     updateDownloadBtn();
     setExample(false);
     updateCounts();
-    els.fileStatus.textContent = `Read ${fileInfo.words} words from ${file.name}. Check the text below: it's what an ATS would see.`;
+    els.fileStatus.textContent = `Read ${fileInfo.words} words from ${file.name}.`;
     updateFlow();
   } catch (e) {
     els.fileStatus.classList.add("err");
-    els.fileStatus.textContent = e && e.message ? e.message : "Couldn't read that file. Try saving it as a PDF or .docx, or paste the text instead.";
+    els.fileStatus.textContent = e && e.message ? e.message : "Couldn't read that file. Try saving it as a PDF or .docx and uploading that.";
   } finally {
     els.fileInput.value = "";
   }

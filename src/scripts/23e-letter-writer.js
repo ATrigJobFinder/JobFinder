@@ -1,277 +1,111 @@
-/* ===================== Version 23: writing the cover letter sections with AI, reliably ===================== */
-// One short job at a time, so a small or fast model (Gemini Flash-Lite, Chrome's built-in AI) gets it right:
-//  1. Code picks the few facts each paragraph needs from the resume (not the whole profile), and, for a specific job, the two or three things
-//     the ad asks for most, each paired with the resume evidence for it (see 23g-letter-inputs.js). The structure follows the cover letter advice:
-//     opening = job + strongest proof; experience and education = proof of the ad's top requirements; then why this employer; then a short close.
-//  2. The AI is the applicant. It gets a short prompt, one worked example, and a JSON shape with one field per sentence (s1, s2, …),
-//     each field with its own small job. A model writes one sentence far more reliably than a whole paragraph.
-//  3. Code checks each sentence and the whole paragraph, and aiJSON asks once more naming the exact field that was wrong.
-//     It also puts contractions back in full and keeps the "why this company" gap blank, rather than trusting the model to.
-//  4. If a paragraph still isn't usable, the standard (no AI) version is put in its place and the AI's own words are shown under it.
+/* ===================== Writing the cover letter with AI: one prompt, split into the paragraph boxes ===================== */
+// The prompt is built in 14c-letter-advice.js: a summary of the Cover Letter Advice page, your resume (the profile as resume text), the job ad and a few
+// details. The AI writes the whole letter in one go; the answer is split into paragraphs and each goes in its own box (Opening, Experience,
+// Education and skills, Why this company, Close). No other AI prompt writes the letter. What is left in this file is code: choosing the jobs and
+// study the standard (no AI) letter uses, marking details the AI made up, and the checks run on the finished letter.
 
-/* --- 1. The facts for one paragraph --- */
+/* --- The facts the page and the standard letter use --- */
 const lwClean = t => String(t || "").replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim();
 // Strength of one line of evidence: a number and a result beat a duty
-const lwStrength = b => (/\d/.test(b) ? 3 : 0) + (/[%$]/.test(b) ? 1 : 0) + (ACTION_START.test(b) ? 1 : 0) + (wordCount(b) >= 8 ? 1 : 0);
+const lwStrength = b => (/\b(used in|led to|resulted in|reduced|increased|improved|saved|cut|grew|raised|delivered|launched|won|doubled|halved|informed)\b/i.test(b) ? 2 : 0) + (/\d/.test(b) ? 3 : 0) + (/[%$]/.test(b) ? 1 : 0) + (ACTION_START.test(b) ? 1 : 0) + (wordCount(b) >= 8 ? 1 : 0);
 const lwBestBullets = (bullets, n) => bullets.map((b, i) => ({ b: lwClean(b), i })).filter(x => x.b)
   .map(x => ({ ...x, s: lwStrength(x.b) }))
   .sort((a, c) => c.s - a.s || a.i - c.i).slice(0, n).sort((a, c) => a.i - c.i).map(x => x.b);
-// The figures a sentence should carry (a year or a lone digit doesn't count)
-const lwNums = t => numsOf(t).filter(n => !/^(19|20)\d{2}$/.test(n) && /%|\d{2,}/.test(n));
-// The finished jobs with bullets, closest to the job first (then most recent)
-function lwJobs(p) {
-  const want = contentWords([p.target.title, p.target.jobType ? jobLabel(p.target.jobType) : "", ...(COMMON_SKILLS[p.target.jobType] || { hard: [] }).hard].join(" "));
-  const score = e => { let n = 0; for (const w of contentWords([e.title, ...e.bullets].join(" "))) if (want.has(w)) n += 2; return n + e.bullets.filter(b => /\d/.test(b)).length; };
-  return shown(p.experience).filter(e => (e.title || e.org) && e.bullets.some(b => lwClean(b))).map((e, i) => ({ e, i, s: score(e) })).sort((a, b) => b.s - a.s || a.i - b.i).map(x => x.e);
+// Work experience the letter can use. A resume that was uploaded keeps its jobs as drafts until each is finished in the builder, so drafts count
+// here too (only a job the person hid is left out). A job's lines are its bullet points or, when it has none, what they typed in answer to the
+// builder's questions (what they did, what they achieved).
+function lwJobLines(e) {
+  const own = (e.bullets || []).map(lwClean).filter(Boolean);
+  if (own.length) return own;
+  const a = e.answers || {};
+  return [a.wins, a.duties].flatMap(t => String(t || "").split(/\n+|;|(?<=[.!?])\s+/)).map(lwClean).filter(x => wordCount(x) >= 3);
+}
+const lwWorkMemo = new WeakMap();
+function lwWork(e) {   // the same job gives the same object each time, so one line of evidence is recognised as the same line
+  const lines = lwJobLines(e), sig = lines.join("\n"), m = lwWorkMemo.get(e);
+  if (m && m.sig === sig) return m.v;
+  const v = { ...e, bullets: lines }; lwWorkMemo.set(e, { sig, v });
+  return v;
+}
+const lwAllJobs = p => p.experience.filter(e => !e.hidden && (e.title || e.org)).map(lwWork);
+// Closest to the job being applied for first (the title typed on the Layout step, the role on the letter, and the kind of work), then the most recent
+function lwRankJobs(p, list) {
+  const want = contentWords([p.target.title, !ltTemplate() ? BL().role : "", p.target.jobType ? jobLabel(p.target.jobType) : "", ...(COMMON_SKILLS[p.target.jobType] || { hard: [] }).hard].join(" "));
+  const score = e => { let n = 0; for (const w of contentWords([e.title, e.org, ...e.bullets].join(" "))) if (want.has(w)) n += 2; return n + e.bullets.filter(b => /\d/.test(b)).length; };
+  return list.map((e, i) => ({ e, i, s: score(e) })).sort((a, b) => b.s - a.s || a.i - b.i).map(x => x.e);
+}
+// The jobs that have something to tell, best match first
+function lwJobs(p) { return lwRankJobs(p, lwAllJobs(p).filter(e => e.bullets.length)); }
+// Qualifications, highest level first (a doctorate, then a master's, then an honours or bachelor's degree, and so on down to school), then newest first.
+// An uploaded resume's study is a draft until it is finished in the builder: it counts here too (only study the person hid is left out).
+const LW_RANK = { y10: 0, y12: 1, short: 2, other: 2, c1: 3, c2: 4, c3: 5, c4: 6, dip: 7, adip: 8, assoc: 9, bach: 10, hons: 11, gcert: 12, gdip: 13, master: 14, phd: 15 };
+function lwQualRank(e) {
+  if (e.level && LW_RANK[e.level] != null) return LW_RANK[e.level];
+  const t = String(e.degree || "").toLowerCase();
+  return /doctor|ph\.?d/.test(t) ? 15 : /master|\bm\.?(eng|sc|ba|com)\b/.test(t) ? 14 : /graduate diploma/.test(t) ? 13 : /graduate cert/.test(t) ? 12 : /honours|\bhons\b/.test(t) ? 11 : /bachelor|\bb\.?(sc|a|eng|com)\b/.test(t) ? 10 : /associate/.test(t) ? 9 : /advanced diploma/.test(t) ? 8 : /diploma/.test(t) ? 7 : /certificate iv/.test(t) ? 6 : /certificate iii/.test(t) ? 5 : /certificate/.test(t) ? 3 : /year 1[012]|hsc|vce|atar|wace|qce|sace/.test(t) ? 1 : 2;
+}
+function lwStudyList(p) {
+  return p.education.filter(e => !e.hidden && (e.degree || e.inst)).map((e, i) => ({ e, i, r: lwQualRank(e), end: e.current ? 9e9 : (LR.parseYM(e.end, true) || 0) }))
+    .sort((a, b) => b.r - a.r || b.end - a.end || a.i - b.i).map(x => x.e);
+}
+// The qualification the standard (no AI) letter is built around: the highest one
+const lwEdu = p => lwStudyList(p)[0] || null;
+// "Thesis: Title" or a plain title → "Major project: Title" (the letter always says major project)
+const lwMajor = s => { const r = projRow(s); return r.title ? `Major project: ${r.title}` : ""; };
+// What the AI is given about study: one line per qualification, highest first, with its project, awards and results kept on that line
+function lwStudyText(p) {
+  return lwStudyList(p).map((e, i) => {
+    const where = lwClean(e.inst), st = lwEduStatus(e).inProgress ? "in progress" : "completed";
+    const bits = [`${i + 1}. ${lwClean(e.degree) || "(qualification)"}${where ? ` at ${where}` : ""}${e.location ? ` (${lwClean(e.location)})` : ""}; ${st}${e.end ? `, ${showDate(e.end)}` : ""}`];
+    if (val(e.project)) bits.push(`${lwMajor(e.project).replace(/^Major project:/, "major project")}${where ? ` (done at ${where})` : ""}`);
+    for (const m of e.projectsMore || []) { const t = lwMajor(m); if (t) bits.push(`${t.replace(/^Major project:/, "major project")}${where ? ` (done at ${where})` : ""}`); }
+    const aw = String(e.awards || "").split(/\n|;/).map(lwClean).filter(Boolean); if (aw.length) bits.push(`award or scholarship${where ? ` from ${where}` : ""}: ${aw.join("; ")}`);
+    const g = typeof gradeText === "function" ? gradeText(e) : ""; if (g) bits.push(lwClean(g));
+    return bits.join("; ");
+  }).join("\n");
 }
 const lwStudy = e => e ? [e.degree, e.inst].filter(Boolean).join(", ") + (e.current ? (e.end ? `, finishing ${showDate(e.end)}` : ", currently studying") : e.end ? `, finished ${showDate(e.end)}` : "") : "";
 const lwJobLine = e => `${[e.title, e.org].filter(Boolean).join(" at ")}${rangeOf(e) ? ` (${rangeOf(e)})` : ""}`;
-// Skills and tools the ad's line names come first
-const lwPrefer = (list, text) => { const n = norm(text || ""); return n ? [...list].sort((a, b) => (n.includes(norm(b)) ? 1 : 0) - (n.includes(norm(a)) ? 1 : 0)) : list; };
-// The job and the lines that tell the story of the ad's top requirement (or, with no ad, of the closest job)
-function lwStory(proofs, needs, jobs) {
-  const hit = needs[0] && needs[0].proof, job = hit && hit.kind === "job" ? hit.e : jobs[0] || null;
-  let bullets = job ? lwBestBullets(job.bullets, 3) : [];
-  if (job && hit && hit.e === job) bullets = [hit.text, ...bullets.filter(b => b !== hit.text)].slice(0, 3);
-  return { hit, job, bullets };
+// Where a degree stands today, worked out here in code and handed to the writers as words (a model guesses the tense)
+function lwEduStatus(e) {
+  const now = new Date(), nowM = now.getFullYear() * 12 + now.getMonth(), end = LR.parseYM(e.end, true);
+  const inProgress = !!e.current || (end != null && end > nowM);
+  return inProgress ? { inProgress, say: `in progress: say "I am completing", never "I hold" or "I have"` } : { inProgress, say: `completed: say "I hold" or "I recently completed"` };
 }
-// The one piece of evidence that opens the letter: a result with a number, and best of all one that answers something else the ad asks for.
-// It is a different line from the story in the Experience paragraph where there is one (the same line only when that is all there is)
-function lwOpeningProof(proofs, needs, story) {
-  const used = new Set(story.bullets), matched = new Set(needs.map(n => n.proof).filter(Boolean));
-  const best = list => list.map((x, i) => ({ x, i, s: lwStrength(x.text) + (matched.has(x) ? 2 : 0) })).sort((a, b) => b.s - a.s || a.i - b.i).map(o => o.x)[0];
-  return best(proofs.filter(x => !used.has(x.text))) || best(proofs) || null;
-}
-// → { text, empty, nums, company, given }  (empty: there's nothing to say about this yet, so the AI isn't asked;
-// nums: figures the paragraph must carry; given: the person's own reason for choosing this employer is in the facts)
-function lwFacts(part) {
-  const p = P(), d = BL(), tpl = ltTemplate();
-  const role = tpl ? "[the role]" : d.role || p.target.title || "[the role]", company = tpl ? "[the company]" : d.company || "[the company]";
-  const stage = (STAGES.find(s => s.key === letterStage()) || {}).label || "";
-  const edu = shown(p.education).find(e => e.degree || e.inst), jobs = lwJobs(p), proofs = lwProofs(), needs = tpl ? [] : lwNeeds(proofs), story = lwStory(proofs, needs, jobs);
-  const why = tpl ? "" : lwClean(d.why).slice(0, 300);
-  const L = [`Role: ${role}`, `Company: ${company}`];
-  if (p.target.jobType) L.push(`Kind of work: ${jobLabel(p.target.jobType)}`);
-  let empty = false, nums = [];
-  if (part === "opening") {
-    // who you are, and the strongest thing you have done (with its employer: the opening may name it)
-    if (stage) L.push(`Level: ${lowerFirst(stage)}`);
-    if (edu) L.push(`Study: ${lwStudy(edu)}`);
-    const pr = lwOpeningProof(proofs, needs, story), skills = [...p.skills.hard, ...p.skills.software].slice(0, 3);
-    if (pr) { L.push(`Strongest proof: ${pr.text}${pr.at ? ` (${pr.at})` : ""}`); nums = lwNums(pr.text); }
-    else if (skills.length) L.push(`Main skills: ${listJoin(skills)}`);
-    if (needs[0]) L.push(`The ad asks for: ${needs[0].need}`);
-    empty = !edu && !skills.length && !proofs.length;
-  } else if (part === "experience") {
-    // the story that answers the ad's top requirement (or the closest job), told from a different angle from the opening
-    const n0 = needs[0], { hit, job } = story, open = lwOpeningProof(proofs, needs, story);
-    const proj = p.projects.find(x => x.done !== false && x.name), vol = p.volunteering.find(x => x.done !== false && (x.role || x.org));
-    if (n0) L.push(`The ad asks for: ${n0.need}`);
-    if (job) {
-      let bl = story.bullets;
-      if (open && bl.length > 1) bl = bl.filter(b => b !== open.text);   // (only when the opening had to use one of these lines)
-      L.push(`Job: ${lwJobLine(job)}`, ...bl.map(b => `- ${b}`));
-      nums = bl.flatMap(lwNums);
-      if (open && bl.includes(open.text)) L.push(`The opening already mentions this result: tell the story behind it, do not just repeat it.`);
-    }
-    else if (hit && hit.kind !== "job") { L.push(`${hit.kind === "project" ? "Project" : "Volunteering"}: ${hit.at}`, `- ${hit.text}`); nums = lwNums(hit.text); }
-    else if (proj) L.push(`Project: ${lwClean(proj.name)}${proj.org ? ` (${proj.org})` : ""}`, ...(proj.details ? [`- ${lwClean(proj.details).slice(0, 300)}`] : []));
-    else if (vol) L.push(`Volunteering: ${[vol.role, vol.org].filter(Boolean).join(" at ")}`, ...(vol.details ? [`- ${lwClean(vol.details).slice(0, 300)}`] : []));
-    else empty = true;
-  } else if (part === "education") {
-    const n1 = needs[1];
-    if (n1) L.push(`The ad also asks for: ${n1.need}`);
-    if (edu) { L.push(`Study: ${lwStudy(edu)}`); const sub = lwPrefer(pickSubjects(edu, p), n1 && n1.need).slice(0, 3); if (sub.length) L.push(`Subjects: ${listJoin(sub)}`); if (val(edu.project)) L.push(`Project: ${lwClean(val(edu.project))}`); }
-    const tools = lwPrefer([...p.skills.software, ...p.skills.hard], n1 && n1.need).slice(0, 4); if (tools.length) L.push(`Tools and skills: ${listJoin(tools)}`);
-    if (p.skills.certs.length) L.push(`Certificates: ${listJoin(p.skills.certs.slice(0, 2))}`);
-    empty = !edu && !tools.length && !p.skills.certs.length;
-  } else if (part === "motivation") {
-    const soft = p.skills.soft.slice(0, 3); if (soft.length) L.push(`Strengths: ${listJoin(soft)}`);
-    if (val(p.summaryQ.next)) L.push(`Wants next: ${lwClean(val(p.summaryQ.next))}`);
-    if (stage) L.push(`Level: ${lowerFirst(stage)}`);
-    if (needs[2]) L.push(`The ad also asks for: ${needs[2].need}`);
-    L.push(`Company details: ${why || (tpl || !d.company ? "(none given)" : "(none given beyond the name)")}`);
-  } else {
-    const avail = lwClean(d.avail) || availabilityText(p);
-    if (avail) L.push(`Available: ${lwClean(avail)}`);
-    const offer = [...p.skills.soft, ...p.skills.hard, ...p.skills.software][0];   // a strength or skill, not a job: jobs stay in Experience
-    if (offer) L.push(`One thing to offer: ${offer.length > 140 ? offer.slice(0, 140).replace(/\s+\S*$/, "") : offer}`);
+// The names in the resume that the letter must not keep repeating: a credential or a date in one paragraph only, a tool, a project or an employer in two
+function lwKeyTerms(p) {
+  const out = [], seen = new Set();
+  const add = (term, kind, limit) => { term = lwClean(term); const k = term.toLowerCase(); if (term.length < 3 || seen.has(k)) return; seen.add(k); out.push({ term, kind, limit }); };
+  const FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dates = x => { const m = String(x || "").match(/([A-Za-z]{3})[a-z]*\.?\s*,?\s*(\d{4})/), i = m ? FULL.findIndex(f => f.slice(0, 3).toLowerCase() === m[1].toLowerCase()) : -1; return i < 0 ? [] : [`${FULL[i]} ${m[2]}`, `${FULL[i].slice(0, 3)} ${m[2]}`]; };
+  for (const e of p.education.filter(e => !e.hidden)) {
+    add(String(e.degree || "").replace(/\s*\(.*\)\s*$/, ""), "credential", 1); add(e.inst, "credential", 1);
+    if (val(e.project)) add(lwClean(val(e.project)).replace(/^(thesis|project|capstone)\s*:\s*/i, ""), "project", 2);
+    [e.start, e.end].forEach(x => dates(x).forEach(d => add(d, "date", 1)));
   }
-  return { text: L.join("\n"), empty, nums, company: tpl ? "" : lwClean(d.company), given: part === "motivation" && !!why };
+  for (const e of p.experience.filter(e => !e.hidden)) { add(e.org, "employer", 2); [e.start, e.end].forEach(x => dates(x).forEach(d => add(d, "date", 1))); }
+  for (const x of p.projects.filter(x => x.done !== false)) add(x.name, "project", 2);
+  for (const t of p.skills.software) add(t, "tool", 2);
+  return out;
 }
 
-/* --- 2. What each sentence is for, and one worked example per paragraph --- */
-// The rules (clWriteRules, in 14a-cover-craft.js) are the set that scored best when Chrome's AI wrote letters for eight different resumes.
-// On top of them: the AI is the applicant (first person, never "the candidate"), and the style is formal, direct and short.
-const lwBase = given => `You are the person applying for the job, writing one paragraph of your own cover letter in Australian English. Reply as JSON with one field per sentence.
-Voice: you speak for yourself. Say "I" and "my", never "the candidate" or "the applicant". Formal and direct, like a capable person writing to someone they respect. Short sentences of 15 to 25 words, one idea each, in plain words. Show what you did and what came of it instead of describing yourself.
-Rules:
-${clWriteRules(given ? "given" : "none")}
-9. Where the facts say [the company] or [the role], write it exactly as it is.
-10. Each field is ONE sentence. Do exactly the job given for each field.
-11. Leave out filler: very, really, truly, highly, in order to, furthermore, moreover, additionally.
-12. If the facts give a number for a result, put that number in the sentence about the result.
-Reply with JSON only, one string per field.`;
-const LW_GAP = "[one specific reason]";
-const LW_GAP_RULE = `\nIn s1 the bracket must read exactly ${LW_GAP}: never write anything else inside the brackets.`;
-const LW_FIX_NANO = `You fix one paragraph of a cover letter, written as JSON with one sentence per field. You are told which rule it broke.
-Change only the field or fields that break the rule. Keep every other field word for word.
-Reply with the whole JSON again, and nothing else.`;
-const LW_PLAN = {
-  opening: {
-    fields: ["Say that you are applying for the role at the company, and what you hold or are studying. Begin with \"I am applying for\".", "Give your strongest proof from the facts: what you did, with its number and where. Begin with \"At\" or \"In\". If the facts hold no proof, say what you are strongest at, using only the study and main skills.", "Link that to what this employer needs, using the requirement under \"The ad asks for\" if there is one. Do not praise the employer."],
-    example: [`Role: Sales Operations Analyst
-Company: Northgate
-Level: early career (1 to 5 years)
-Kind of work: Sales and business
-Study: Bachelor of Commerce, University of Melbourne, finished 2022
-Strongest proof: Cut month-end reporting from five days to two by automating the Excel pack (Sales Operations Coordinator at Brightline (2022 to now))
-The ad asks for: Reliable reporting that commercial teams can plan with`,
-      { s1: "I am applying for the Sales Operations Analyst role at Northgate, and I hold a Bachelor of Commerce from the University of Melbourne.", s2: "At Brightline I cut month-end reporting from five days to two by automating our Excel pack.", s3: "Your ad asks for reliable reporting that commercial teams can plan with, and that is the work I do best." }]
-  },
-  experience: {
-    fields: ["Set the scene: where you worked and what the problem or situation was.", "Say the first thing you personally did about it.", "Say what else you did, or how you did it.", "Give the result, with its number.", "Say why that matters to this employer. Use the requirement under \"The ad asks for\" if there is one."],
-    example: [`Role: Sales Operations Analyst
-Company: Northgate
-The ad asks for: Accurate sales forecasting that commercial teams can plan with
-Job: Sales Operations Coordinator at Brightline (2022 to now)
-- Moved quarterly forecasts from twelve regional spreadsheets into Salesforce (forecasts were often 20% off)
-- Set up a weekly pipeline review with each regional lead
-- Built a win-probability model from two years of deal history; forecasts now land within 6% of actual revenue`,
-      { s1: "When I joined the sales operations team at Brightline, quarterly forecasts were pulled together by hand from twelve regional spreadsheets and were often 20% off.", s2: "I moved the process into Salesforce so every region reported in one place.", s3: "I also set up a weekly pipeline review with each regional lead and built a win-probability model from two years of deal history.", s4: "Forecasts now land within 6% of actual revenue.", s5: "Accurate numbers like these let a commercial team plan with confidence, which is the support your ad asks for and the support I would give at Northgate." }]
-  },
-  education: {
-    fields: ["Name your study and the subjects or project closest to the role.", "Name the tools and certificates you use, and what each lets you do. Study and skills only: no jobs.", "Link that to something this role will need. Use the requirement under \"The ad also asks for\" if there is one."],
-    example: [`Role: Graduate Accountant
-Company: Delta Partners
-The ad also asks for: Strong Excel skills for reconciliations
-Study: Bachelor of Commerce (Accounting), University of Melbourne, finishing 2026
-Subjects: Auditing, Taxation Law and Financial Reporting
-Tools and skills: Excel, Xero and MYOB`,
-      { s1: "My Bachelor of Commerce (Accounting) at the University of Melbourne, finishing in 2026, has covered Auditing, Taxation Law and Financial Reporting.", s2: "I use Excel, Xero and MYOB, which let me reconcile accounts and build the checks an audit relies on.", s3: "That grounding in accuracy and process is what your reconciliation work will need from day one at Delta Partners." }]
-  },
-  motivation: {
-    fields: ["Say why you want to work at this company. If the facts give no company details, write one gap in square brackets for the specific reason.", "Say what kind of work you want to do and why it suits you.", "Tie one of your strengths to what you would do there.", "Say what you would like to do first in the role."],
-    fieldsGiven: ["Say why you want to work at this company, using only the company details given. Put them in your own plain words.", "Say what kind of work you want to do and why it suits you.", "Tie one of your strengths to what you would do there. Use \"The ad also asks for\" if it is given.", "Say what you would like to do first in the role."],
-    example: [`Role: Digital Producer
-Company: Fernleaf Health
-Strengths: communication and attention to detail
-Wants next: to work on patient-facing products
-Level: early career (1 to 5 years)
-Company details: (none given beyond the name)`,
-      { s1: "Fernleaf Health stands out to me because [one specific reason].", s2: "Patient-facing digital work is where I think good design matters most, and it is the work I want to do next.", s3: "My communication and attention to detail would help me turn clinic feedback into clear improvements.", s4: "I would start by learning how your team decides what to build, then contribute from the first project." }],
-    exampleGiven: [`Role: Digital Producer
-Company: Fernleaf Health
-Strengths: communication and attention to detail
-Wants next: to work on patient-facing products
-Level: early career (1 to 5 years)
-The ad also asks for: Turning clinic feedback into product improvements
-Company details: I use their booking app for my own GP appointments, and the reminder feature saved me two phone calls last month`,
-      { s1: "I use the Fernleaf Health booking app for my own GP appointments, and its reminder feature saved me two phone calls last month.", s2: "Patient-facing digital work is where I think good design matters most, and it is the work I want to do next.", s3: "My communication and attention to detail would help me turn clinic feedback into clear improvements.", s4: "I would start by learning how your team decides what to build, then contribute from the first project." }]
-  },
-  closing: {
-    fields: ["Say in one sentence what you would contribute.", "Invite them to talk about the role, without giving a phone number, email address or LinkedIn (they are in the letter head). If an availability is in the facts, give it in this sentence.", "Thank them for considering your application."],
-    example: [`Role: Graduate Accountant
-Company: Delta Partners
-Available: from February 2027
-One thing to offer: accuracy under pressure`,
-      { s1: "My accuracy under pressure would support your audit team through its busiest weeks.", s2: "I would welcome the chance to talk about the graduate program, and I am available to start from February 2027.", s3: "Thank you for considering my application." }]
-  }
-};
-const lwKeys = part => LW_PLAN[part].fields.map((_, i) => "s" + (i + 1));
-const lwFields = (part, given) => given && LW_PLAN[part].fieldsGiven ? LW_PLAN[part].fieldsGiven : LW_PLAN[part].fields;
-// (the motivation paragraph is told exactly what its gap says, so the AI doesn't fill it with a made-up reason)
-const lwUser = (part, facts, given) => `Facts:\n${facts}\n\nWrite the "${partOf(part).label}" paragraph. Fields:\n${lwFields(part, given).map((f, i) => `s${i + 1}: ${f}`).join("\n")}${part === "motivation" && !given ? LW_GAP_RULE : ""}`;
-
-/* --- 3. Checking the answer, field by field --- */
-const LW_FILLER = /\b(very|really|extremely|incredibly|truly|deeply|highly|in order to|furthermore|moreover|additionally|in addition|utili[sz](?:e|ed|es|ing))\b/i;
-function lwSentenceProblem(s) {
-  const n = wordCount(s);
-  if (!s) return "is empty";
-  if (n < 4 || n > 32) return `has ${n} words: write one sentence of 12 to 30 words`;
-  if (/\n/.test(s)) return "must be one sentence on one line";
-  if (!/[.]["”']?$/.test(s)) return "must end with a full stop";
-  if (/—|–|!/.test(s)) return "has a dash or an exclamation mark";
-  return "";
+// The resume the AI reads: the profile as resume text. Jobs and study that came from an uploaded resume are still drafts until each is
+// finished in the builder, so they are counted here too (a job with no bullet points is told from what was typed in answer to the builder's questions).
+function lwResumeText() {
+  const p = P(), fin = list => (list || []).map(e => ({ ...e, done: true }));
+  return profileToText({ ...p, experience: p.experience.map(e => ({ ...lwWork(e), done: true })), education: fin(p.education).map(e => ({ ...e, project: val(e.project) ? lwMajor(e.project) : "", projectsMore: (e.projectsMore || []).map(lwMajor).filter(Boolean) })), projects: fin(p.projects), volunteering: fin(p.volunteering) });
 }
-// Work experience belongs to the Experience paragraph (and the opening, which names the one result it leads with):
-// no other paragraph may name an employer from the profile
-function lwScopeProblem(part, text) {
-  if (part === "experience" || part === "opening") return "";
-  const t = text.toLowerCase();
-  for (const e of P().experience) {
-    const org = lwClean(e.org);
-    if (org.length >= 4 && t.includes(org.toLowerCase())) return `it names “${org}”, a job from your profile. Jobs belong in the Experience paragraph only: leave it out here`;
-  }
-  return "";
-}
-// A figure from the facts is in the text, whether it is written 6%, 6 per cent or 9,000
-function lwHasNum(text, n) {
-  const flat = text.replace(/(\d),(\d{3})/g, "$1$2").replace(/\s*per cent\b/gi, "%"), k = n.replace(/[,%]/g, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp("(?<![\\d.])" + k + "(?!\\d)").test(flat);
-}
-// f: what lwFacts said about this paragraph (the company to name, the figures to carry, whether the person gave their own reason)
-function lwCheck(part, d, f = {}) {
-  const keys = lwKeys(part), min = partMin(part, letterRange());
-  // a missing full stop is put back rather than sending the model round again
-  // (contractions are put back in full: the model writes "I'm" even when told not to)
-  const ss = keys.map(k => { const s = lwClean(clNoContractions(stripMarkup(String(d && d[k] != null ? d[k] : "")))); return s ? s + "." : ""; });
-  // The AI knows nothing about the company, so the one gap in the first sentence stays a blank to fill in, never a made-up reason.
-  // ([the company] and [the role] in a template letter are left alone)
-  if (part === "motivation" && ss[0] && !f.given) { let seen = false; ss[0] = ss[0].replace(/\[[^\]\n]*\]/g, m => /^\[\s*the (company|role)\s*\]$/i.test(m) || seen ? m : (seen = true, LW_GAP)); }
-  for (let i = 0; i < keys.length; i++) { const why = lwSentenceProblem(ss[i]); if (why) return { ok: false, why: `field ${keys[i]} ${why}` }; }
-  const text = ss.join(" "), hp = hardPhrase(text);
-  // (the person's own reason for this employer is theirs to word as they like: only a made-up one is refused)
-  const claim = f.given ? "" : clCompanyClaim(text, ltTemplate() ? "" : BL().company);
-  if (claim) return { ok: false, why: `it says "${claim}" about the company, but you know nothing about it except its name: take out anything about its reputation, values or work` };
-  if (hp) return { ok: false, why: `it uses "${hp}", which recruiters skip: say it another way` };
-  const fl = text.match(LW_FILLER); if (fl) return { ok: false, why: `it uses "${fl[0]}", which adds nothing: cut it or say it in plain words` };
-  const iStarts = ss.filter(s => /^I\b/.test(s)).length;
-  if (iStarts > 2) return { ok: false, why: `${iStarts} sentences begin with "I": at most two may` };
-  const floor = Math.round(min * 0.75);
-  if (wordCount(text) < floor) return { ok: false, why: `it has ${wordCount(text)} words and needs at least ${floor}: add detail from the facts to the shorter sentences` };
-  // the opening names the employer, and the result it leads with carries its number
-  const co = (f.company || "").replace(/\b(pty|ltd|limited|inc)\b\.?/gi, "").replace(/\s+/g, " ").trim();
-  if (part === "opening" && co && !text.toLowerCase().includes(co.toLowerCase())) return { ok: false, why: `the opening must name the company, "${co}"` };
-  if ((part === "opening" || part === "experience") && f.nums && f.nums.length && !f.nums.some(n => lwHasNum(text, n))) return { ok: false, why: `it must give the number from the facts (${f.nums[0]}) in the sentence about the result` };
-  const ct = contactIn(text, part); if (ct) return { ok: false, why: contactWhy(ct, part) };
-  const pr = proseOk(text); if (pr) return { ok: false, why: pr };
-  const sc = lwScopeProblem(part, text); if (sc) return { ok: false, why: sc };
-  return { ok: true, value: text };
-}
-
-/* --- 4. Writing one paragraph --- */
-const lwSleep = ms => new Promise(r => setTimeout(r, ms));
-// → { text, res }  text is "" when the AI couldn't give a usable paragraph (res says why); text is null when there was nothing to write from
-async function lwWrite(i, { progress = () => {} } = {}) {
-  const part = BL().parts[i].part, plan = LW_PLAN[part], f = lwFacts(part);
-  if (f.empty) return { text: null, res: null };
-  const T = partTarget(part, letterRange());   // the words this paragraph gets so the whole letter fills the page
-  const ex = f.given && plan.exampleGiven ? plan.exampleGiven : plan.example;
-  const rules = `${lwBase(f.given)}\nThis paragraph is about ${T} words in all.${ltTemplate() ? "\nThis letter is a template for any job: the company is [the company]. Never name a company, employer, product or person." : ""}`;
-  const schema = { type: "object", properties: Object.fromEntries(lwKeys(part).map(k => [k, { type: "string" }])), required: lwKeys(part) };
-  const expect = Math.round(T * 1.3 * 7) + 40 * lwKeys(part).length;   // the sentences in characters, plus the field names
-  const run = () => aiJSON({
-    expect, nano: rules, full: `${rules}\n\n${CL_CRAFT_SHORT}`, examples: [[lwUser(part, ex[0], f.given), ex[1]]],
-    prompt: lwUser(part, f.text, f.given), label: `Writing ${partOf(part).label.toLowerCase()}`, progress, schema,
-    check: d => lwCheck(part, d, f)
+// What the one prompt carries besides the advice and the resume (see advicePrompt in 14c-letter-advice.js). only: the box being written, or -1 for the whole letter
+function lwInputs(only) {
+  const p = P(), d = BL(), tpl = ltTemplate(), extra = [];
+  d.parts.forEach(x => {
+    if (x.detail) extra.push(`The applicant adds, for the ${partOf(x.part).label} paragraph (their own words): ${lwClean(x.detail)}`);
+    if (x.altIx) extra.push(`For the ${partOf(x.part).label} paragraph, use a different example from the resume than the most obvious one.`);
   });
-  let res = await run();
-  // a free key can be asked too fast: wait a few seconds and try once more
-  if (!res.data && res.error && res.error.code === "rate_limited") { progress("The AI asked us to slow down; trying again in a few seconds…"); await lwSleep(5000); res = await run(); }
-  // instead of giving up, show the AI the rule it broke and ask it to change just that part, until it passes (three tries)
-  if (!res.data && res.raw && typeof res.raw === "object" && !res.error) {
-    let raw = res.raw, why = res.rawWhy || "it broke a rule", fixed = null;
-    for (let k = 1; k <= 3 && !fixed; k++) {
-      progress(`That didn't pass (${why}). Asking the AI to fix just that part (try ${k} of 3)…`);
-      const fx = await aiJSON({ nano: LW_FIX_NANO, full: `${LW_FIX_NANO}\n\n${CL_CRAFT_SHORT}`, label: "Fixing", progress, noRetry: true, expect, schema,
-        prompt: `Your paragraph, one sentence per field:\n${JSON.stringify(raw)}\n\nIt broke this rule: ${why}.\nChange only what breaks the rule. Keep every other field exactly as it is. Reply with the whole JSON again.`,
-        check: d => lwCheck(part, d, f) });
-      if (fx.data) fixed = fx; else if (fx.raw && typeof fx.raw === "object") { raw = fx.raw; why = fx.rawWhy || why; } else break;
-    }
-    if (fixed) res = { ...fixed, rejected: true };
-  }
-  return { text: res.data || "", res };
+  const others = only >= 0 ? d.parts.filter((x, k) => k !== only && x.text.trim() && !/[\[\]{}]/.test(x.text)).map(x => x.text.trim()) : [];
+  // requirements the person chose to ignore (see the panel "What your letter is written from"): the letter must not claim or mention them
+  for (const t of Object.values(ltPlan().ignored || {})) if (t) extra.push(`The applicant has no evidence for this requirement from the ad, so do not mention it or claim it anywhere in the letter: "${lwClean(t)}"`);
+  return { resume: lwResumeText(), study: lwStudyText(p), template: tpl, ad: tpl ? "" : d.ad, role: lwClean(d.role) || lwClean(p.target.title), company: lwClean(d.company), why: tpl ? "" : lwClean(d.why), avail: lwClean(d.avail) || availabilityText(p), needs: tpl ? "" : d.needs, extra, others, words: letterRange() };
 }
 
 // Put a paragraph in the letter and the box
@@ -285,61 +119,108 @@ let lwBusy = false;
 // What the AI is doing, in the paragraph's own box, with the moving bar the resume builder uses
 const lwProgress = i => m => { const b = $("lts-" + i); if (b) { b.dataset.menu = ""; b.innerHTML = `<p class="progress">${esc(m)}</p>`; } };
 const lwProgressEnd = i => { const b = $("lts-" + i); if (b && b.querySelector(".progress") && !b._alts) b.innerHTML = ""; };
-// One paragraph, from its Write with AI button
+// One paragraph, from its Write with AI button: the same one prompt writes the whole letter, and only this box is filled from the answer
 async function lwWriteOne(i, btn) {
   if (lwBusy) return;
   const note = $("ltx-" + i), acts = $("lta-" + i);
   if (!hasProfile(P())) { if (note) note.textContent = "Add your details in the resume builder first, so there's something to write from."; return; }
+  if (!ltTemplate() && !BL().role && P().target.title) BL().role = P().target.title;
+  // never without the job title, the employer and what the employer is looking for
+  const g = ltGate(); if (!g.ok) { ltGateSay(g, note); return; }
   lwBusy = true; if (acts) acts.dataset.busy = "1"; if (btn) btn.disabled = true;
   try {
-    const r = await lwWrite(i, { progress: lwProgress(i) });
+    const r = await adviceWrite(lwInputs(i), lwProgress(i));
     lwProgressEnd(i);
     if (acts) delete acts.dataset.busy;
-    if (r.text) { lwApply(i, r.text); const n2 = $("ltx-" + i); if (n2) n2.textContent = `Written by ${viaWords(r.res.via)} from your profile. Check every detail is true and sounds like you.`; }
-    else if (r.text === null) { if (note) note.textContent = "There's nothing in your profile for this paragraph yet. Add it in the resume builder, or write it yourself."; }
-    else if (note) note.innerHTML = aiMissHtml(aiMissWords(r.res)) + " Write it yourself, or start from your profile." + aiRawHtml(r.res);
+    const text = r.paragraphs && r.paragraphs[i], n2 = () => $("ltx-" + i);   // (looked up again after lwApply, which redraws the buttons and the note)
+    if (text) { lwApply(i, BL().parts[i].part === "closing" ? ltEnsureClose(text) : text); if (n2()) n2().textContent = `Written by ${viaWords(r.res.via)} from your resume and the Cover Letter Advice. Check every detail is true and sounds like you.`; }
+    else if (r.paragraphs) { if (n2()) n2().textContent = "The AI's letter had no paragraph for this box. Try again, or write it yourself."; }
+    else if (n2()) n2().innerHTML = aiMissHtml(aiMissWords(r.res)) + " Write it yourself, or start from your profile." + aiRawHtml(r.res);
   } finally { lwBusy = false; if (acts) delete acts.dataset.busy; if (btn) btn.disabled = false; }
 }
-// Start from my profile: the AI writes each paragraph in turn; any it can't write is filled in from the standard version
+
+// The checks from the fix brief, run on the finished letter (and again whenever the preview is drawn): [{ i, type, detail }]
+function ltValidate() {
+  const d = BL(); if (ltTemplate()) return [];
+  const idx = BL().parts.map((x, i) => i).filter(i => BL().parts[i].text.trim());
+  const p = P(), creds = p.education.filter(e => !e.hidden && (e.degree || e.inst) && lwEduStatus(e).inProgress).map(e => lwClean(e.degree)).filter(Boolean);
+  const issues = LR.validateLetter(idx.map(i => ({ kind: BL().parts[i].part, text: BL().parts[i].text })), { length: ltLength(), jobTitle: lwClean(d.role), employer: lwClean(d.company), creds, terms: lwKeyTerms(p), wordLimit: ltWordLimit() });
+  return issues.map(x => ({ ...x, i: idx[x.i] }));
+}
+/* --- How long writing takes: shown under Write all, from this person's own recent times on this AI, or a rough guess for the kind of AI --- */
+const LW_TIMES_KEY = "jobfinder.letterWriteTimes.v1";
+const lwEngineKey = () => aiCfg.engine === "key" ? `key:${aiCfg.key.provider}:${aiCfg.key.model}` : aiCfg.engine;
+const lwTimes = () => { try { const l = JSON.parse(localStorage.getItem(LW_TIMES_KEY) || "[]"); return Array.isArray(l) ? l : []; } catch { return []; } };
+function lwTimeSave(words, ms) { try { localStorage.setItem(LW_TIMES_KEY, JSON.stringify([...lwTimes(), { eng: lwEngineKey(), words, ms }].slice(-12))); } catch { /* storage blocked */ } }
+function lwEstimateSec(words) {
+  const mine = lwTimes().filter(x => x.eng === lwEngineKey() && x.words > 100).slice(-4);
+  if (mine.length) { const per = mine.map(x => x.ms / 1000 / x.words).sort((a, b) => a - b)[Math.floor(mine.length / 2)]; return Math.max(5, Math.round(per * words)); }
+  if (BROWSER_ENGINES.has(aiCfg.engine)) { const m = browserModel(aiCfg.engine, aiCfg.engine === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel); return m ? Math.round(aiEstimate(aiCfg.engine, m.id, 3500, words * 7)) : 60; }
+  if (aiCfg.engine === "key") return Math.round(10 + words * 0.04);   // a hosted model at medium effort: a few seconds to start, then quick
+  return Math.round(15 + words * 0.2);   // the browser's own AI
+}
+const lwSayTime = s => s < 50 ? `about ${Math.max(5, Math.round(s / 5) * 5)} seconds` : s < 90 ? "about a minute" : `about ${Math.round(s / 60)} minutes`;
+// A progress line that also says the estimate and how long it has taken so far
+function lwTimedStatus(el, estSec) {
+  let base = "", t0 = Date.now(), timer = setInterval(() => draw(), 1000);
+  const draw = () => { const s = Math.round((Date.now() - t0) / 1000); if (el) el.textContent = `${base} Estimated time: ${lwSayTime(estSec)}${s >= 3 ? ` (${s} s so far)` : ""}.`; };
+  return { set(m) { base = String(m || "").trim(); draw(); }, stop() { clearInterval(timer); }, ms: () => Date.now() - t0 };
+}
+// Start from my profile / Write all: one prompt (the Cover Letter Advice, your resume and the ad) writes the whole letter, and the answer is split into the paragraph boxes
 async function lwStart(btn) {
   if (lwBusy) return;
-  const st = $("ltStatus"), fallback = letterFromProfile(P());
+  // pressed from "Write all" above the paragraphs: the progress shows under that button; from the top of the page it shows there
+  const fromAll = !!btn && btn.id === "ltWriteAll", st = (fromAll && $("ltWriteStatus")) || $("ltStatus"), tpl = ltTemplate();
+  if (!tpl && !BL().role && P().target.title) BL().role = P().target.title;
+  // for a specific job with no job title, employer or requirements no AI is called: say what is missing (a template needs none of them)
+  if (!tpl) { const g = ltGate(); if (!g.ok) { ltShowStep(1); ltGateSay(g, st); return; } }
+  if (!ltAdGate()) return;
+  const fallback = letterFromProfile(P());
   lwBusy = true; btn.disabled = true; st.classList.add("busy");
-  const say = t => { st.textContent = t; };
-  ltShowStep(1); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
-  if (!ltTemplate() && !BL().role && P().target.title) BL().role = P().target.title;
-  BL().parts = COVER_PARTS.map(p => ({ part: p.key, text: "" }));
+  ltShowStep(1); if (!fromAll) window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
+  const was = BL().parts;
+  BL().parts = COVER_PARTS.map((p, k) => ({ part: p.key, text: "", detail: was[k] && was[k].detail, altIx: was[k] && was[k].altIx }));
   baseLetter.save(true); renderLetterPage();
-  const by = [], filled = [], misses = [], gen = aiRun.gen;
-  let noAi = false, errorsInARow = 0, stopped = false;
+  let r = { paragraphs: null, res: null };
+  const tm = lwTimedStatus(st, lwEstimateSec(letterRange()[1]));
   try {
-    for (let i = 0; i < COVER_PARTS.length; i++) {
-      const label = COVER_PARTS[i].label, note = () => $("ltx-" + i);
-      if (aiRun.gen !== gen) stopped = true;
-      say(`Writing your cover letter: ${label} (${i + 1} of ${COVER_PARTS.length})…`);
-      let r = { text: null, res: null };
-      if (!noAi && !stopped && errorsInARow < 2) { const pr = lwProgress(i); r = await lwWrite(i, { progress: m => { say(`${label} (${i + 1} of ${COVER_PARTS.length}): ${m}`); pr(m); } }); lwProgressEnd(i); }
-      if (aiRun.gen !== gen) stopped = true;
-      if (r.res && !r.res.tried.length && !r.res.cancelled) noAi = true;
-      errorsInARow = r.res && r.res.error && !r.res.data && !r.res.cancelled ? errorsInARow + 1 : 0;
-      if (r.text) { lwApply(i, r.text); by.push(viaWords(r.res.via)); filled.push(i); const n = note(); if (n) n.textContent = `Written by ${viaWords(r.res.via)}. Check every detail is true.`; }
-      else {
-        // nothing usable from the AI: the standard version, so the letter is never left with a hole in it
-        lwApply(i, fallback[i].text);
-        const n = note();
-        if (n && stopped) n.textContent = "Stopped. The standard version (written without AI) is here instead.";
-        else if (n && r.res) n.innerHTML = aiMissHtml(aiMissWords(r.res)) + " The standard version is in the box instead; here is what the AI wrote:" + aiRawHtml(r.res);
-        else if (n) n.textContent = noAi ? "Written without AI (none is connected)." : "Written from your profile without AI.";
-        if (r.res && !stopped) misses.push(label);
-      }
-    }
-  } finally { lwBusy = false; btn.disabled = false; st.classList.remove("busy"); }
-  const who = by.length ? by[0] : "";
-  st.textContent = stopped ? `Stopped. ${filled.length ? `${filled.length} paragraph${filled.length === 1 ? " was" : "s were"} written by the AI` : "Nothing was written by the AI"}; the rest use the standard version from your profile. Press Write with AI on any paragraph to try again.`
-    : noAi ? "No AI is connected, so this was written from your profile without one. Choose an AI (top bar) and press Write with AI on any paragraph. Fill in anything in [brackets]."
-    : misses.length ? `${filled.length} of ${COVER_PARTS.length} paragraphs written by ${who}. ${listJoin(misses)} used the standard version because the AI's answer wasn't usable: its words are shown under ${misses.length === 1 ? "it" : "each"}. Check every detail is true.`
-    : filled.length === COVER_PARTS.length ? `All ${COVER_PARTS.length} paragraphs written by ${who}. Check every detail is true, fill in anything in [brackets], and make each paragraph sound like you.`
-    : "Written from your profile. Fill in anything in [brackets], and make each paragraph sound like you.";
+    tm.set("Writing your cover letter from your resume and the Cover Letter Advice…");
+    r = await adviceWrite(lwInputs(-1), m => tm.set(m));
+  } finally { tm.stop(); lwBusy = false; btn.disabled = false; st.classList.remove("busy"); }
+  if (r.paragraphs && r.res && r.res.via === "big") lwTimeSave(wordCount(r.paragraphs.join(" ")), tm.ms());
+  const res = r.res, stopped = !!(res && res.cancelled), noAi = !!(res && !res.tried.length && !stopped), filled = [];
+  COVER_PARTS.forEach((part, i) => {
+    const text = r.paragraphs && r.paragraphs[i], note = () => $("ltx-" + i);
+    if (text) { lwApply(i, part.key === "closing" ? ltEnsureClose(text) : text); filled.push(i); if (note()) note().textContent = `Written by ${viaWords(res.via)}. Check every detail is true.`; }
+    else if (!r.paragraphs) {
+      // nothing usable from the AI: the standard version, so the letter is never left with a hole in it
+      lwApply(i, part.key === "closing" ? ltEnsureClose(fallback[i].text) : fallback[i].text);
+      if (note()) note().textContent = stopped ? "Stopped. The standard version (written without AI) is here instead." : noAi ? "Written without AI (none is connected)." : "The standard version, written from your profile without AI.";
+    } else if (note()) note().textContent = "The AI's letter had no paragraph for this box. Press Write with AI to try again, or write it yourself.";
+  });
+  const todo = ltValidate().filter(x => x.type !== "spelling").length;
+  const tail = (tpl && !stopped ? " This is a template for any job: the job title and company are yellow placeholders. Fill them in for each job, or choose “A specific job” for a letter written to one ad." : "")
+    + (todo && !stopped ? ` ${todo} thing${todo === 1 ? "" : "s"} to look at under “Before you send it”.` : "");
+  if (filled.length) st.textContent = `Written by ${viaWords(res.via)} from your resume and the Cover Letter Advice, then split into the paragraphs below${filled.length < COVER_PARTS.length ? ` (${filled.length} of ${COVER_PARTS.length}: press Write with AI on an empty box to try again)` : ""}. Check every detail is true, and make each paragraph sound like you.` + tail;
+  else if (stopped) st.textContent = "Stopped. The standard version (written without AI) is in the boxes. Press Write with AI on any paragraph to try again." + tail;
+  else if (noAi) st.textContent = "No AI is connected, so this was written from your profile without one. Choose an AI (top bar) and press Write with AI on any paragraph. Fill in anything in [brackets]." + tail;
+  else { const raw = aiRawHtml(res); st.innerHTML = `${aiMissHtml(aiMissWords(res))} The standard version is in the boxes instead${raw ? `; here is what the AI wrote:${raw}` : "."}${esc(tail)}`; }
+  syncBaseToTailor();
+  // When the AI wrote the letter, it then fixes what is listed under "Before you send it". Its fix is kept only if it breaks fewer rules than the letter as written.
+  if (filled.length && !stopped && !tpl && ltProblemCount(BL().parts.map(x => x.text)) > 0) {
+    const wrote = st.textContent;
+    btn.disabled = true; st.classList.add("busy");
+    ltFull.autoNote = "";
+    try { await lfRun({ into: st, auto: true, lead: `${wrote} Now fixing what is listed under “Before you send it”. ` }); }
+    finally { btn.disabled = false; st.classList.remove("busy"); }
+    st.textContent = `${wrote} ${ltFull.autoNote}`.trim();
+  } else if (filled.length && !stopped && tpl && LT_TEMPLATE_FIX && ltProblemCount(BL().parts.map(x => x.text)) > 0) {
+    // a template for any job: one sentence per problem, reworded by the small model (see 23f; LT_TEMPLATE_FIX switches it off)
+    const wrote = st.textContent;
+    btn.disabled = true; st.classList.add("busy");
+    try { await ltTemplateFix(st, `${wrote} `); }
+    finally { btn.disabled = false; st.classList.remove("busy"); }
+  }
 }
 
 /* --- How many words fit the page, split between the paragraphs --- */
@@ -391,17 +272,66 @@ function lwMarkMadeUp(i) {
   p.madeUp = madeUpIn(p.text);
   lwBack(i, p.text);
 }
-// The text behind the box: gaps in yellow, made-up details in red
+// The sentences of paragraph i that a warning under "Before you send it" is about: [[start, end], ...] character positions in `text`.
+// (a warning about the whole paragraph, such as "too short", has no sentence to mark)
+function lwFlagRanges(i, text) {
+  if (typeof ltQualityNow === "undefined" || !ltQualityNow.length || !String(text).trim()) return [];
+  const ss = ltSentences(text), joined = ss.join("") === String(text);   // (the sentences must add up to the text, or their positions would be wrong)
+  const starts = []; let at = 0;
+  for (const s of ss) { starts.push(at); at += s.length; }
+  const gaps = [...String(text).matchAll(new RegExp(GAP_SRC, "g"))].map(m => [m.index, m.index + m[0].length]);   // a [gap] keeps its own yellow
+  const hit = new Set(), words = [];
+  for (const q of ltQualityNow) if ((q.where || []).includes(i)) {
+    // a warning about particular words ("Repeated words", "The same words in two paragraphs") marks just those words
+    const f = (q.fixes || []).find(x => x.i === i) || q, found = lwFindMarks(text, f.marks, f.markFirst).filter(([a, z]) => !gaps.some(([ga, gz]) => a < gz && z > ga));
+    if (found.length) { words.push(...found); continue; }
+    if (!joined) continue;
+    const t = ltFixTarget(q, i, text); if (t.sel >= 0) hit.add(t.sel);
+  }
+  const sents = [...hit].map(k => [starts[k], starts[k] + ss[k].replace(/\s+$/, "").length]);
+  return [...sents, ...words].sort((a, b) => a[0] - b[0]);
+}
+// Where each word or phrase in `terms` is in `text` (whole words, any capitals, any punctuation between the words of a phrase): [[start, end], ...].
+// first: only the first place each one appears (for "starts the same way")
+function lwFindMarks(text, terms, first) {
+  const out = [], sep = "[^\\p{L}\\p{N}]+";
+  for (const term of terms || []) {
+    const ws = String(term).split(/\s+/).filter(Boolean);
+    if (!ws.length) continue;
+    const re = new RegExp("(?<![\\p{L}\\p{N}'’-])" + ws.map(w => lwEsc(w).replace(/['’]/g, "['’]")).join(sep) + "(?![\\p{L}\\p{N}'’-])", "giu");
+    for (let m; (m = re.exec(text)); ) { out.push([m.index, m.index + m[0].length]); if (first) break; if (!m[0]) re.lastIndex++; }
+  }
+  return out;
+}
+// The text behind the box: gaps in yellow, made-up details in red, and sentences with a warning in soft yellow
 function lwBack(i, text) {
   const back = $("ltb-" + i);
   if (!back) return;
   const p = BL().parts[i] || {}, terms = (p.madeUp || []).filter(t => t && String(text).includes(t)).filter((t, k, a) => !a.some(o => o !== t && o.includes(t)));
+  const flags = lwFlagRanges(i, String(text));
   const segs = String(text).split(new RegExp("(" + GAP_SRC + ")"));   // gaps sit at the odd places
-  back.innerHTML = segs.map((s, k) => {
+  const draw = (s, k) => {
     if (k % 2) return gapHtml(s);
     let h = esc(s);
     for (const t of terms) { const e = esc(t); h = h.split(e).join(`<mark class="made-up" data-term="${e}">${e}</mark>`); }
     return h;
+  };
+  let at = 0;
+  back.innerHTML = segs.map((s, k) => {
+    const from = at; at += s.length;
+    // cut the piece wherever a marked sentence starts or ends, and wrap the parts inside one
+    const cuts = [...new Set(flags.flat().filter(x => x > from && x < at).map(x => x - from))].sort((a, b) => a - b);
+    const bounds = [0, ...cuts, s.length];
+    let out = "";
+    for (let b = 0; b < bounds.length - 1; b++) {
+      const piece = s.slice(bounds[b], bounds[b + 1]);
+      if (!piece) continue;
+      const mid = from + bounds[b], inside = flags.some(([a, z]) => mid >= a && mid < z);
+      // a gap is never cut (the sentences are found with gaps masked), so a gap piece is always whole
+      const html = draw(piece, k);
+      out += inside ? `<mark class="ck-flag">${html}</mark>` : html;
+    }
+    return out;
   }).join("") + "\n";
 }
 // Keep it: it's saved to your profile, so it isn't flagged again

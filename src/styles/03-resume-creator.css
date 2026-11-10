@@ -1,6 +1,9 @@
 /* ===================== Resume creator ===================== */
 .b-steps { min-width: 0; }
-.b-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+/* one row, however many steps there are: every step is a column of equal width, and a name that does not fit is cut short */
+.b-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; gap: 6px; }
+.b-steps li { min-width: 0; }
+.b-steps button { flex-wrap: nowrap; white-space: nowrap; }
 .b-steps button {
   width: 100%; display: flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line);
   background: var(--surface); color: var(--muted); cursor: pointer; font-size: var(--step--1); text-align: left;
@@ -94,7 +97,7 @@
   .b-side { position: static; }
 }
 @container main (max-width: 760px) {
-  .b-steps ol { grid-template-columns: repeat(9, auto); justify-content: start; overflow-x: auto; padding: 3px; margin: -3px; }
+  .b-steps ol { grid-auto-columns: auto; justify-content: start; overflow-x: auto; padding: 3px; margin: -3px; }
   .b-steps li:not(.current) .t { display: none; }
 }
 @container main (max-width: 560px) {

@@ -3,17 +3,6 @@ const JSZIP = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
 const W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-function downloadLabel() {
-  if (fileInfo && fileInfo.ext === "docx" && fileInfo.buffer) return "Download as Word (your layout)";
-  if (fileInfo && fileInfo.ext === "txt") return "Download text file";
-  return "Download as Word";
-}
-function downloadNote() {
-  if (fileInfo && fileInfo.ext === "docx" && fileInfo.buffer) return `Edits your original ${fileInfo.name}: same fonts, bullets and layout, with only the changed lines updated.`;
-  if (fileInfo && fileInfo.ext === "pdf") return "PDFs can't be edited in place, so this is a clean, ATS-friendly Word file. To keep your exact design, upload the Word version of your resume instead.";
-  if (fileInfo && fileInfo.ext === "txt") return "Same plain-text format as the file you uploaded.";
-  return "A clean, ATS-friendly Word file. Upload your resume as a Word file to keep its exact layout.";
-}
 function exportName(ext) {
   const base = fileInfo ? fileInfo.name.replace(/\.[^.]+$/, "") : ((els.resume.value.split("\n").find(l => l.trim()) || "Resume").trim().replace(/\s+/g, "-") + "-Resume");
   const role = (lastScan && detectTitle(lastScan.jd, lastScan.title)) || "";

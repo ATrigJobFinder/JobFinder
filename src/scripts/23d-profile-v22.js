@@ -40,6 +40,7 @@ function buildDataZip() {
   (savedResumes.data.list || []).forEach((x, i) => add(`saved-resumes/${String(i + 1).padStart(2, "0")} ${safeFile(x.name)}.json`, json(x)));
   (savedLetters.data.list || []).forEach((x, i) => add(`cover-letter-templates/${String(i + 1).padStart(2, "0")} ${safeFile(x.name)}.json`, json(x)));
   add("linkedin.json", json(linStore.data.input || {}));
+  (savedLinkedIns.data.list || []).forEach((x, i) => add(`saved-linkedin/${String(i + 1).padStart(2, "0")} ${safeFile(x.name)}.json`, json(x)));
   add("applications.json", json((trk.data && trk.data.items) || []));
   return makeZip(files);
 }

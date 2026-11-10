@@ -1,6 +1,6 @@
 /* ===================== Ask AI: a help chat on every page, using the AI chosen in Choose your AI ===================== */
-// A button in the corner opens a small chat. It talks to whichever AI is chosen: the one in the browser, Chrome's, the person's own key,
-// or Claude. A small model gets a shorter brief, a few turns of memory and a short-answer limit; a larger one gets the fuller brief.
+// A button in the corner opens a small chat. It talks to whichever AI is chosen: the one in the browser, Chrome's, or the person's own key.
+// A small model gets a shorter brief, a few turns of memory and a short-answer limit; a larger one gets the fuller brief.
 // The chat only advises. It never changes anything in the person's resume or letters, and nothing typed here is saved.
 const CHAT_PAGE_NOTES = {
   home: "the Home page, where they choose what to do next",
@@ -60,8 +60,7 @@ async function chatAsk(signal) {
   const small = aiTier() === "small", msgs = chatMessages(), max = small ? tightMax(450) : 900, e = aiCfg.engine;
   // 1. the AI chosen in Choose your AI: a model in the browser, or the person's own key
   if (USER_ENGINES.has(e) && aiUsable(e)) {
-    try { return { text: await aiChat(e, msgs, signal, { expect: small ? 450 : 900, max }), via: AI_NAME(e) }; }
-    catch (err) { if (err.code === "cancelled" || !claudeSample || !aiCfg.fallback) throw err; }
+    return { text: await aiChat(e, msgs, signal, { expect: small ? 450 : 900, max }), via: AI_NAME(e) };
   }
   // 2. Chrome's built-in AI, when it's the choice (or automatic) and ready
   if (aiChromeAllowed() && (await chromeAIState()) === "available") {
@@ -71,15 +70,8 @@ async function chatAsk(signal) {
       s = await self.LanguageModel.create({ ...LM_OPTS, initialPrompts: [sys, ...rest] });
       const text = await s.prompt(last.content, signal ? { signal } : undefined);
       if (text) return { text: String(text), via: BROWSER_AI() };
-    } catch (err) { if (signal && signal.aborted) throw aiError("cancelled"); /* try Claude next */ }
+    } catch (err) { if (signal && signal.aborted) throw aiError("cancelled"); }
     finally { try { s && s.destroy(); } catch { /* gone */ } }
-  }
-  // 3. Claude through the site, which answers in JSON
-  if (claudeSample) {
-    const asked = [...msgs.slice(0, -1), { role: "user", content: msgs[msgs.length - 1].content + '\n\nReply with only this JSON: {"reply": "your answer"}' }];
-    const d = await claudeSample.json(asked, { signal, cache: false });
-    if (d && typeof d.reply === "string" && d.reply.trim()) return { text: d.reply, via: "Claude" };
-    throw aiError("invalid_json");
   }
   throw aiError("no_engine", "No AI is connected.");
 }
@@ -109,7 +101,7 @@ function chatWho() {
   const w = $("chatWho");
   if (!w) return;
   const e = aiCfg.engine;
-  w.textContent = USER_ENGINES.has(e) && aiUsable(e) ? `Using ${AI_NAME(e)}${aiTier() === "small" ? " (short answers)" : ""}` : claudeSample ? "Using Claude" : `Using ${BROWSER_AI()}, if it's ready`;
+  w.textContent = USER_ENGINES.has(e) && aiUsable(e) ? `Using ${AI_NAME(e)}${aiTier() === "small" ? " (short answers)" : ""}` : `Using ${BROWSER_AI()}, if it's ready`;
 }
 async function chatSend(text) {
   text = String(text || "").trim();

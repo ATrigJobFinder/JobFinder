@@ -43,7 +43,6 @@
 .sum-struct > :not(summary) { margin: 8px 0 0 18px; }
 .struct-list { padding-left: 1.2rem; display: grid; gap: 4px; }
 #bSumActs .b-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-#bSumActs .b-actions [data-act="sum-accept"] { margin-left: auto; }
 .verbs-nai { color: var(--ink); background: var(--warn-bg); border-radius: 8px; padding: 6px 10px; }
 
 /* Awards and publications: a handle on each line */

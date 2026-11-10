@@ -398,7 +398,7 @@ tr:hover .x-ignore, .x-ignore:focus-visible { opacity: 1; }
 /* v23: card headings. The title gets the full width on its own line, and under it the badges sit in fixed columns (so "On your resume" and "Hidden" line up from card to card) with the dates at the right */
 .b-card > summary:has(> .card-tags) { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-rows: auto auto; column-gap: 10px; row-gap: 6px; align-items: center; justify-content: stretch; }
 .b-card > summary:has(> .card-tags) > .drag-h { grid-column: 1; grid-row: 1 / span 2; }
-.b-card > summary:has(> .card-tags) > span:not(.drag-h):not(.card-tags):not(.meta) { grid-column: 2 / span 2; grid-row: 1; min-width: 0; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.3; }
+.b-card > summary:has(> .card-tags) > span:not(.drag-h):not(.card-tags):not(.meta):not(.co-peek) { grid-column: 2 / span 2; grid-row: 1; min-width: 0; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.3; }
 .b-card > summary:has(> .card-tags) > .card-tags { grid-column: 2; grid-row: 2; justify-self: start; display: grid; grid-template-columns: 7.4rem 4.2rem; gap: 6px; align-items: center; }
 .b-card > summary:has(> .card-tags) > .card-tags:empty { display: none; }
 .b-card > summary .card-slot { display: flex; align-items: center; min-height: 1.4em; }

@@ -9,8 +9,7 @@
 /* --- The evidence in the resume: every line that says what you did --- */
 function lwProofs() {
   const p = P(), out = [];
-  for (const e of shown(p.experience)) {
-    if (!(e.title || e.org)) continue;
+  for (const e of lwAllJobs(p)) {
     for (const b of e.bullets) { const t = lwClean(b); if (t) out.push({ text: t, kind: "job", e, at: lwJobLine(e) }); }
   }
   for (const x of p.projects) if (x.done !== false && x.name && lwClean(x.details)) out.push({ text: lwClean(x.details).slice(0, 300), kind: "project", x, at: `${lwClean(x.name)}${x.org ? ` (${lwClean(x.org)})` : ""}` });
@@ -33,21 +32,29 @@ function lwMatch(need, proofs, taken) {
 }
 /* --- The ad: the three things it asks for most --- */
 // → [{ need, proof }]  (proof: the resume evidence for it, or null)
+// What the employer is looking for, typed one to a line by the person when they have no ad (two or three things)
+const lwTypedNeeds = d => String(d.needs || "").split(/\n|;/).map(lwClean).filter(t => wordCount(t) >= 2).slice(0, 3);
+const lwIgnored = () => ltPlan().ignored || {};
 function lwNeeds(proofs) {
-  const d = BL(), ad = String(d.ad || "").trim();
-  if (wordCount(ad) < 15) return [];
+  const d = BL(), ad = String(d.ad || "").trim(), ign = lwIgnored();
+  if (wordCount(ad) < 15) {
+    const taken = new Set();
+    return lwTypedNeeds(d).filter(t => !ign[lrKey(t)]).map(t => { const proof = lwMatch(t, proofs || lwProofs(), taken); if (proof) taken.add(proof); return { need: t, proof }; });
+  }
   const items = [];
   readJobAd(ad).forEach((L, i) => {
     const t = L.text.replace(BULLET_RE, "").trim().replace(/[.\s]+$/, "");
     if (!t || L.heading || !["req", "duty", "body"].includes(L.kind)) return;
     const n = wordCount(t);
-    if (n < 4 || n > 40 || LINE_BOILER.test(t) || LINE_NOTREQ.test(t) || LINE_LEARN.test(t) || /\?\s*$/.test(t) || /^(please note|applications? (close|open)|click|to apply|note:)/i.test(t)) return;
+    if (n < 4 || n > 40 || LINE_BOILER.test(t) || LINE_NOTREQ.test(t) || LINE_LEARN.test(t) || /\?\s*$/.test(t) || /^(please note|applications? (close|open|to|should|must|can|are|via)|apply (to|by|via|online)|send (your|applications)|click|to apply|note:)/i.test(t)) return;
     let s = L.kind === "req" ? 3 : L.kind === "duty" ? 2 : 1;
     if (LINE_REQ.test(t)) s += 2;
     if (L.cue) s += 1;
     s += Math.min(2, findSkills(norm(t)).size);
     if (BULLET_RE.test(L.text)) s += 0.5;
-    items.push({ text: t.split(/\s+/).slice(0, 28).join(" "), s, i, cw: contentWords(t) });
+    const text = t.split(/\s+/).slice(0, 28).join(" ");
+    if (ign[lrKey(text)]) return;   // (a requirement the person chose to ignore)
+    items.push({ text, s, i, cw: contentWords(t) });
   });
   items.sort((a, b) => b.s - a.s || a.i - b.i);
   const picked = [];
@@ -64,7 +71,7 @@ function lwNeeds(proofs) {
 /* --- The panel above the paragraphs --- */
 const lwShortText = (t, n = 110) => { const s = String(t || ""); return s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s; };
 function lwResumeRows() {
-  const p = P(), c = p.contact, proofs = lwProofs(), edu = shown(p.education).find(e => e.degree || e.inst);
+  const p = P(), c = p.contact, proofs = lwProofs(), edu = lwEdu(p), moreEdu = lwStudyList(p).length - 1;
   const skills = [...p.skills.hard, ...p.skills.software, ...p.skills.soft];
   const best = proofs.slice().sort((a, b) => lwStrength(b.text) - lwStrength(a.text))[0];
   const go = `<button class="linkish" type="button" data-nx="builder">Add it in the resume builder</button>`;
@@ -72,7 +79,7 @@ function lwResumeRows() {
   return [
     c.name && (c.email || c.phone) ? row("ok", "Your details", `${esc(c.name)}${c.location ? ` · ${esc(c.location)}` : ""}. They go in the letter head.`) : row("warn", "Your details", `${c.name ? "" : "No name yet. "}${c.email || c.phone ? "" : "No phone or email yet. "}The letter head needs them. ${go}`),
     best ? (/\d/.test(best.text) ? row("ok", "Your best proof", `“${esc(lwShortText(best.text))}” (${esc(best.at)}). The opening leads with a result like this.`) : row("warn", "Your best proof", `“${esc(lwShortText(best.text))}” has no number. A figure (how many, how much, how fast) makes the opening much stronger. ${go}`)) : row("warn", "Your best proof", `No job, project or volunteering with results yet, so the letter can only describe your study and skills. ${go}`),
-    edu ? row("ok", "Your study", esc(lwStudy(edu))) : row("opt", "Your study", `Not added. ${go}`),
+    edu ? row("ok", "Your study", esc(lwStudy(edu)) + (moreEdu > 0 ? ` and ${moreEdu} more` : "")) : row("opt", "Your study", `Not added. ${go}`),
     skills.length ? row("ok", "Your skills", esc(listJoin(skills.slice(0, 4))) + (skills.length > 4 ? ` and ${skills.length - 4} more` : "")) : row("opt", "Your skills", `None added. ${go}`)
   ].join("");
 }
@@ -83,10 +90,15 @@ function lwSkillNote(need) {
 }
 function lwNeedRows() {
   const ad = String(BL().ad || "").trim();
-  if (wordCount(ad) < 15) return ad ? `<li class="opt"><span class="mk" aria-hidden="true">–</span><span>That is too short to read. Paste the whole ad.</span></li>` : "";
+  if (wordCount(ad) < 15 && !lwTypedNeeds(BL()).length) return ad ? `<li class="opt"><span class="mk" aria-hidden="true">–</span><span>That is too short to read. Paste the whole ad.</span></li>` : "";
   const needs = lwNeeds(lwProofs());
   if (!needs.length) return `<li class="opt"><span class="mk" aria-hidden="true">–</span><span>Couldn't pick out what the ad asks for. The letter will use your resume's strongest evidence instead.</span></li>`;
-  return `<li class="head"><b>What the ad asks for most, and your proof for each</b></li>` + needs.map((n, i) => `<li class="${n.proof ? "ok" : "warn"}"><span class="mk" aria-hidden="true">${i + 1}</span><span><b>They ask for:</b> ${esc(n.need)}<br><span class="small muted">${n.proof ? `Your proof: “${esc(lwShortText(n.proof.text))}” (${esc(n.proof.at)})` : lwSkillNote(n.need)}</span></span></li>`).join("");
+  return `<li class="head"><b>What the ad asks for most, and your proof for each</b></li>` + needs.map((n, i) => `<li class="${n.proof ? "ok" : "warn"}"><span class="mk" aria-hidden="true">${i + 1}</span><span><b>They ask for:</b> ${esc(n.need)}<br><span class="small muted">${n.proof ? `Your proof: “${esc(lwShortText(n.proof.text))}” (${esc(n.proof.at)})` : `${lwSkillNote(n.need)} <button class="linkish lt-ignore" type="button" data-lt-ignore="${esc(lrKey(n.need))}" data-lt-ignore-text="${esc(n.need)}" title="Leave this out of the letter: it won't be asked about or claimed">Ignore</button>`}</span></span></li>`).join("") + lwIgnoredRow();
+}
+// Requirements set aside with Ignore, and a way to bring them back
+function lwIgnoredRow() {
+  const n = Object.keys(lwIgnored()).length;
+  return n ? `<li class="opt"><span class="mk" aria-hidden="true">–</span><span class="small muted">${n} requirement${n === 1 ? " is" : "s are"} ignored, so the letter leaves ${n === 1 ? "it" : "them"} out. <button class="linkish" type="button" data-lt-unignore="1">Show ${n === 1 ? "it" : "them"} again</button></span></li>` : "";
 }
 function renderLetterSources() {
   const box = $("ltSources");
@@ -101,25 +113,42 @@ function renderLetterSources() {
       <div id="ltSrcJob">
         <label class="field" for="lt-ad">The job ad (recommended)
           <textarea id="lt-ad" data-lt="ad" rows="4" spellcheck="false" placeholder="Paste the whole ad. Job Finder fills in the job title and company, picks out what it asks for most, and finds your proof for each."></textarea></label>
+        <label class="field" for="lt-needs">…or what the employer is looking for (two or three things, one to a line)
+          <textarea id="lt-needs" data-lt="needs" rows="3" spellcheck="true" placeholder="Use this if you have no ad. Say what the job asks for in your own words, one to a line."></textarea></label>
         <p class="small muted lt-src-note" id="ltSrcNote" role="status"></p>
         <ul class="lt-src-list" id="ltSrcNeeds"></ul>
         <div class="q-grid">
           <label class="field" for="lt-why">Why this employer, in your own words<input type="text" id="lt-why" data-lt="why" autocomplete="off" placeholder="The part AI can't write for you. e.g. I use their app myself, or I like how their graduate program rotates teams"></label>
           <label class="field" for="lt-avail">When you can start<input type="text" id="lt-avail" data-lt="avail" autocomplete="off" placeholder="Optional. e.g. from 13 January, or with two weeks' notice"></label>
         </div>
+        <div class="lr-plan" id="ltPlan"></div>
       </div>
     </div>`;
     let t = 0;
-    box.addEventListener("input", e => { if (e.target.id === "lt-ad") { clearTimeout(t); t = setTimeout(() => { const n = $("ltSrcNeeds"); if (n) n.innerHTML = lwNeedRows(); }, 500); } });
+    box.addEventListener("input", e => { if (e.target.id === "lt-ad" || e.target.id === "lt-needs") { clearTimeout(t); t = setTimeout(() => { const n = $("ltSrcNeeds"); if (n) n.innerHTML = lwNeedRows(); }, 500); } });
     box.addEventListener("change", e => { if (e.target.id === "lt-ad") lwAdFill(e.target.value); });
+    // Ignore: this one requirement is set aside for this letter (it is not asked about, and the AI is told not to claim it)
+    box.addEventListener("click", e => {
+      const b = e.target.closest("[data-lt-ignore], [data-lt-unignore]"); if (!b) return;
+      const pl = ltPlan();
+      if (b.dataset.ltIgnore) { pl.ignored = { ...(pl.ignored || {}), [b.dataset.ltIgnore]: b.dataset.ltIgnoreText || "x" }; }
+      else pl.ignored = {};
+      baseLetter.save(true); ltInfoMemo.key = "";
+      const n = $("ltSrcNeeds"); if (n) n.innerHTML = lwNeedRows();
+      renderLetterPlan();
+    });
+    // what the questions and the situation depend on: the reason, the start date, the ad
+    box.addEventListener("change", e => { if (["lt-why", "lt-avail", "lt-ad", "lt-needs"].includes(e.target.id)) { ltInfoMemo.key = ""; renderLetterPlan(); } });
   }
   $("ltSrcResume").innerHTML = lwResumeRows();
   $("ltSrcJob").hidden = !job;
   $("ltSrcNeeds").innerHTML = job ? lwNeedRows() : "";
-  for (const [id, k] of [["lt-ad", "ad"], ["lt-why", "why"], ["lt-avail", "avail"]]) { const el = $(id); if (el && document.activeElement !== el) el.value = d[k] || ""; }
+  renderLetterPlan();
+  for (const [id, k] of [["lt-ad", "ad"], ["lt-needs", "needs"], ["lt-why", "why"], ["lt-avail", "avail"]]) { const el = $(id); if (el && document.activeElement !== el) el.value = d[k] || ""; }
 }
 // A pasted ad fills in the job title, company, who it is addressed to and the reference number, where they are blank
 function lwAdFill(ad) {
+  ltAdOverride = false;   // a new ad: the "not wanted" and "pitch" notices are read again
   const d = BL(), done = [];
   const set = (k, v, label) => {
     if (!v || String(d[k] || "").trim()) return;
@@ -142,3 +171,25 @@ function lwAdFill(ad) {
 onInit(() => {
   onProfile(() => { if (currentView === "letter") { const r = $("ltSrcResume"); if (r) r.innerHTML = lwResumeRows(); const n = $("ltSrcNeeds"); if (n && !ltTemplate()) n.innerHTML = lwNeedRows(); } });
 });
+
+/* --- Before the AI writes: the job title, the employer, and what the employer is looking for --- */
+// The AI never writes without them (and never from a template with gaps in it). Each is read from its own box with the spaces trimmed:
+// the example text shown inside an empty box is a placeholder, not a value, and is never read.
+function ltGate() {
+  const d = BL(), role = String(d.role || "").trim() || String(P().target.title || "").trim(), missing = [];
+  if (ltTemplate()) return { ok: true, template: true, missing };   // a template for any job has no job to name: the AI writes it from the profile, with [job title] and [company] left as gaps
+  if (!role) missing.push({ id: "lt-role", label: "the job title" });
+  if (!String(d.company || "").trim()) missing.push({ id: "lt-company", label: "the employer" });
+  if (wordCount(String(d.ad || "")) < 15 && lwTypedNeeds(d).length < 2) missing.push({ id: "lt-ad", label: "the job ad, or two things the employer is looking for" });
+  return { ok: !missing.length, template: false, missing, role };
+}
+// Says what is missing (in the status line and the first box), without calling any writer
+function ltGateSay(g, el) {
+  const msg = g.template
+    ? "The AI writes for a specific job. Choose “A specific job”, then add the job title, the employer and what they are looking for. A template for any job is written from your profile without AI."
+    : `Before the AI writes, add ${listJoin(g.missing.map(m => m.label))}. It writes only from facts you have given it.`;
+  if (el) el.textContent = msg;
+  const f = g.missing[0] && $(g.missing[0].id);
+  if (f) { f.scrollIntoView({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" }); setTimeout(() => f.focus({ preventScroll: true }), 300); }
+  return msg;
+}

@@ -11,8 +11,6 @@ onInit(() => {
       get: function(k, d){ try { var v = window.localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
       set: function(k, v){ try { window.localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
     };
-    function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-    function words(s){ var m = String(s).trim().match(/[A-Za-z0-9’'\-]+/g); return m ? m.length : 0; }
   
     /* ---------- Example tabs ---------- */
     var tabs = $$("#cg-ex-tabs .ig-tab");

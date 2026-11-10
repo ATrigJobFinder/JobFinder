@@ -273,7 +273,7 @@ function applyWelcome() {
   const on = !!builder.welcome, root = $("view-builder");
   if (!root) return;
   const w = $("bWelcome"); if (w) w.hidden = !on;
-  for (const sel of [".b-steps", ".b-layout", ".view-head .top-actions"]) { const el = root.querySelector(sel); if (el) el.hidden = on; }
+  for (const sel of [".b-layout", ".view-head .top-actions", ".b-steps"]) { const el = root.querySelector(sel); if (el) el.hidden = on; }
   root.classList.toggle("is-welcome", on);
   // With a resume in the profile, "from profile" is the blue way in; without one it is greyed out and uploading is blue
   const has = hasProfile(P()), pr = $("bwProfile"), up = $("bwUpload");
@@ -289,7 +289,6 @@ function openImportPanel(focusId) {
   const ub = $("bwUpload"); if (ub) ub.setAttribute("aria-expanded", "true");
   const ib = $("bImportBtn"); if (ib) ib.setAttribute("aria-expanded", "true");
   const fs = $("bFromScanner"); if (fs) fs.hidden = !(els.resume.value.trim() && wordCount(els.resume.value) > 40);
-  if (focusId === "bLiUrl" && !$("bLiUrl").value && P().contact.linkedin) $("bLiUrl").value = P().contact.linkedin;
   smoothToBottom(box, 16);
   const f = $(focusId); if (f) setTimeout(() => f.focus({ preventScroll: true }), 120);
 }
@@ -309,4 +308,38 @@ onInit(() => {
     else if (b.dataset.bw === "profile") { if (!hasProfile(P())) return; builder.welcome = false; builder.step = 0; renderBuilder(true); }
     else { builder.welcome = false; builder.step = 0; renderBuilder(true); }
   });
+  // Bringing something in doesn't move on by itself: Next does. If no AI is connected, ask first.
+  const next = $("bImportNext");
+  if (next) {
+    next.innerHTML = `Next: ${esc(B_STEPS[0].label)} <span aria-hidden="true">→</span>`;
+    next.addEventListener("click", async () => {
+      if (!(await aiIsConnected())) {
+        const choice = await askConnectAi();
+        if (choice === "connect") { openView("connect"); return; }
+        if (choice !== "skip") return;   // (closed with Esc: stay here)
+      }
+      builder.welcome = false; builder.step = 0; renderBuilder(true);
+      window.scrollTo({ top: 0 });
+    });
+  }
 });
+// Is an AI ready to write right now? A connected key or model, or a browser AI that is already on this computer
+// (one that still has to download its model doesn't count: nothing has been connected yet)
+async function aiIsConnected() {
+  if (USER_ENGINES.has(aiCfg.engine) && aiUsable(aiCfg.engine)) return true;
+  return aiChromeAllowed() && (await chromeAIRaw()) === "available";
+}
+// "No AI connected" pop-up → "connect", "skip" or "" (closed)
+function askConnectAi(what = "your bullet points and summary") {
+  return new Promise(resolve => {
+    let d = $("aiAskDlg");
+    if (!d) { d = document.createElement("dialog"); d.id = "aiAskDlg"; d.className = "jf-dialog"; d.setAttribute("aria-labelledby", "aiAskH"); document.body.appendChild(d); }
+    d.innerHTML = `<form method="dialog" class="jf-dialog-card"><h2 id="aiAskH">Connect an AI?</h2><p>No AI is connected yet. An AI writes ${esc(what)} in your own words.</p><p class="small muted">You can carry on without one. Job Finder will use its built-in templates instead, and you can connect an AI any time.</p><div class="b-actions"><button class="btn ghost" value="skip" type="submit" formnovalidate>Continue without AI</button><button class="btn primary" value="connect" type="submit" formnovalidate>Connect an AI</button></div></form>`;
+    // answered by a button (the form's submit) or closed another way (Esc): whichever comes first
+    let done = false;
+    const fin = v => { if (done) return; done = true; resolve(v === "connect" || v === "skip" ? v : ""); };
+    d.querySelector("form").addEventListener("submit", e => fin(e.submitter ? e.submitter.value : ""));
+    d.addEventListener("close", () => fin(d.returnValue), { once: true });
+    d.returnValue = ""; d.showModal();
+  });
+}

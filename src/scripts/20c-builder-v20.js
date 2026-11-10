@@ -1,7 +1,6 @@
 /* ===================== Version 20: resume builder additions ===================== */
 
 /* --- Date order: jobs and qualifications, newest first --- */
-const sortBtn = list => P()[list].length > 1 ? `<button class="btn" type="button" data-act="sort-date" data-list="${list}">Sort by date, newest first</button>` : "";
 function sortNoteHtml(list) {
   const n = builder.sortNote;
   return n && n.list === list ? `${esc(n.text)}${n.before ? ' <button class="linkish" type="button" data-act="sort-undo" data-list="' + list + '">Undo</button>' : ""}` : "";
@@ -47,14 +46,11 @@ function sortUndo(list) {
   touchProfile("builder"); renderBuilder(false);
 }
 
-/* --- "Tell us about this job" folds away once there are bullet points; a click opens it again --- */
+/* --- "Tell us about this job" (and the summary questions) fold down to a faded glimpse once there is something written; a click on the box opens it again --- */
 onInit(() => {
   $("bForm").addEventListener("click", e => {
-    const sm = e.target.closest("details.b-fold > summary");
-    if (!sm) return;
-    const d = sm.parentElement;
-    builder.foldOpen[+d.dataset.fold] = !d.open;   // the click is about to flip it
-    const hint = sm.querySelector(".muted"); if (hint) hint.textContent = d.open ? "Your answers are saved. Click to see or change them." : "";
+    const box = e.target.closest && e.target.closest(".b-aiin.is-folded");
+    if (box && !e.target.closest(".b-aiin-tog")) aiFold(box, true);   // (the Show / Hide button has its own handler)
   });
   $("bForm").addEventListener("click", e => { const b = e.target.closest('[data-act="sort-undo"]'); if (b) sortUndo(b.dataset.list); });
 });
@@ -65,12 +61,28 @@ Rules:
 1. Use only what they wrote. Never invent numbers, tools, results, team sizes or tasks.
 2. It must cover something the existing bullet points do NOT already say. Do not repeat, reword or overlap any fact in them: choose a different task, tool, person or result from the answers.
 3. One complete sentence without "I", following the formula: action verb + what they did + the result, with a number where possible (only a number they gave). 16 to 30 words.
-4. Past tense for a past job, present tense for a current job. Start with a verb that none of the existing bullet points starts with.
+4. Past tense unless their answers describe something they still do. Start with a verb that none of the existing bullet points starts with.
 5. No "I", "my", "responsible for", clichés or full stop at the end.
+${BULLET_STYLE}
 Reply with JSON only: {"bullets": ["..."]}`;
 // Does a new bullet repeat information the others already give?
 const overlapsAny = (t, others) => others.some(o => similarity(norm(t), norm(o)) >= 0.4 || keepsFacts(o, t) >= 0.6 || keepsFacts(t, o) >= 0.6 || firstWord(o) === firstWord(t));
 const firstWord = t => (String(t).match(/^[A-Za-z]+/) || [""])[0].toLowerCase();
+// "Add a bullet point" is written from the job title, the employer and the "Tell us about your job" answers, and nothing else:
+// not the dates, the rest of the resume or the summary. (The bullet points already on the job are listed only so it doesn't repeat them.)
+function bulletOnePrompt(e, have) {
+  return `<job>${e.title || "(title not given)"}${e.org ? ` at ${e.org}` : ""}</job>
+<their_answers>
+Main responsibilities: ${e.answers.duties || "(not given)"}
+Achievements and results: ${e.answers.wins || "(not given)"}
+Tools, software, equipment: ${e.answers.tools || "(not given)"}
+Who they worked with or for: ${e.answers.people || "(not given)"}
+</their_answers>
+<bullets_to_not_repeat>
+${have.map(b => "- " + b).join("\n") || "(none)"}
+</bullets_to_not_repeat>
+Write exactly one new bullet point from the job title, employer and answers above. It must not overlap with the bullet points to not repeat.`;
+}
 async function addOneBullet(i, btn) {
   const p = P(), e = p.experience[i];
   keepOpen();
@@ -90,8 +102,8 @@ async function addOneBullet(i, btn) {
   const src = [Object.values(e.answers).join("\n"), e.bullets.join("\n"), e.title, e.org].join("\n");
   let item = "", via = "", r = null;
   try {
-    r = await aiJSON({ nano: BULLET_ONE_NANO, full: BULLET_ONE_NANO, examples: BULLET_EXAMPLES.map(([u, a]) => [u, { bullets: a.bullets.slice(0, 1) }]), label: "Writing a bullet point", progress, schema: BULLETS_SCHEMA,
-      prompt: bulletPrompt(e, []) + `\nWrite exactly one new bullet point. It must not overlap with these existing ones:\n${have.map(b => "- " + b).join("\n") || "(none)"}`,
+    r = await aiJSON({ tier: "small", nano: BULLET_ONE_NANO, full: BULLET_ONE_NANO, examples: BULLET_EXAMPLES.map(([u, a]) => [u, { bullets: a.bullets.slice(0, 1) }]), label: "Writing a bullet point", progress, schema: BULLETS_SCHEMA,
+      prompt: bulletOnePrompt(e, have),
       check: d => {
         const ok = (Array.isArray(d.bullets) ? d.bullets : []).map(b => honest(b, src, { min: 12, max: 34 })).filter(Boolean).filter(b => !overlapsAny(b, have));
         return ok.length ? { ok: true, value: ok.slice(0, 1) } : { ok: false, why: "write one bullet point of 16 to 30 words about something the existing bullet points don't mention, using only their details" };
@@ -122,13 +134,14 @@ Rules:
 3. Turn casual or vague words into professional ones that mean the same. Spell out short forms. Fix spelling (Australian) and capitals, including tool names.
 4. 8 to 30 words each, no full stop at the end, never "I", "me" or "my". Don't start two lines with the same verb.
 5. Return the same number of lines, in the same order.
+${BULLET_STYLE}
 Reply with JSON only: {"bullets": ["..."]}`;
 function polishProject(e, progress) {
   const lines = linesOf(e.details);
   if (!lines.length) return Promise.resolve({ data: null, via: null });
   const src = [e.name, e.org, lines.join("\n")].join("\n");
   const prompt = `<project>${e.name}${e.org ? ` (${e.org})` : ""}${e.current ? ", ongoing: present tense" : ", finished: past tense"}</project>\n<lines>\n${lines.map((b, k) => `${k + 1}. ${b}`).join("\n")}\n</lines>`;
-  return aiJSON({ nano: POLISH_PROJ_NANO, full: POLISH_PROJ_NANO, prompt, schema: BULLETS_SCHEMA, label: "Rewriting this project", progress,
+  return aiJSON({ tier: "small", nano: POLISH_PROJ_NANO, full: POLISH_PROJ_NANO, prompt, schema: BULLETS_SCHEMA, label: "Rewriting this project", progress,
     check: d => {
       const bl = (Array.isArray(d.bullets) ? d.bullets : []).map(b => stripMarkup(String(b)).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean);
       if (bl.length !== lines.length) return { ok: false, why: `return exactly ${lines.length} lines, in the same order` };

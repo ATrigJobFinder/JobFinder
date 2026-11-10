@@ -200,7 +200,7 @@ onInit(() => {
     if (a === "stop") stopTake();
     else if (a === "skip") { stopSpeaking(); if (take.phase === "speaking") afterAsk(q, my); }
     else if (a === "start") startTake(q, my);
-    else if (a === "retake") { const keep = take.stream; resetTake(true); take.q = q; take.phase = "idle"; const ta = $("ivAnswer"); if (ta) { ta.value = ""; updateCount(); } hideChoice(); const dn = $("ivDone"); if (dn) dn.hidden = true; ivStepTo(1); const bar = $("ivMeter"); take.meter = startMeter(take.stream, lvl => { if (bar) bar.style.width = Math.min(100, Math.round(lvl * 320)) + "%"; }); take.meterT0 = performance.now(); renderPlayback(); startTake(q, take.token); }
+    else if (a === "retake") { resetTake(true); take.q = q; take.phase = "idle"; const ta = $("ivAnswer"); if (ta) { ta.value = ""; updateCount(); } hideChoice(); const dn = $("ivDone"); if (dn) dn.hidden = true; ivStepTo(1); const bar = $("ivMeter"); take.meter = startMeter(take.stream, lvl => { if (bar) bar.style.width = Math.min(100, Math.round(lvl * 320)) + "%"; }); take.meterT0 = performance.now(); renderPlayback(); startTake(q, take.token); }
     else if (a === "replay") { stopSpeaking(); speakText(q.text, null); }
     else if (a === "retry") { resetTake(false); voiceBegin(q); }
     else if (a === "end") { endPractice(); takeSay("Practice ended. The camera and microphone are off."); }

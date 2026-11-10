@@ -11,7 +11,8 @@ function showInputs(on) {
   $("scanRow").hidden = !on && !!lastResult;
   $("inputsBar").hidden = on || !lastResult;
   if (!on && lastResult) {
-    $("barResume").textContent = fileInfo ? fileInfo.name : `Pasted text, ${wordCount(els.resume.value)} words`;
+    const ri = tlResumeInfo();
+    $("barResume").textContent = ri && ri.kind !== "text" ? ri.name : fileInfo ? fileInfo.name : `${wordCount(els.resume.value)} words`;
     const role = detectTitle(els.jd.value, els.title.value);
     $("barJob").textContent = role || `Pasted ad, ${wordCount(els.jd.value)} words`;
   }
@@ -50,10 +51,11 @@ function updateFlow() {
     if (n === current) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
     b.disabled = n >= 4 && !lastResult;
   });
+  tlRender();
   els.scan.disabled = !(ok.r && ok.j);
   els.scan.lastChild.textContent = lastResult ? " Scan again" : $("view-scanner").dataset.tailor === "letter" ? " Scan the job ad" : " Scan resume";
   $("scanHint").textContent = !ok.r && !ok.j ? "Add the job ad (step 1) and your resume (step 2) to scan."
-    : !ok.r ? "Add your resume in step 2. Upload a file or paste at least a few lines."
+    : !ok.r ? "Add your resume: press Change my resume or cover letter in step 2."
     : !ok.j ? "Paste the full job ad in step 1, including the requirements."
     : lastResult && !stale ? "" : "Ready. You'll get a match score, missing skills, ATS checks and recruiter tips.";
   $("exampleText").innerHTML = lastResult ? "These results are for a made-up resume and job ad. Select <b>Start over</b> to scan your own." : "A made-up resume and job ad are loaded. Select <b>Scan resume</b> to see how it works, or replace them with your own.";

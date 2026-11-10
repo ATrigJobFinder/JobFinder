@@ -204,7 +204,6 @@ function analyse(resumeRaw, jdRaw, typedTitle, fileInfo, opts = {}) {
     if (c.kind === "uni") { const t = toks.find(t => !t.stop && stem(t.w) === c.term); if (t) label = t.w; }
     return { term: label, n: c.n, found };
   });
-  const termsScore = terms.length >= 3 ? Math.round(100 * terms.filter(t => t.found).length / terms.length) : null;
 
   // Job title (a program like "CIMIC Group Graduate Program 2027" isn't a job title to match)
   const title = detectTitle(jdRaw, typedTitle);

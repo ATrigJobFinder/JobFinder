@@ -14,9 +14,9 @@ $("clearAll").addEventListener("click", () => {
 });
 els.pick.addEventListener("click", () => els.fileInput.click());
 els.fileInput.addEventListener("change", () => handleFile(els.fileInput.files[0]));
-["dragenter", "dragover"].forEach(t => $("step-resume").addEventListener(t, e => { e.preventDefault(); els.drop.classList.add("over"); }));
-["dragleave", "drop"].forEach(t => $("step-resume").addEventListener(t, e => { e.preventDefault(); if (t === "drop" || !$("step-resume").contains(e.relatedTarget)) els.drop.classList.remove("over"); }));
-$("step-resume").addEventListener("drop", e => handleFile(e.dataTransfer && e.dataTransfer.files[0]));
+["dragenter", "dragover"].forEach(t => $("tlResCol").addEventListener(t, e => { e.preventDefault(); els.drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => $("tlResCol").addEventListener(t, e => { e.preventDefault(); if (t === "drop" || !$("tlResCol").contains(e.relatedTarget)) els.drop.classList.remove("over"); }));
+$("tlResCol").addEventListener("drop", e => { if (e.dataTransfer && e.dataTransfer.files.length > 1) { els.fileStatus.classList.add("err"); els.fileStatus.textContent = "Add one resume at a time."; return; } handleFile(e.dataTransfer && e.dataTransfer.files[0]); });
 // Small edits keep the link to the uploaded file (so the download keeps its layout); pasting a different resume drops it
 function stillSameFile() {
   if (!fileInfo || !fileInfo.text) return false;

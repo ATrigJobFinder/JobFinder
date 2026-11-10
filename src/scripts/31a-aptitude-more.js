@@ -42,7 +42,8 @@ const APT_AREA_OF_JOB = { graduate: "grad", accounting: "finance", banking: "fin
 /* --- Mechanical reasoning --- */
 const fmtNum = x => String(Math.round(x * 100) / 100);
 function genMechanical() {
-  const kind = pick(["lever", "gear", "pulley", "hydraulic", "belt", "resistor", "torque"]);
+  const kind = aptMechKind();
+  if (APT_HARD_MECH[kind]) return APT_HARD_MECH[kind]();   // the Hard kinds are in 31c
   if (kind === "lever") {
     let ans, eff, d, load, t = 0;
     do { ans = pick([0.5, 1, 1.5, 2, 2.5, 3]); eff = pick([10, 20, 30, 40]); d = pick([0.5, 1, 2]); load = ans * eff / d; } while (!Number.isInteger(load) && ++t < 30);
@@ -51,7 +52,7 @@ function genMechanical() {
   if (kind === "gear") {
     const [tA, tB] = pick([[12, 36], [20, 40], [15, 45], [30, 10], [40, 20], [24, 12], [18, 54]]);
     let rpm; do { rpm = pick([60, 90, 120, 150, 180, 240]); } while ((rpm * tA) % tB);
-    const idler = Math.random() < 0.4, out = rpm * tA / tB, same = idler, dirB = same ? "clockwise" : "anticlockwise", other = same ? "anticlockwise" : "clockwise";
+    const idler = aptLevel === "easy" ? false : Math.random() < 0.4, out = rpm * tA / tB, same = idler, dirB = same ? "clockwise" : "anticlockwise", other = same ? "anticlockwise" : "clockwise";
     const fmt = (r, d) => `${r} rpm ${d}`;
     return { text: `Gear A has ${tA} teeth and turns clockwise at ${rpm} rpm. ${idler ? `It drives gear B (${tB} teeth) through a small idler gear in between.` : `It meshes directly with gear B, which has ${tB} teeth.`} How does gear B turn?`, ...withOptions(fmt(out, dirB), [fmt(out, other), fmt(rpm * tB / tA, dirB), fmt(rpm * tB / tA, other), fmt(rpm, dirB)], 4, x => x), why: `Speed: ${rpm} × ${tA} ÷ ${tB} = ${out} rpm (the gear with fewer teeth turns faster). Direction: ${idler ? "the idler reverses it once and gear B reverses it again, so B turns the same way as A: clockwise" : "meshed gears turn in opposite directions, so B turns anticlockwise"}.`, skill: "gears" };
   }
@@ -69,7 +70,7 @@ function genMechanical() {
     return { text: `A belt joins a pulley of diameter ${d1} cm, turning at ${rpm} rpm, to a larger pulley of diameter ${d2} cm. How fast does the larger pulley turn?`, ...withOptions(ans, [rpm * m, rpm, rpm / (m + 1), rpm - d1], 4, x => `${fmtNum(x)} rpm`), why: `The belt moves at the same speed, so a pulley ${m} times bigger turns ${m} times slower: ${rpm} ÷ ${m} = ${ans} rpm.`, skill: "belt drives" };
   }
   if (kind === "resistor") {
-    const par = Math.random() < 0.6, [a, b] = pick([[6, 12], [10, 10], [4, 12], [3, 6], [20, 30], [15, 10]]), ans = par ? a * b / (a + b) : a + b;
+    const par = aptLevel === "easy" ? false : Math.random() < 0.6, [a, b] = pick([[6, 12], [10, 10], [4, 12], [3, 6], [20, 30], [15, 10]]), ans = par ? a * b / (a + b) : a + b;
     return { text: `Two resistors of ${a} Ω and ${b} Ω are connected in ${par ? "parallel" : "series"}. What is the total resistance?`, ...withOptions(ans, [par ? a + b : a * b / (a + b), (a + b) / 2, a * b, Math.abs(a - b) + 1], 4, x => `${fmtNum(x)} Ω`), why: par ? `In parallel: (${a} × ${b}) ÷ (${a} + ${b}) = ${fmtNum(ans)} Ω, always less than the smaller resistor.` : `In series the resistances add: ${a} + ${b} = ${ans} Ω.`, skill: "circuits" };
   }
   const f = pick([20, 30, 40, 50]), d = pick([0.2, 0.3, 0.4, 0.5]), ans = f * d;
@@ -90,7 +91,7 @@ const ecMakers = [
 function ecCorrupt(s) {
   for (let t = 0; t < 30; t++) {
     const ch = [...s], idx = ch.map((c, i) => /[A-Za-z0-9]/.test(c) ? i : -1).filter(i => i >= 0), i = pick(idx);
-    const kind = pick(["digit", "letter", "drop", "swap", "double"]);
+    const kind = pick(aptEc().kinds);
     let out = s;
     if (kind === "digit" && /\d/.test(ch[i])) { ch[i] = String((+ch[i] + rnd(1, 8)) % 10); out = ch.join(""); }
     else if (kind === "letter" && /[A-Za-z]/.test(ch[i])) { ch[i] = pick("ABCDEFGHKLMNPRSTXYZ".split("").filter(x => x.toLowerCase() !== ch[i].toLowerCase())); out = ch.join(""); }
@@ -102,21 +103,21 @@ function ecCorrupt(s) {
   return s + "0";
 }
 function genErrorCheck() {
-  const make = pick(ecMakers), counting = Math.random() < 0.5;
-  const rowsN = counting ? 5 : 4;
+  const L = aptEc(), make = pick(L.makers.map(k => ecMakers[k])), counting = Math.random() < L.rate;
+  const rowsN = counting ? L.rows[0] : L.rows[1];
   const orig = Array.from({ length: rowsN }, make);
   let bad;
-  if (counting) { const c = rnd(0, 3); bad = new Set(shuffle([0, 1, 2, 3, 4]).slice(0, c)); }
-  else bad = Math.random() < 0.2 ? new Set() : new Set([rnd(0, 3)]);
+  if (counting) { const c = rnd(L.bad[0], L.bad[1]); bad = new Set(shuffle(Array.from({ length: rowsN }, (_, k) => k)).slice(0, c)); }
+  else bad = Math.random() < L.none ? new Set() : new Set([rnd(0, rowsN - 1)]);
   const copy = orig.map((s, k) => bad.has(k) ? ecCorrupt(s) : s);
   const table = { title: "Compare each original with its copy", cols: ["Original", "Copy"], rows: orig.map((_, k) => `Row ${k + 1}`), data: orig.map((s, k) => [s, copy[k]]) };
   const diffRows = [...bad].sort((a, b) => a - b).map(k => `Row ${k + 1}: “${orig[k]}” became “${copy[k]}”`);
   if (counting) {
-    const ans = bad.size, opts = shuffle([0, 1, 2, 3, 4, 5].filter(x => x !== ans)).slice(0, 3);
+    const ans = bad.size, opts = shuffle(Array.from({ length: rowsN + 1 }, (_, k) => k).filter(x => x !== ans)).slice(0, 3);
     return { text: "How many of these pairs do not match exactly?", table, ...withOptions(ans, opts, 4, String), why: diffRows.length ? `${diffRows.join("; ")}. That's ${ans}.` : "Every copy matches its original, so the answer is 0.", skill: "spotting differences" };
   }
   const labels = Array.from({ length: rowsN }, (_, k) => `Row ${k + 1}`).concat("No errors");
-  return { text: "Which row has an error in the copy?", table, options: labels, answer: bad.size ? [...bad][0] : rowsN, why: bad.size ? `${diffRows[0]}.` : "All four copies match their originals.", skill: "spotting differences" };
+  return { text: "Which row has an error in the copy?", table, options: labels, answer: bad.size ? [...bad][0] : rowsN, why: bad.size ? `${diffRows[0]}.` : "All the copies match their originals.", skill: "spotting differences" };
 }
 const genErrorCheckSet = n => Array.from({ length: n }, genErrorCheck);
 
@@ -150,13 +151,13 @@ function gridSVG(cells, label, size = 4) {
 }
 const placeShape = cs => { const n = cellNorm(cs), [h, w] = bbox(n), dr = Math.floor((4 - h) / 2), dc = Math.floor((4 - w) / 2); return n.map(([r, c]) => [r + dr, c + dc]); };
 function genSpatial(depth = 0) {
-  const size = pick([5, 6]);
+  const size = pick(aptSpatialSizes());
   let shape, rots, mir, t = 0;
   do { shape = randomShape(size); rots = new Set([0, 1, 2, 3].map(k => cellKey(rotN(shape, k)))); mir = mirror(shape); } while (rots.has(cellKey(mir)) && ++t < 40);
   const correct = rotN(shape, rnd(1, 3));
   const variants = [], seen = new Set([cellKey(correct)]);
   const add = cs => { const k = cellKey(cs); if (!seen.has(k) && !rots.has(k) && bbox(cs).every(x => x <= 4)) { seen.add(k); variants.push(cs); } };
-  if (!rots.has(cellKey(mir))) add(rotN(mir, rnd(0, 3)));
+  if (aptLevel !== "easy" && !rots.has(cellKey(mir))) add(rotN(mir, rnd(0, 3)));   // the flipped shape is the Medium and Hard trap
   for (let tries = 0; tries < 60 && variants.length < 3; tries++) {
     const cs = shape.map(c => c.slice()), i = rnd(0, cs.length - 1), [dr, dc] = pick([[1, 0], [-1, 0], [0, 1], [0, -1]]);
     const moved = [cs[i][0] + dr, cs[i][1] + dc];
@@ -178,33 +179,33 @@ const MEM_WORDS = ["anchor", "bridge", "candle", "dolphin", "engine", "forest", 
 function genMemory() {
   const kind = pick(["digits", "words", "pattern"]);
   if (kind === "digits") {
-    const n = rnd(6, 8), d = Array.from({ length: n }, () => rnd(0, 9));
+    const ML = aptMem(), n = rnd(ML.digits[0], ML.digits[1]), d = Array.from({ length: n }, () => rnd(0, 9));
     if (new Set(d).size < 4) d[1] = (d[0] + 3) % 10;
     const seq = d.join(" "), alt = (arr) => arr.join(" ");
     const swap = d.slice(); const i = rnd(0, n - 2); [swap[i], swap[i + 1]] = [swap[i + 1], swap[i]];
     const change = d.slice(); change[rnd(0, n - 1)] = (change[rnd(0, n - 1)] + 3) % 10;
     const rev = d.slice().reverse(), shift = d.slice(1).concat(d[0]);
     const c2 = d.slice(); const j = rnd(0, n - 1); c2[j] = (c2[j] + rnd(1, 8)) % 10;
-    return { flash: { html: `<p class="apt-digits">${seq}</p>`, secs: 5, note: `Remember these ${n} numbers, in order.` }, text: "Which sequence was shown?", ...withOptions(seq, [alt(swap), alt(c2), alt(rev), alt(shift), alt(change)], 4, x => x), why: `The sequence was ${seq}. The wrong options have two numbers swapped, one number changed, or the order turned around.`, skill: "number memory" };
+    return { flash: { html: `<p class="apt-digits">${seq}</p>`, secs: Math.round(5 * ML.secs), note: `Remember these ${n} numbers, in order.` }, text: "Which sequence was shown?", ...withOptions(seq, [alt(swap), alt(c2), alt(rev), alt(shift), alt(change)], 4, x => x), why: `The sequence was ${seq}. The wrong options have two numbers swapped, one number changed, or the order turned around.`, skill: "number memory" };
   }
   if (kind === "words") {
-    const words = shuffle(MEM_WORDS).slice(0, 10), shown = words.slice(0, 6), unseen = words.slice(6);
+    const WK = aptMem().words, words = shuffle(MEM_WORDS).slice(0, WK + 4), shown = words.slice(0, WK), unseen = words.slice(WK);
     const missing = Math.random() < 0.5;
-    const flash = { html: `<p class="apt-words">${shown.map(esc).join(" · ")}</p>`, secs: 6, note: "Remember these six words." };
+    const flash = { html: `<p class="apt-words">${shown.map(esc).join(" · ")}</p>`, secs: Math.round(6 * aptMem().secs), note: `Remember these ${NUM_WORD[WK]} words.` };
     if (missing) return { flash, text: "Which of these words was NOT shown?", ...withOptions(unseen[0], shown.slice(0, 4), 5, x => x), why: `The words shown were ${shown.join(", ")}. “${unseen[0]}” wasn't one of them.`, skill: "word memory" };
-    return { flash, text: "Which of these words WAS shown?", ...withOptions(shown[rnd(0, 5)], unseen.slice(0, 4), 5, x => x), why: `The words shown were ${shown.join(", ")}.`, skill: "word memory" };
+    return { flash, text: "Which of these words WAS shown?", ...withOptions(shown[rnd(0, WK - 1)], unseen.slice(0, 4), 5, x => x), why: `The words shown were ${shown.join(", ")}.`, skill: "word memory" };
   }
-  const cells = shuffle(Array.from({ length: 16 }, (_, k) => [Math.floor(k / 4), k % 4])).slice(0, 5);
+  const cells = shuffle(Array.from({ length: 16 }, (_, k) => [Math.floor(k / 4), k % 4])).slice(0, aptMem().cells);
   const vars = [], seen = new Set([cellKey(cells)]);
   for (let t = 0; t < 40 && vars.length < 3; t++) {
-    const cs = cells.map(c => c.slice()), i = rnd(0, 4), free = Array.from({ length: 16 }, (_, k) => [Math.floor(k / 4), k % 4]).filter(c => !cs.some(x => x[0] === c[0] && x[1] === c[1]));
+    const cs = cells.map(c => c.slice()), i = rnd(0, cells.length - 1), free = Array.from({ length: 16 }, (_, k) => [Math.floor(k / 4), k % 4]).filter(c => !cs.some(x => x[0] === c[0] && x[1] === c[1]));
     cs[i] = pick(free);
     const k = cs.map(c => c.join(",")).sort().join("|");
     if (!seen.has(k) && !seen.has(cellKey(cs))) { seen.add(k); vars.push(cs); }
   }
   const exact = c => c.map(x => x.join(",")).sort().join("|");
   const opts = shuffle([cells, ...vars.slice(0, 3)]);
-  return { flash: { html: `<div class="apt-flashgrid">${gridSVG(cells, "Pattern to remember")}</div>`, secs: 4, note: "Remember which squares are filled." }, text: "Which pattern was shown?", optHtml: opts.map((o, k) => gridSVG(o, `Option ${LETTERS[k]}`)), options: opts.map((_, k) => `Option ${LETTERS[k]}`), answer: opts.findIndex(o => exact(o) === exact(cells)), why: "Look at the overall shape first (a line, a corner, a block), then check the odd squares. The wrong options have one square in a different place.", skill: "pattern memory" };
+  return { flash: { html: `<div class="apt-flashgrid">${gridSVG(cells, "Pattern to remember")}</div>`, secs: Math.round(4 * aptMem().secs), note: "Remember which squares are filled." }, text: "Which pattern was shown?", optHtml: opts.map((o, k) => gridSVG(o, `Option ${LETTERS[k]}`)), options: opts.map((_, k) => `Option ${LETTERS[k]}`), answer: opts.findIndex(o => exact(o) === exact(cells)), why: "Look at the overall shape first (a line, a corner, a block), then check the odd squares. The wrong options have one square in a different place.", skill: "pattern memory" };
 }
 const genMemorySet = n => Array.from({ length: n }, genMemory);
 

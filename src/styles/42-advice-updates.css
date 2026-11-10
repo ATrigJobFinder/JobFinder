@@ -148,7 +148,6 @@ dialog.adv-pop::backdrop { background: rgba(8, 12, 20, 0.5); }
 .sum-meta .q-hint { margin: 0; flex: 1 1 auto; }
 .sum-words { flex: none; font-size: var(--step--1); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sum-acts { align-items: center; }
-.sum-acts #bSumOk:empty { display: none; }
 
 /* +5 floats up from the resume strength when a job is finished */
 .score-pop { position: fixed; z-index: 90; pointer-events: none; font: 800 1.5rem/1 var(--font-body, system-ui); color: var(--good); text-shadow: 0 1px 0 var(--surface), 0 0 10px var(--surface); animation: scorePop 2s ease-out forwards; }

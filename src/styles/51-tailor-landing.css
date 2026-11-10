@@ -1,0 +1,42 @@
+/* ===================== Tailor to a job: the opening page (step 0) ===================== */
+/* a small grey label in the header, like Create or Edit Resume, and nothing but the opening page below it */
+#view-scanner.is-welcome #scannerTitle { font-size: 0.75rem; font-weight: 700; font-stretch: normal; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0; }
+#view-scanner.is-welcome #tailorIntro { display: none; }
+#view-scanner.is-welcome > .wrap > :not(header.top):not(#tlWelcome):not(footer.note) { display: none !important; }
+#view-scanner.is-welcome .wrap { gap: 0; }
+#view-scanner.is-welcome header.top { padding-block: 16px 0; }
+#view-scanner.is-welcome .b-welcome { margin-top: 0; }
+#view-scanner.is-welcome .bw-hero { padding-top: 0; }
+#view-scanner.is-welcome footer.note { margin-top: 28px; }
+
+/* "Use my profile" is one wide card on top */
+.bw-cards.bw-cards--one { grid-template-columns: minmax(0, 1fr); }
+#tlWelcome .bw-ico { background: var(--warn-bg); color: var(--warn); }
+#tlWelcome .bw-card:not(.bw-card--go) i { color: var(--ink); }
+#tlWelcome .bw-card:disabled .bw-ico { background: var(--line); color: var(--muted); }
+#tlWelcome .bw-card:disabled i { color: var(--muted); }
+#tlWelcome .bw-card--go .bw-ico { background: rgba(255, 255, 255, .2); color: inherit; }
+#tlWelcome .b-import { margin-top: 14px; }
+#tlWelcome .lt-pick { margin: 14px 0 0; }
+#tlWelcome .b-import-col > .drop { min-height: 12rem; }
+#tlWelcome .b-file { min-height: 12rem; }
+#tlWelcome .b-import-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+@container main (max-width: 760px) { #tlWelcome .b-import-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { #tlWelcome .b-import-grid { grid-template-columns: minmax(0, 1fr); } }
+/* with "Resume only" the cover letter box goes, and the resume box takes the width */
+#tlWelcome .b-import-col[hidden] { display: none; }
+#view-scanner[data-tailor="resume"] #tlWelcome .b-import-grid { grid-template-columns: minmax(0, 1fr); max-width: 44rem; margin-inline: auto; }
+#tlWelcome .file-status:empty, #tlwNote:empty { display: none; }
+
+/* what was found in a file or a letter */
+.tl-found { font-size: var(--step--1); color: var(--muted); overflow-wrap: anywhere; }
+.cl-files .b-file-ico { width: 30px; }
+.cl-files .cl-file { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.cl-files .cl-file-t { display: grid; gap: 1px; min-width: 0; }
+
+/* step 2 on the job ad page: the same cards, in a row, with Change */
+.tl-sum { display: grid; gap: 8px; }
+.tl-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.tl-row .b-file-ico { width: 30px; }
+.tl-row-t { display: grid; gap: 1px; min-width: 0; }
+.tl-row-t b { overflow-wrap: anywhere; }

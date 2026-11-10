@@ -107,3 +107,9 @@
 .b-sortwrap .sort-pick select { min-width: 0; font-size: 0.8rem; padding: 4px 26px 4px 8px; }
 .b-sortwrap .sort-note { text-align: right; }
 .b-sortwrap .sort-help { align-self: stretch; }
+#view-builder.is-welcome .b-steps { margin-bottom: 14px; }
+/* Several titles at one employer: one collapsible, with a full job card inside for each title */
+.b-co > summary { font-weight: 700; }
+.b-co-roles { display: grid; gap: 10px; margin-left: 6px; padding-left: 14px; border-left: 3px solid var(--accent-soft); }
+.b-co-roles > details.b-role { margin: 0; }
+.b-co > .b-card-body > .b-role-add { margin-top: 10px; }

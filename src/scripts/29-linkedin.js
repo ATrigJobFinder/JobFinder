@@ -67,6 +67,10 @@ function parseLinkedInColumns(side, main) {
   if (out.location) out.checks.location = true;
   if ((sb.certifications || []).length) out.checks.certs = true;
   // for the resume builder: the certificates and languages listed down the side
+  // the email, mobile number and profile link in the Contact box (the link wraps over two lines, so spaces are ignored)
+  const em = contact.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/); if (em) out.email = em[0];
+  const ph = (sb.contact || []).map(l => l.match(/^(\+?[\d\s().-]{7,}?)\s*\((?:Mobile|Home|Work)\)/i)).find(Boolean); if (ph) out.phone = ph[1].trim();
+  const um = contact.replace(/\s/g, "").match(/linkedin\.com\/in\/[A-Za-z0-9_%-]+/i); if (um) out.url = um[0];
   out.certs = (sb.certifications || []).filter(l => l.length <= 90);
   out.languages = (sb.languages || []).filter(l => l.length <= 60);
   return out;
@@ -133,12 +137,13 @@ function liRoles(text) {
   lines.forEach((l, i) => {
     if (!LI_DATES.test(l)) return;
     const title = lines[i - 1] || "", company = lines[i - 2] && !LI_DATES.test(lines[i - 2]) && !/^\d+ (yrs?|years?|mos?|months?)/i.test(lines[i - 2]) ? lines[i - 2] : "";
-    roles.push({ title, company, dates: l.match(LI_DATES)[0], start: i + 1, current: /present/i.test(l) });
+    roles.push({ title, company, dates: l.match(LI_DATES)[0], start: i + 1, head: company ? i - 2 : i - 1, current: /present/i.test(l) });
   });
   roles.forEach((r, k) => {
-    const end = k + 1 < roles.length ? roles[k + 1].start - 3 : lines.length - 1;
-    let body = lines.slice(r.start, end + 1);
-    if (body[0] && body[0].length < 50 && /,|remote|hybrid|on-site|australia/i.test(body[0])) body = body.slice(1);
+    // a role's text runs up to the next role's company line (not into it)
+    let body = lines.slice(r.start, k + 1 < roles.length ? Math.max(r.start, roles[k + 1].head) : lines.length);
+    r.loc = "";
+    if (body[0] && body[0].length < 50 && /,|remote|hybrid|on-site|australia/i.test(body[0])) { r.loc = body[0]; body = body.slice(1); }
     r.desc = body.join("\n");
   });
   return roles;
@@ -335,6 +340,137 @@ function liToForm() {
   $("liChecks").innerHTML = LI_CHECKS.map(([k, label]) => `<label class="q-check"><input type="checkbox" data-k="${k}"${inp.checks[k] ? " checked" : ""}> ${esc(label)}</label>`).join("");
   $("liHeadCount").textContent = `${(inp.headline || "").length}/220`;
 }
+/* --- The bottom of the page, the same as the resume and the cover letter: Download as…, Copy text, Save to my profile…, saved versions, what next --- */
+const savedLinkedIns = privateDoc("savedLinkedIns", "jobfinder.savedLinkedIns.v1", () => ({ list: [] }));
+const LI_SECTIONS = [["headline", "Headline"], ["about", "About"], ["experience", "Experience"], ["skills", "Skills"], ["education", "Education"]];
+// What goes in the file: your name and link, then each section you have filled in
+const liDocOf = inp => ({ name: String((P().contact || {}).name || "").trim(), url: inp.url || "", sections: LI_SECTIONS.map(([k, h]) => [h, String(inp[k] || "").trim()]).filter(x => x[1]) });
+function liPlainText(d) {
+  const out = [d.name, d.url].filter(Boolean);
+  for (const [h, t] of d.sections) out.push("", h.toUpperCase(), t);
+  return out.join("\n").trim();
+}
+async function liBuildDocx(d) {
+  await loadScript(JSZIP);
+  const x = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const run = (t, o = {}) => `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>${o.b ? "<w:b/>" : ""}<w:color w:val="${o.color || "222222"}"/><w:sz w:val="${o.sz || 22}"/></w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
+  const para = (r, o = {}) => `<w:p><w:pPr>${o.keep ? "<w:keepNext/>" : ""}<w:spacing w:before="${o.before || 0}" w:after="${o.after == null ? 120 : o.after}"/></w:pPr>${r}</w:p>`;
+  const body = [];
+  if (d.name) body.push(para(run(d.name, { b: true, sz: 36, color: "1F3A5F" }), { after: 40 }));
+  if (d.url) body.push(para(run(d.url, { sz: 20, color: "555555" }), { after: 120 }));
+  for (const [h, t] of d.sections) {
+    body.push(para(run(h.toUpperCase(), { b: true, sz: 22, color: "1F3A5F" }), { before: 240, after: 80, keep: true }));
+    t.split(/\n+/).filter(Boolean).forEach(l => body.push(para(run(l))));
+  }
+  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="${W_NS}"><w:body>${body.join("")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const zip = new window.JSZip();
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+  zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  zip.file("word/document.xml", docXml);
+  return zip.generateAsync({ type: "blob", mimeType: DOCX_MIME, compression: "DEFLATE" });
+}
+async function liBuildPdf(d) {
+  await loadScript(JSPDF);
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" });
+  // the built-in PDF fonts cover basic Latin; swap typographic marks they can't show
+  const safe = t => String(t).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, "-").replace(/…/g, "...").replace(/[^\x00-\xFF]/g, "");
+  const M = 20, W = 210 - 2 * M, LH = 5.6;
+  let y = M;
+  const line = (t, size, bold, rgb, gap = 0) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(...rgb);
+    y += gap;
+    for (const l of doc.splitTextToSize(safe(t), W)) { if (y + LH > 297 - M) { doc.addPage(); y = M; } doc.text(l, M, y); y += LH; }
+  };
+  if (d.name) line(d.name, 18, true, [31, 58, 95]);
+  if (d.url) line(d.url, 10, false, [85, 85, 85]);
+  for (const [h, t] of d.sections) { line(h.toUpperCase(), 11, true, [31, 58, 95], 6); line(t, 10.5, false, [30, 37, 51], 1); }
+  return doc.output("blob");
+}
+// input: a saved version's answers; left out, it is what is on the page now
+async function liDownload(kind, btn, input) {
+  const inp = input || (liFromForm(), linStore.data.input), st = $("liDlStatus");
+  const d = liDocOf(inp);
+  if (!d.sections.length) { if (st) st.textContent = "Add your headline, About or experience first."; return; }
+  const name = `${d.name || "My"} - LinkedIn profile`.replace(/[\\/:*?"<>|]+/g, "").slice(0, 150) + "." + kind;
+  if (kind === "txt") return downloadTextFile(name, liPlainText(d), st, btn);
+  await downloadMade(name, () => kind === "pdf" ? liBuildPdf(d) : liBuildDocx(d), st, btn);
+  linStore.data.completed = todayISO(); linStore.save();
+}
+const liSavedInput = b => ((savedLinkedIns.data.list || [])[+b.dataset.k] || {}).input;
+dlMenu("liDl", { docx: b => liDownload("docx", b), pdf: b => liDownload("pdf", b), txt: b => liDownload("txt", b) });
+dlMenu("saved-linkedin", { docx: b => liDownload("docx", b, liSavedInput(b)), pdf: b => liDownload("pdf", b, liSavedInput(b)), txt: b => liDownload("txt", b, liSavedInput(b)) });
+async function liSaveVersion() {
+  const st = $("liSaveStatus");
+  // saving to your profile needs an account (inside Claude, or where accounts aren't switched on, it saves privately as before)
+  if (typeof acctOn === "function" && acctOn() && !account.user && !(window.claude && window.claude.use)) {
+    acctDialog("up");
+    const m = document.querySelector("#acctDlg #acctMsg");
+    if (m) { m.textContent = "Saving a LinkedIn profile to your profile needs a free account. Sign up or sign in, then press Save again."; m.className = "acct-msg"; }
+    return;
+  }
+  liFromForm();
+  const inp = linStore.data.input;
+  const name = await askName({ title: "Save this LinkedIn to your profile", text: "Your headline, About, experience, skills and education are saved as they are now. Saving again with the same name replaces it.", label: "Name it", value: inp.target || P().target.title || "My LinkedIn" });
+  if (!name) return;
+  await savedLinkedIns.ready;
+  const list = savedLinkedIns.data.list = (savedLinkedIns.data.list || []).filter(x => x.name.toLowerCase() !== name.toLowerCase());
+  list.unshift({ id: uid8(), name, saved: new Date().toISOString(), input: JSON.parse(JSON.stringify(inp)) });
+  if (list.length > MAX_SAVED) list.length = MAX_SAVED;
+  savedLinkedIns.save(true);
+  linStore.data.completed = todayISO(); linStore.save();
+  const box = $("liSaved"); if (box) box.innerHTML = liSavedHtml();
+  if (st) st.textContent = `“${name}” is ${whereWords(savedLinkedIns.where === "loading" ? profile.where : savedLinkedIns.where)}.`;
+}
+function liSavedHtml() {
+  const list = savedLinkedIns.data.list || [];
+  return list.length ? `<div class="b-sub">Saved versions</div><ul class="saved-list" aria-label="Your saved LinkedIn profiles">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))}</span></span><span class="b-actions"><button class="btn" type="button" data-li-act="saved-open" data-k="${k}">Open</button><button class="btn ghost" type="button" data-dlmenu="saved-linkedin" data-k="${k}" aria-haspopup="menu" aria-expanded="false">Download as…</button><button class="btn ghost" type="button" data-li-act="saved-del" data-k="${k}">Delete</button></span></li>`).join("")}</ul>` : "";
+}
+function liNextHtml() {
+  const card = (nx, tag, head, text, go) => `<button type="button" class="nx-card" data-nx="${nx}"><span class="nx-tag">${tag}</span><b>${head}</b><span class="nx-text">${text}</span><span class="nx-go">${go} <i aria-hidden="true">→</i></span></button>`;
+  return `<div class="b-sub">What next?</div><p class="q-hint">Your LinkedIn is ready to paste in. These three make it work harder for you.</p><div class="b-next nx">`
+    + card("letter", "Most useful", "Write a cover letter that sounds like you", "Five short paragraphs, drafted from your profile, telling the same strong story as your LinkedIn.", "Create a cover letter")
+    + card("scanner", "Do this next", "Tailor your resume to a real job", "Paste a job ad and Job Finder reshapes your resume around what that job asks for.", "Tailor to a job")
+    + card("interview", "Quick win", "Practise the interview", "Pick a question, type your answer and get feedback in a minute.", "Practise answers")
+    + `</div>`;
+}
+function liBottomHtml() {
+  return `<section class="panel li-bottom" aria-labelledby="liDlH">
+    <div class="b-sub" id="liDlH">Download</div>
+    <p class="q-hint">Your headline, About, experience, skills and education as one file, so you can keep a copy or paste each part into LinkedIn. Nothing is posted to LinkedIn.</p>
+    <div class="b-actions b-dl-row"><button class="btn primary" type="button" id="liDl" data-dlmenu aria-haspopup="menu" aria-expanded="false">Download as…</button><button class="btn" type="button" data-li-act="copy">Copy text</button><span class="foot-gap"></span><button class="btn" type="button" data-li-act="save">Save to my profile…</button></div>
+    <p class="q-hint">Save to my profile keeps this version under a name, like the job it's for, so you can open or download it again later. It needs a free account.</p>
+    <p class="status-line" id="liDlStatus" role="status"></p><p class="status-line" id="liSaveStatus" role="status"></p>
+    <div id="liSaved">${liSavedHtml()}</div>
+    ${liNextHtml()}
+  </section>`;
+}
+function liBottomClick(e) {
+  const nx = e.target.closest("[data-nx]");
+  if (nx) { openView(nx.dataset.nx); return; }
+  const b = e.target.closest("[data-li-act]");
+  if (!b) return;
+  const act = b.dataset.liAct, k = +b.dataset.k;
+  if (act === "save") liSaveVersion();
+  else if (act === "copy") {
+    liFromForm();
+    const d = liDocOf(linStore.data.input), st = $("liDlStatus");
+    if (!d.sections.length) { if (st) st.textContent = "Add your headline, About or experience first."; return; }
+    navigator.clipboard.writeText(liPlainText(d)).then(() => { b.textContent = "Copied"; linStore.data.completed = todayISO(); linStore.save(); }, () => { b.textContent = "Couldn't copy"; });
+    setTimeout(() => { b.textContent = "Copy text"; }, 1800);
+  } else if (act === "saved-open") {
+    const x = (savedLinkedIns.data.list || [])[k]; if (!x) return;
+    linStore.data.input = { ...linStore.data.input, ...JSON.parse(JSON.stringify(x.input)) };
+    linStore.save(true); liToForm(); renderLinkedIn();
+    const st = $("liSaveStatus"); if (st) st.textContent = `Opened “${x.name}”.`;
+  } else if (act === "saved-del") {
+    if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Delete it?"; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Delete"; } }, 4000); return; }
+    savedLinkedIns.data.list.splice(k, 1); savedLinkedIns.save(true);
+    const box = $("liSaved"); if (box) box.innerHTML = liSavedHtml();
+  }
+}
 function renderLinkedIn() {
   const out = $("liOut");
   const inp = linStore.data.input;
@@ -361,10 +497,10 @@ function renderLinkedIn() {
     ${r.targets.length - r.missing.length ? `<p class="small">Already there:</p><div class="chips">${r.targets.filter(s => !r.missing.includes(s)).map(s => `<span class="chip found">${esc(s)}</span>`).join("")}</div>` : ""}
     <p class="small muted">Tip: choose up to five “top skills” in your About section, and ask colleagues to endorse them.</p>
   </section>
-  <div class="li-complete"><p class="small muted">Made the changes on LinkedIn? Mark this step done and see what's next.</p><button class="btn primary lg" type="button" id="liDone">Complete, back to Home</button></div>`;
+  ${liBottomHtml()}`;
   out.querySelectorAll("[data-li-sug]").forEach(b => b.onclick = () => liSuggest(b.dataset.liSug, b));
   out.querySelectorAll("[data-copy-text]").forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copyText); b.textContent = "Copied"; } catch { b.textContent = "Select and copy it"; } });
-  $("liDone").onclick = () => { liFromForm(); linStore.data.completed = todayISO(); linStore.save(true); openView("home"); };
+  out.onclick = liBottomClick;
 }
 // The profile link: open it, and check it's a custom one
 function liUrlCheck(quiet) {

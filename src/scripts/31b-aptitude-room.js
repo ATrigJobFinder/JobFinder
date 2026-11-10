@@ -3,7 +3,7 @@
 // on a page with nothing else on it. Questions come from the generators in 31 and 31a.
 const aptType = k => APT_TYPES.find(t => t.key === k);
 const mmss = s => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
-const aptUi = { area: null, key: "numerical", mode: "test", length: "full", areaSet: false };
+const aptUi = { area: null, key: "numerical", mode: "test", length: "full", level: "medium", areaSet: false };
 const apt = { run: null, timer: null, flash: null, ask: "exit" };
 const aSvg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 Object.assign(IV_ICON, {
@@ -25,7 +25,8 @@ const APT_MODES = [
   { key: "learn", label: "Learn mode", desc: "No clock. You see the explanation after every question, so you pick up the tricks as you go.", meta: "Untimed, with explanations" }
 ];
 const aptCount = T => aptUi.length === "short" ? Math.max(4, Math.ceil(T.n / 2)) : T.n;
-const aptSecs = T => aptUi.mode === "learn" || !T.secs ? 0 : Math.round(T.secs * aptCount(T) / T.n);
+const aptTimeFactor = () => LV_TIME[aptUi.level] || 1;   // Easy has a little longer, Hard a little less
+const aptSecs = T => aptUi.mode === "learn" || !T.secs ? 0 : Math.round(T.secs * aptCount(T) / T.n * aptTimeFactor());
 function aptDefaultArea() {
   try {
     const j = typeof ivPrep !== "undefined" && ivPrep.data && ivPrep.data.job;
@@ -41,13 +42,15 @@ function renderApt() {
   $("aptAreas").innerHTML = `<span class="apt-areas-l">I'm applying for</span>${APT_AREAS.map(a => `<button type="button" class="opt-chip" data-apt-area="${a.key}" aria-pressed="${aptUi.area === a.key}">${esc(a.label)}</button>`).join("")}<button type="button" class="opt-chip" data-apt-area="" aria-pressed="${!aptUi.area}">Not sure</button>`;
   const order = area ? [...area.tests, ...APT_TYPES.map(t => t.key).filter(k => !area.tests.includes(k))] : APT_TYPES.map(t => t.key);
   $("aptTiles").innerHTML = order.map(k => {
-    const t = aptType(k), mine = S.filter(s => s.type === k), best = mine.length ? Math.max(...mine.map(s => s.pct)) : null;
-    return ivTile("aptkey", k, t.name, t.style, `${t.n} questions · ${t.secs ? Math.round(t.secs / 60 * 10) / 10 + " min" : "untimed"}${best != null ? ` · best ${best}%` : ""}`, aptUi.key === k, false, area && area.tests.includes(k) ? `Common for ${area.label.toLowerCase()}` : "");
+    const t = aptType(k), mine = S.filter(s => s.type === k && (s.level || "medium") === aptUi.level), best = mine.length ? Math.max(...mine.map(s => s.pct)) : null;
+    return ivTile("aptkey", k, t.name, t.style, `${t.n} questions · ${t.secs ? Math.round(t.secs * aptTimeFactor() / 60 * 10) / 10 + " min" : "untimed"}${best != null ? ` · best ${best}%` : ""}`, aptUi.key === k, false, area && area.tests.includes(k) ? `Common for ${area.label.toLowerCase()}` : "");
   }).join("");
   $("aptModes").innerHTML = APT_MODES.map(m => ivTile("aptmode", m.key, m.label, m.desc, m.meta, aptUi.mode === m.key, false, false)).join("");
   $("aptLength").innerHTML = [["full", "Full set"], ["short", "Short set (half the questions)"]].map(([k, l]) => `<button type="button" data-apt-len="${k}" aria-pressed="${aptUi.length === k}">${l}</button>`).join("");
+  $("aptLevel").innerHTML = APT_LEVELS.map(l => `<button type="button" data-apt-level="${l.key}" aria-pressed="${aptUi.level === l.key}">${l.label}</button>`).join("");
+  $("aptLevelNote").textContent = APT_LEVELS.find(l => l.key === aptUi.level).desc;
   const T = aptType(aptUi.key), n = aptCount(T), secs = aptSecs(T);
-  $("aptSummary").innerHTML = `<b>${esc(T.name)}</b> · ${aptUi.mode === "learn" ? "Learn mode" : "Test mode"} · ${n} questions · ${secs ? `${Math.round(secs / 60 * 10) / 10} minutes` : "no clock"}`;
+  $("aptSummary").innerHTML = `<b>${esc(T.name)}</b> · ${LV_LABEL[aptUi.level]} · ${aptUi.mode === "learn" ? "Learn mode" : "Test mode"} · ${n} questions · ${secs ? `${Math.round(secs / 60 * 10) / 10} minutes` : "no clock"}`;
   $("aptAbout").innerHTML = `<p class="ig-phase">About this test</p><h2>${esc(T.name)}</h2>
     <div class="ig-facts2"><div><h3>${esc(T.measures.split(".")[0])}</h3><p>What it measures</p></div><div><h3>${esc(T.who.split(".")[0])}</h3><p>Who uses it</p></div><div><h3>${esc(T.real)}</h3><p>What the real thing looks like</p></div></div>
     <h3 class="iv-h3">How to score well</h3><ol class="ig-quick">${T.tips.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ol>`;
@@ -59,7 +62,7 @@ function renderAptResultsPage() {
   const types = APT_TYPES.map(t => { const m = S.filter(s => s.type === t.key); return m.length ? { t, best: Math.max(...m.map(s => s.pct)), last: m[m.length - 1].pct, n: m.length } : null; }).filter(Boolean);
   box.innerHTML = `<p class="ig-phase">Your results</p><h2>How you're doing</h2>
     <div class="iv-bars">${types.map(x => `<div class="iv-barrow"><span>${esc(x.t.name.replace(/ \(.*/, ""))}</span><div class="iv-bartrack"><i class="${x.best >= 70 ? "good" : x.best >= 50 ? "" : "low"}" style="width:${x.best}%"></i></div><b>${x.best}%</b><em>${x.n} attempt${x.n === 1 ? "" : "s"}, last ${x.last}%</em></div>`).join("")}</div>
-    <h3 class="iv-h3">Recent tests</h3><ol class="iv-list">${S.slice(-6).reverse().map(s => `<li><span class="iv-sc ${s.pct >= 70 ? "good" : s.pct >= 50 ? "mid" : "low"}">${s.pct}</span><span><b>${esc((aptType(s.type) || { name: s.type }).name)}</b><span class="muted">${s.correct} of ${s.total} · ${new Date(s.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}${s.mode === "learn" ? " · learn mode" : ""}</span></span></li>`).join("")}</ol>`;
+    <h3 class="iv-h3">Recent tests</h3><ol class="iv-list">${S.slice(-6).reverse().map(s => `<li><span class="iv-sc ${s.pct >= 70 ? "good" : s.pct >= 50 ? "mid" : "low"}">${s.pct}</span><span><b>${esc((aptType(s.type) || { name: s.type }).name)}</b><span class="muted">${s.correct} of ${s.total} · ${new Date(s.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })} · ${LV_LABEL[s.level || "medium"].toLowerCase()}${s.mode === "learn" ? " · learn mode" : ""}</span></span></li>`).join("")}</ol>`;
 }
 
 /* --- The test room --- */
@@ -85,8 +88,9 @@ function aptAskBox(mode, title, text, yes) {
 function startApt(key) {
   const T = aptType(key), n = aptCount(T), secs = aptSecs(T);
   clearInterval(apt.timer); clearTimeout(apt.flash);
-  apt.run = { key, mode: aptUi.mode, qs: APT_GEN[key](n), i: 0, answers: [], flags: new Set(), seen: new Set(), revealed: new Set(), times: [], qStart: Date.now(), started: Date.now(), left: secs, secs };
-  $("aptRoomTitle").textContent = `${T.name} · ${aptUi.mode === "learn" ? "Learn mode" : "Test mode"}`;
+  aptLevel = aptUi.level;   // the generators read this (31c)
+  apt.run = { key, mode: aptUi.mode, level: aptUi.level, qs: APT_GEN[key](n), i: 0, answers: [], flags: new Set(), seen: new Set(), revealed: new Set(), times: [], qStart: Date.now(), started: Date.now(), left: secs, secs };
+  $("aptRoomTitle").textContent = `${T.name} · ${LV_LABEL[aptUi.level]} · ${aptUi.mode === "learn" ? "Learn mode" : "Test mode"}`;
   const tm = $("aptRoomTimer");
   tm.textContent = secs ? mmss(secs) : ""; tm.classList.remove("low");
   if (secs) apt.timer = setInterval(() => { apt.run.left--; tm.textContent = mmss(apt.run.left); tm.classList.toggle("low", apt.run.left <= 30); if (apt.run.left <= 0) finishApt(true); }, 1000);
@@ -107,7 +111,7 @@ function renderAptFlash() {
   apt.flash = setTimeout(() => { R.seen.add(R.i); R.qStart = Date.now(); renderAptQ(); }, f.secs * 1000);
 }
 function renderAptQ() {
-  const R = apt.run, T = aptType(R.key), q = R.qs[R.i], learn = R.mode === "learn";
+  const R = apt.run, q = R.qs[R.i], learn = R.mode === "learn";
   if (q.flash && !R.seen.has(R.i)) { renderAptFlash(); return; }
   const chosen = R.answers[R.i], shown = learn && R.revealed.has(R.i), last = R.i === R.qs.length - 1;
   const state = k => (R.answers[k] != null ? "done" : "") + (R.flags.has(k) ? " flag" : "") + (k === R.i ? " now" : "");
@@ -137,10 +141,10 @@ function finishApt(timeUp) {
   const secs = Math.round((Date.now() - R.started) / 1000), pct = Math.round(correct / R.qs.length * 100);
   const skills = {};
   R.qs.forEach((q, k) => { const s = skills[q.skill] = skills[q.skill] || { right: 0, total: 0 }; s.total++; if (R.answers[k] === q.answer) s.right++; });
-  aptStore.data.sessions.push({ type: R.key, date: new Date().toISOString(), correct, total: R.qs.length, answered, secs, pct, mode: R.mode, skills });
+  aptStore.data.sessions.push({ type: R.key, level: R.level || "medium", date: new Date().toISOString(), correct, total: R.qs.length, answered, secs, pct, mode: R.mode, skills });
   aptStore.data.sessions = aptStore.data.sessions.slice(-100);
   aptStore.save();
-  R.result = { T, correct, answered, secs, pct, skills, prev: aptStore.data.sessions.filter(s => s.type === R.key).slice(-2, -1)[0] };
+  R.result = { T, correct, answered, secs, pct, skills, prev: aptStore.data.sessions.filter(s => s.type === R.key && (s.level || "medium") === (R.level || "medium")).slice(-2, -1)[0] };
   renderAptResults();
 }
 const APT_ADVICE = { "percentage change": "Percentage change trips most people up: always divide by the earlier figure.", "shares": "For a share, divide the part by the whole column total.", "growth": "For growth of p%, multiply by (1 + p/100).", "comparing growth": "Compare percentage increases, not raw increases.", "sequences": "For sequences, write the gaps between numbers, then the gaps between the gaps.", "logic statements": "For statements, sketch circles for each group, and pick “Cannot tell” when a conclusion only might be true.", "“cannot say” statements": "When the passage doesn't cover something, the answer is “Cannot say”, even if it seems likely.", "false statements": "A statement is only false if the passage contradicts it.", "shape patterns": "Check one feature at a time: count, shape, shading, rotation, position.", "judgement": "The best responses deal with the problem directly, involve the right people and stay honest.", "levers and balance": "Levers balance when force × distance matches on both sides.", "gears": "Meshed gears turn in opposite directions, and the smaller gear turns faster. An idler gear in between keeps the direction.", "pulleys": "Divide the load by the number of rope sections holding it.", "hydraulics": "Pressure is the same everywhere, so force scales with piston area.", "belt drives": "A bigger pulley on the same belt turns slower, in proportion to its diameter.", "circuits": "Parallel resistors give less than the smallest one; series resistors add.", "torque": "Torque is force times distance from the turning point.", "spotting differences": "Compare each pair in the same order every time, and watch for swapped digits and dropped characters.", "rotating shapes": "Follow one distinctive part of the shape through each option. A mirror image can never be turned to fit.", "number memory": "Group the digits in chunks of two or three instead of holding them one by one.", "word memory": "Link the words in a quick story or picture.", "pattern memory": "Notice the overall shape of the pattern first, then the odd squares." };
@@ -153,7 +157,7 @@ function renderAptResults() {
   if (pct >= 80) advice.push("A strong result. Try a different test, or go again to make it consistent.");
   const perQ = answered ? Math.round(secs / answered) : 0, target = R.secs ? Math.round(R.secs / R.qs.length) : 0;
   const head = pct >= 80 ? "Strong result. <mark>Well done.</mark>" : pct >= 60 ? "A solid score. <mark>Here's how to lift it.</mark>" : "A good start. <mark>Here's where to focus.</mark>";
-  $("aptStage").innerHTML = `<section class="iv-room iv-summary" aria-labelledby="aptResH"><p class="ig-phase">${esc(T.name)} · ${R.mode === "learn" ? "learn mode" : "test mode"}${R.timeUp ? " · time's up" : ""}</p><h2 class="iv-sum-h" id="aptResH" tabindex="-1">${head}</h2>
+  $("aptStage").innerHTML = `<section class="iv-room iv-summary" aria-labelledby="aptResH"><p class="ig-phase">${esc(T.name)} · ${LV_LABEL[R.level || "medium"].toLowerCase()} · ${R.mode === "learn" ? "learn mode" : "test mode"}${R.timeUp ? " · time's up" : ""}</p><h2 class="iv-sum-h" id="aptResH" tabindex="-1">${head}</h2>
     <div class="ig-facts2"><div><h3>${correct}/${R.qs.length}</h3><p>correct (${pct}%)${prev ? `. Last time: ${prev.pct}%` : ""}</p></div><div><h3>${mmss(secs)}</h3><p>time taken${perQ ? `, about ${perQ} s a question${target ? ` (aim for ${target})` : ""}` : ""}</p></div><div><h3>${answered}</h3><p>answered, ${R.qs.length - answered} left blank</p></div></div>
     <p class="iv-lead">A practice score, not a percentile or an IQ. Real tests compare you with other people who took the same one.</p>
     ${advice.length ? `<div class="iv-focus"><h3>What to work on</h3><ul>${advice.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
@@ -174,11 +178,12 @@ onInit(() => {
   $("aptScoring").innerHTML = APT_SCORING.map(x => `<li><span>${esc(x)}</span></li>`).join("");
   const root = $("view-aptitude");
   root.addEventListener("click", e => {
-    const a = e.target.closest("[data-apt-area]"), t = e.target.closest("[data-aptkey]"), m = e.target.closest("[data-aptmode]"), l = e.target.closest("[data-apt-len]");
+    const a = e.target.closest("[data-apt-area]"), t = e.target.closest("[data-aptkey]"), m = e.target.closest("[data-aptmode]"), l = e.target.closest("[data-apt-len]"), lv = e.target.closest("[data-apt-level]");
     if (a) { aptUi.area = a.dataset.aptArea || null; aptUi.areaSet = true; renderApt(); }
     else if (t) { aptUi.key = t.dataset.aptkey; renderApt(); $("apt-how").scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); }
     else if (m) { aptUi.mode = m.dataset.aptmode; renderApt(); }
     else if (l) { aptUi.length = l.dataset.aptLen; renderApt(); }
+    else if (lv) { aptUi.level = lv.dataset.aptLevel; renderApt(); }
     else if (e.target.closest("#aptStart")) startApt(aptUi.key);
     else if (e.target.closest("[data-apt-jump]")) { e.preventDefault(); const j = $(e.target.closest("[data-apt-jump]").getAttribute("href").slice(1)); if (j) j.scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "start" }); }
   });

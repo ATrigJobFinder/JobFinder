@@ -8,9 +8,6 @@
    also everyday words, acronyms or skills. A match in the ad's company line always counts.
    Other industries are in 04c to 04k.
    Size: small (under 500 staff), medium (500 to 5,000), large (over 5,000), global (a large firm in many countries). */
-const GUIDE_CHECKED = "29 October 2026";
-const TOP100_URL = "https://au.gradconnection.com/top100/2026/";
-const TOP100_ENG_URL = "https://au.gradconnection.com/career-advice/article/2026-seek-grad-top100-most-popular-engineering-employer-award-finalists/";
 // Industries, each with a short label for the cards
 const GUIDE_INDUSTRIES = {
   accounting: ["Accounting and advisory", "Accounting"], banking: ["Banking, super and insurance", "Banking"], trading: ["Trading and investment banking", "Trading"],

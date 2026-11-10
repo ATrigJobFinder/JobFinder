@@ -45,16 +45,6 @@ function globeWhat(text) {
   if (hits.length) return { label: t, roles: hits.map(h => h[0]), key: hits[0][1] };
   return { label: t, roles: [globeTitleCase(t)], key: "" };
 }
-// A few example jobs for it near a place: the same ones every time for the same words and place
-function globeSearchJobs(w, place, n = 4) {
-  const rnd = globeRng([...(w.label + "|" + place)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 11));
-  const orgs = (w.key && GLOBE_ORGS[w.key]) || ["Local employer", "Recruitment agency", "Small business"], start = Math.floor(rnd() * w.roles.length), list = [];
-  for (let i = 0; i < n; i++) {
-    const k = rnd();
-    list.push({ title: w.roles[(start + i) % w.roles.length], org: orgs[Math.floor(rnd() * orgs.length)], kind: k < 0.55 ? "Full-time" : k < 0.78 ? "Part-time" : k < 0.9 ? "Contract" : "Casual" });
-  }
-  return list;
-}
 
 // Example jobs around one spot, for the map and its list: the same ones every time for the same place and search. They are placed around the spot
 // (mostly within a few kilometres of it), not at real addresses, so zooming in still leaves some in view.

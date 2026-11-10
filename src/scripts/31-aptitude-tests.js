@@ -114,7 +114,7 @@ function frameSVG(f, label) {
   return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${esc(label)}: ${n} ${SHAPES[f.shape % 3]}${n > 1 ? "s" : ""}, ${f.fill ? "filled" : "outlined"}, turned ${f.rot} degrees, dot in the ${["top left", "top right", "bottom right", "bottom left"][f.dot % 4]} corner"><rect x="1" y="1" width="${size - 2}" height="${size - 2}" rx="6" fill="none" stroke="currentColor" stroke-opacity=".25"/>${items.join("")}<circle cx="${dx}" cy="${dy}" r="4.5" fill="currentColor"/></svg>`;
 }
 function genAbstract() {
-  const rules = shuffle(["count", "shape", "fill", "rot", "dot"]).slice(0, rnd(2, 3));
+  const rules = shuffle(["count", "shape", "fill", "rot", "dot"]).slice(0, aptRuleCount());
   const start = { count: rules.includes("count") ? rnd(1, 2) : rnd(1, 3), shape: rnd(0, 2), fill: Math.random() < 0.5, rot: 0, dot: rnd(0, 3) };
   if (rules.includes("rot") && start.shape === 0) start.shape = rnd(1, 2);
   const step = (f, k) => ({ count: rules.includes("count") ? f.count + k : f.count, shape: rules.includes("shape") ? (f.shape + k) % 3 : f.shape, fill: rules.includes("fill") ? (k % 2 ? !f.fill : f.fill) : f.fill, rot: rules.includes("rot") ? (f.rot + 45 * k) % 360 : f.rot, dot: rules.includes("dot") ? (f.dot + k) % 4 : f.dot });

@@ -109,7 +109,7 @@ function globeJobs(h) {
 }
 const globeNear = (lat, lng) => GLOBE_HUBS.map(h => ({ h, km: globeKm(lat, lng, h.lat, h.lng) })).sort((a, b) => a.km - b.km);
 const globeNum = n => n.toLocaleString("en-AU");
-const globeDist = km => km < 15 ? "right here" : km < 100 ? `${Math.round(km / 5) * 5} km away` : `${globeNum(Math.round(km / 10) * 10)} km away`;
+
 
 function initGlobe() {
   const cv = $("globeCanvas"), stage = $("globeStage");
@@ -413,10 +413,10 @@ function initGlobe() {
     $("glListTitle").textContent = st.me ? "Jobs near you" : "Jobs in this area";
     $("glCount").textContent = `${jobs.length + (sel && street.inView().includes(sel) ? 1 : 0)} example job${jobs.length === 1 && !sel ? "" : "s"} in this map area${total > jobs.length ? ` of ${total} nearby` : ""}`;
     listBox._jobs = jobs;
-    listBox.innerHTML = jobs.length ? jobs.map((j, i) => `<li class="gl-job${isSaved(j) ? " saved" : ""}" data-i="${i}"><button type="button" class="gl-job-b" data-gl-job="${i}">
+    listBox.innerHTML = jobs.length ? jobs.map((j, i) => `<li class="gl-job${isSaved(j) ? " saved" : ""}${isApplied(j) ? " applied" : ""}" data-i="${i}"><button type="button" class="gl-job-b" data-gl-job="${i}">
       <b class="gl-job-title">${esc(j.title)}</b><span class="gl-job-pay">${esc(j.pay || j.kind)}</span>
       <span class="gl-job-org">${esc(j.org)} · ${esc(j.at)}</span>
-      <span class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${isSaved(j) ? `<i class="sv">Saved</i>` : ""}</span>
+      <span class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${isSaved(j) ? `<i class="sv">${esc(trackerStatus(j))}</i>` : ""}</span>
       <span class="gl-job-about">${esc(j.about)}</span></button></li>`).join("")
       : `<li class="gl-empty"><b>${sel ? "No other example jobs in this part of the map" : "No example jobs in this part of the map"}</b><span>Zoom out or drag the map to see more.</span><button type="button" class="btn" data-gl-act="recentre">Back to the middle</button></li>`;
   }
@@ -438,6 +438,8 @@ function initGlobe() {
     street.onPick = j => selectJob(j, false);   // one tap on a pin
     street.onSave = j => saveJob(j);            // two taps on a pin
     street.isSaved = j => isSaved(j);
+    street.isApplied = j => isApplied(j);
+    street.status = j => trackerStatus(j);
   }
   // already looking at the map and someone picked another place: move the map there
   async function restreet(spot, hub) {
@@ -639,6 +641,8 @@ function initGlobe() {
   const tracked = j => { try { const k = jobKey(j.title, j.org); return T().find(x => jobKey(x.title, x.company) === k) || null; } catch { return null; } };
   const isSaved = j => !!tracked(j);
   const isApplied = j => { const t = tracked(j); return !!t && t.stage !== "saved"; };
+  // where the job is in the Application tracker: "Saved" while it is only saved, otherwise the stage it has reached ("Tracker: Applied", "Tracker: Interview"...)
+  const trackerStatus = j => { const t = tracked(j); if (!t) return ""; const s = STAGES_T.find(x => x.key === t.stage); return t.stage === "saved" || !s ? "Saved" : "Tracker: " + s.label; };
   function saveJob(j) {
     if (!j) return;
     if (isSaved(j)) { toast(`${j.title} at ${j.org} is already saved.`, "warn"); return; }
@@ -649,15 +653,19 @@ function initGlobe() {
     if (street) street.refreshSaved();
     renderOpen(); renderList();
   }
-  // the save icon on the open job: saves it, or takes it back out if it is still only "Saved" (once you have applied, the tracker is where to change it)
+  // the ribbon on the open job: a switch. Off takes the job out of the Application tracker, whatever column it is in (when it had moved past "Saved", the toast has Undo);
+  // on puts it back in as Saved
   function toggleSave(j) {
     const t = j && tracked(j);
     if (!t) { saveJob(j); return; }
-    if (t.stage !== "saved") { toast("It's in your Application tracker as " + (STAGES_T.find(x => x.key === t.stage) || { label: t.stage }).label.toLowerCase() + ". Change it there.", "warn"); return; }
+    const was = t.stage, at = T().indexOf(t), stage = (STAGES_T.find(x => x.key === was) || { label: was }).label;
     trk.data.items = T().filter(x => x !== t); trk.save();
-    toast(`Removed ${j.title} from your saved jobs.`);
-    if (street) street.refreshSaved();
-    renderOpen(); renderList();
+    try { jbBell(); if (currentView === "tracker") renderTracker(); } catch { /* the tracker page isn't open */ }
+    const refresh = () => { if (street) street.refreshSaved(); renderOpen(); renderList(); };
+    if (was === "saved") toast(`Removed ${j.title} from your saved jobs.`);
+    else actToast(`Removed ${j.title} from your Application tracker (it was in ${stage}).`, () => { T().splice(Math.min(Math.max(at, 0), T().length), 0, t); trk.save(); try { jbBell(); if (currentView === "tracker") renderTracker(); } catch { /* not open */ } refresh(); });
+    say(`Removed ${j.title} at ${j.org} from your Application tracker.`);
+    refresh();
   }
   // Apply: puts the job in the tracker as Applied (these are example jobs, so there is no real application to send)
   function applyJob(j) {
@@ -704,7 +712,7 @@ function initGlobe() {
       <h3>${esc(j.title)}</h3>
       <p class="gl-open-pay">${esc(j.pay || j.kind)}</p>
       <p class="gl-open-org">${esc(j.org)} · ${esc(j.at)}</p>
-      <p class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${saved ? `<i class="sv">Saved</i>` : ""}</p>
+      <p class="gl-job-tags"><i>${esc(j.kind)}</i><i class="ex">Example job</i>${j.keen ? `<i class="keen">Keen for applicants</i>` : ""}${saved ? `<i class="sv">${esc(trackerStatus(j))}</i>` : ""}</p>
       <h4>About the job</h4><p>${esc(j.about)}</p>
       <dl class="gl-facts"><dt>Type</dt><dd>${esc(j.kind)}</dd><dt>Hours</dt><dd>${esc(HOURS[j.kind] || "")}</dd><dt>Pay</dt><dd>${esc(j.pay || "Not listed")}</dd><dt>Where</dt><dd>${esc(j.at)}</dd></dl>
       <p class="small muted">This is an example, made up to show how the map works. Real jobs are in <a href="#jobs" data-gl-act="jobs">Find jobs</a>.</p>

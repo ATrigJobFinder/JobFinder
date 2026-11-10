@@ -99,13 +99,23 @@ function licenceToCerts() {
 
 /* --- Thesis or major project: a button, then the kind and the title --- */
 const PROJECT_KINDS = ["Thesis", "Major project", "Capstone project", "Research project"];
+// An extra thesis or project is kept as one line, "Kind: Title"; this splits it for the boxes
+function projRow(line) {
+  const m = String(line || "").match(/^\s*(Thesis|Major project|Capstone project|Research project)\s*:\s*(.*)$/i);
+  return m ? { kind: PROJECT_KINDS.find(k => k.toLowerCase() === m[1].toLowerCase()) || "Thesis", title: m[2].trim() } : { kind: "Thesis", title: String(line || "").trim() };
+}
+const projLineOf = (kind, title) => `${kind}: ${title}`;
 function projectQ(e, base) {
-  const has = e.projectOpen || val(e.projectTitle) || val(e.project);
-  if (!has) return `<div class="b-actions"><button class="btn" type="button" data-v22="proj-add" data-i="${base.split(".")[1]}">+ Add a thesis or major project</button></div>`;
-  const kind = e.projectKind || (String(e.project || "").match(/^([A-Za-z ]+?):/) || [])[1] || "Thesis";
-  const title = e.projectTitle !== undefined && e.projectTitle !== "" ? e.projectTitle : String(e.project || "").replace(/^[A-Za-z ]+?:\s*/, "");
-  return `<div class="q-grid proj-q">${q(base + ".projectKind", "Thesis or major project", { select: PROJECT_KINDS.map(k => [k, k]), opt: true })}${q(base + ".projectTitle", "Title of the thesis or project", { opt: true, ph: "e.g. Passive cooling for rooftop solar panels", prose: true })}</div>
-    <div class="b-actions"><button class="btn" type="button" data-v22="proj-del" data-i="${base.split(".")[1]}">Remove the thesis or project</button></div>`;
+  const i = base.split(".")[1], has = e.projectOpen || val(e.projectTitle) || val(e.project);
+  const x = j => `<button type="button" class="chip-x proj-x" data-v22="proj-del" data-i="${i}" data-j="${j}" aria-label="Remove this thesis or project" title="Remove this thesis or project">×</button>`;
+  const rows = [];
+  if (has) rows.push(`<div class="proj-row">${q(base + ".projectKind", "Thesis or major project", { select: PROJECT_KINDS.map(k => [k, k]), opt: true })}${q(base + ".projectTitle", "Title of the thesis or project", { opt: true, ph: "e.g. Passive cooling for rooftop solar panels", prose: true })}${x(0)}</div>`);
+  (e.projectsMore || []).forEach((line, k) => {
+    const r = projRow(line), id = `pm_${i}_${k}`;
+    rows.push(`<div class="proj-row proj-more" data-nohelp="1"><div class="q"><div class="q-body"><select id="${id}k" data-pm-kind="${i}.${k}" aria-label="Kind of thesis or project ${k + 2}">${PROJECT_KINDS.map(o => `<option${o === r.kind ? " selected" : ""}>${o}</option>`).join("")}</select></div></div><div class="q"><div class="q-body"><input type="text" id="${id}t" data-pm-title="${i}.${k}" data-prose="1" spellcheck="true" value="${esc(r.title)}" placeholder="Title of the thesis or project" aria-label="Title of thesis or project ${k + 2}" autocomplete="off"></div></div>${x(k + 1)}</div>`);
+  });
+  // always there, so more than one thesis or project can be added
+  return `${rows.length ? `<div class="proj-wrap">${rows.join("")}</div>` : ""}<div class="b-actions"><button class="btn" type="button" data-v22="proj-add" data-i="${i}">Add Thesis or Project</button></div>`;
 }
 
 /* --- One line per box, with an Add button (awards, publications) --- */
@@ -142,13 +152,33 @@ onInit(() => {
     if (a === "lic") {
       const s = licenceSet(); s.has(b.dataset.k) ? s.delete(b.dataset.k) : s.add(b.dataset.k);
       p.contact.licence = licenceText(s); licenceToCerts(); keepOpen(); touchProfile("builder"); renderBuilder(false);
-    } else if (a === "proj-add") { const x = p.education[+b.dataset.i]; x.projectOpen = true; if (!x.projectKind) x.projectKind = "Thesis"; keepOpen(); renderBuilder(false); const t = $(fid(`education.${b.dataset.i}.projectTitle`)); if (t) t.focus(); }
-    else if (a === "proj-del") { const x = p.education[+b.dataset.i]; x.projectOpen = false; x.projectKind = ""; x.projectTitle = ""; x.project = ""; keepOpen(); touchProfile("builder"); renderBuilder(false); }
-    else if (a === "ll-add") { const k = b.dataset.ll, rows = llRows(k); const empty = [...document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`)].find(i => !i.value.trim()); if (empty) { empty.focus(); return; } builder.llBlank = { ...(builder.llBlank || {}), [k]: 1 }; keepOpen(); renderBuilder(false); const all = document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`); if (all.length) all[all.length - 1].focus(); }
+    } else if (a === "proj-add") {
+      const x = p.education[+b.dataset.i];
+      if (!(x.projectOpen || val(x.projectTitle) || val(x.project))) { x.projectOpen = true; if (!x.projectKind) x.projectKind = "Thesis"; }
+      else (x.projectsMore = x.projectsMore || []).push(projLineOf("Thesis", ""));
+      keepOpen(); touchProfile("builder"); renderBuilder(false);
+      const rows = document.querySelectorAll(`#bForm details[data-card="education"][data-i="${b.dataset.i}"] .proj-row input[type=text]`); if (rows.length) rows[rows.length - 1].focus();
+    }
+    else if (a === "proj-del") {
+      const x = p.education[+b.dataset.i], j = +b.dataset.j || 0, more = x.projectsMore || (x.projectsMore = []);
+      if (j > 0) more.splice(j - 1, 1);
+      else if (more.length) { const r = projRow(more.shift()); x.projectKind = r.kind; x.projectTitle = r.title; x.project = r.title ? projLineOf(r.kind, r.title) : ""; x.projectOpen = true; }
+      else { x.projectOpen = false; x.projectKind = ""; x.projectTitle = ""; x.project = ""; }
+      keepOpen(); touchProfile("builder"); renderBuilder(false);
+    }
+    else if (a === "ll-add") { const k = b.dataset.ll; const empty = [...document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`)].find(i => !i.value.trim()); if (empty) { empty.focus(); return; } builder.llBlank = { ...(builder.llBlank || {}), [k]: 1 }; keepOpen(); renderBuilder(false); const all = document.querySelectorAll(`#bForm input.ll-in[data-ll="${k}"]`); if (all.length) all[all.length - 1].focus(); }
     else if (a === "ll-del") { const k = b.dataset.ll, rows = llRows(k); rows.splice(+b.dataset.i, 1); builder.llBlank = { ...(builder.llBlank || {}), [k]: 0 }; llSave(k, rows); builder.extraAlts = {}; keepOpen(); renderBuilder(false); }
   });
+  const pmSave = t => {
+    const key = t.dataset.pmKind || t.dataset.pmTitle;
+    const [i, k] = key.split(".").map(Number), x = P().education[i]; if (!x || !x.projectsMore) return;
+    const row = t.closest(".proj-row");
+    x.projectsMore[k] = projLineOf(row.querySelector("select").value, row.querySelector("input").value); touchProfile("builder");
+  };
+  document.addEventListener("change", e => { const t = e.target; if (t && t.matches && t.matches("[data-pm-kind]") && t.closest("#bForm")) pmSave(t); });
   document.addEventListener("input", e => {
     const t = e.target;
+    if (t && t.matches && t.matches("[data-pm-title]") && t.closest("#bForm")) { pmSave(t); return; }
     if (t && t.classList && t.classList.contains("ll-in") && t.closest("#bForm")) { const k = t.dataset.ll; P()[k] = llRows(k).map(r => r.trim()).filter(Boolean).join("\n"); if (t.value.trim()) builder.llBlank = { ...(builder.llBlank || {}), [k]: 0 }; touchProfile("builder"); }
   });
 });

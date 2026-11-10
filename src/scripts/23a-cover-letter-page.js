@@ -54,9 +54,8 @@ function letterHtml(L, st) {
   return `<div class="lt-sheet lt-${st.look} ${st.align === "center" ? "lt-center" : ""}" style="--lt-accent:${st.accent};--lt-body:${esc(css(st.body))};--lt-head:${esc(css(st.head))};--lt-track:${st.caps ? (st.track / 250).toFixed(2) + "em" : "0"};--lt-mm:${lay.mm};--lt-lh:${lay.lh};--lt-gap:${lay.gap}">
     <header class="lt-head"><div class="lt-name">${esc(name)}</div><div class="lt-contact">${esc(L.contact.join("  |  "))}</div></header>
     <div class="lt-date">${esc(L.date)}</div>
-    <div class="lt-to">${L.recipient.map(gapHtml).join("<br>")}</div>
-    ${L.re ? `<div class="lt-re">${gapHtml(L.re)}</div>` : ""}
-    <p>${gapHtml(L.salutation)}</p>
+    ${L.recipient && L.recipient.length ? `<div class="lt-to">${L.recipient.map(gapHtml).join("<br>")}</div>` : ""}
+    ${L.greetFirst ? `<p>${gapHtml(L.salutation)}</p>${L.re ? `<div class="lt-re">${gapHtml(L.re)}</div>` : ""}` : `${L.re ? `<div class="lt-re">${gapHtml(L.re)}</div>` : ""}<p>${gapHtml(L.salutation)}</p>`}
     ${L.paragraphs.map(p => `<p class="lt-p">${gapHtml(p)}</p>`).join("")}
     <p class="lt-sign">${gapHtml(L.signoff)}</p>
     <p class="lt-signname">${esc(L.signName)}</p>
@@ -66,9 +65,22 @@ function letterHtml(L, st) {
 /* --- The base letter: written once, reused when tailoring --- */
 // What a blank looks like in the letter: the box's name, then an example, in yellow brackets
 const PH = { who: "[Hiring manager's name, e.g. Sam Lee]", company: "[Company name, e.g. Sydney Water]", role: "[Job title, e.g. Graduate Engineer]" };
+// The blanks in a template letter, written [LABEL: what to put there] (each is about ten words, so a template fills about the space it should)
+const LT_TPL = {
+  hook: "[PROJECT/SECTOR HOOK: one specific project, product or part of the sector that draws you to them]",
+  credential: "[HEADLINE CREDENTIAL: your strongest degree, result or experience for this role]",
+  tailored: "[TAILORED LINE: link your major project or a course to this role, in one sentence]",
+  requirement: "[KEY REQUIREMENT FROM AD: the skill or experience the ad lists first]"   // sits inside paragraph 4, so tailoring to a job fills just this blank
+};
+// In a template, paragraphs 1, 3 and 5 are described for this structure (paragraph 4 keeps its own heading, "Why this company")
+const LT_TPL_PARTS = {
+  opening: { label: "Opening", purpose: "The role, one line on why this company in particular (a project or sector hook), and your headline credential." },
+  education: { label: "Education and skills", purpose: "Your most relevant degree, the subjects, tools and certificates, then a tailored line linking your major project or a course to the role." },
+  closing: { label: "Close", purpose: "Thanks, your availability, and a call to action." }
+};
 // a template for any job unless you've chosen "A specific job" (or already typed a job, company or recipient)
 const ltTemplate = () => { try { const d = BL(); return d.mode === "template" || (!d.mode && !d.role && !d.company && !d.recipient); } catch { return false; } };
-const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Kind regards,", mode: "template" }));   // "Kind regards" is the safe Australian default whether or not you have a name to write to
+const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Kind regards,", mode: "template", plan: {} }));   // "Kind regards" is the safe Australian default whether or not you have a name to write to
 const BL = () => baseLetter.data;
 const blText = () => BL().parts.map(p => p.text.trim()).filter(Boolean);
 function baseLetterParts(forSample) {
@@ -79,45 +91,76 @@ function baseLetterParts(forSample) {
     name: c.name || "Your name",
     contact: [c.location, c.phone ? `${c.phoneCode && !/^(\+|0)/.test(c.phone) ? c.phoneCode + " " : ""}${c.phone}` : "", c.email, c.linkedin ? shortUrl(c.linkedin) : ""].filter(Boolean),
     date: todayAU(),
-    // a blank is a placeholder that says what goes there, highlighted yellow; a template leaves the job, company and name as placeholders
-    recipient: ltTemplate() ? [PH.who, PH.company] : [d.recipient || PH.who, d.company || PH.company],
-    // (the advice: a "Re:" line with the job title and any reference number)
-    re: ltTemplate() ? `Re: Application for ${PH.role}` : ((d.role || p.target.title) ? `Re: Application for ${d.role || p.target.title}` : `Re: Application for ${PH.role}`) + (String(d.ref || "").trim() ? ` (Ref ${String(d.ref).trim()})` : ""),
-    salutation: ltTemplate() ? "Dear Hiring Manager," : d.salutation || "Dear Hiring Manager,",
-    paragraphs: sample ? letterFromProfile(p).map(x => x.text) : paras,
+    // no inside address (who it goes to and the company's name): the greeting names the person, and the opening names the employer
+    recipient: [],
+    greetFirst: true,   // the greeting comes first, then the Re: line
+    // the Re: line is the job title, with the place and any reference number the ad gives (never "Application for…")
+    re: ltTemplate() ? `Re: ${PH.role}` : ((d.role || p.target.title) ? (ltReLine() || `Re: ${d.role || p.target.title}`) : `Re: ${PH.role}${String(d.ref || "").trim() ? ` (Ref ${String(d.ref).trim()})` : ""}`),
+    salutation: ltTemplate() ? "Dear Hiring Manager," : LR.greeting(d.salutation && !/^dear hiring manager,?$/i.test(d.salutation.trim()) ? d.salutation : d.recipient, ""),
+    paragraphs: sample ? letterFromProfile(p).map(x => x.text).filter(t => t.trim()) : paras,
     signoff: d.signoff || "Kind regards,",
     signName: c.name || ""
   };
+}
+// A paragraph that is only [brackets]: nothing written yet, so nothing for the AI to expand or reword
+const ltBracketOnly = t => !!String(t || "").trim() && !String(t).replace(/\[[^\]\n]*\]/g, "").replace(/[\s.,;:]/g, "");
+// The Experience paragraph when no job on the resume has bullet points to tell: the whole paragraph is brackets, about ten words each,
+// so it is clear what to write and it fills about the right space. Experience comes from jobs only (never a project or volunteering).
+function experienceFromProfile(p) {
+  const job = lwRankJobs(p, lwAllJobs(p))[0];   // the job closest to the one applied for
+  const a = t => /^[aeiou]/i.test(t) ? "an" : "a", where = job ? (job.title ? `your work as ${a(job.title)} ${job.title}${job.org ? ` at ${job.org}` : ""}` : `your work at ${job.org}`) : "your most relevant job";
+  return [`[Where you worked and the problem or situation you faced, in one sentence.]`, `[The first thing you personally did about it, and the tools you used.]`, `[What else you did, with one specific example from ${where}.]`, `[How you did it, and who you worked with or led.]`, `[The result, with a number such as a percentage, amount or count.]`, `[Why that result matters for the job you are applying for.]`].join(" ");
 }
 // A general letter written from the profile, without AI. Gaps are left in [brackets] for you to fill.
 function letterFromProfile(p) {
   const role = ltTemplate() ? PH.role : BL().role || p.target.title || PH.role;
   const company = ltTemplate() ? PH.company : BL().company;   // blank stays a placeholder, filled when the company is typed in
-  const edu = shown(p.education).find(e => e.degree || e.inst) || p.education.find(e => e.degree || e.inst);
-  const exps = shown(p.experience).filter(e => (e.title || e.org) && e.bullets.length).slice(0, 2);
+  const edu = lwEdu(p);   // the degree closest to the job
+  const exps = lwJobs(p).slice(0, 2);   // the jobs with bullets, closest to the job first
   // "Event management" reads naturally mid-sentence as "event management"; names like Canva or SQL stay as they are
   const skills = [...p.skills.hard, ...p.skills.software].slice(0, 3).map(s => / /.test(s) && /^[A-Z][a-z]+( [a-z]+)+$/.test(s) ? lowerFirst(s) : s);
-  const soft = p.skills.soft.slice(0, 3).map(s => s.toLowerCase());
-  const clause = b => { const t = String(b).replace(/[.\s]+$/, ""); return ACTION_START.test(t) ? "I " + t[0].toLowerCase() + t.slice(1) : null; };
-  const eduLine = edu ? (edu.current ? `I am currently completing a ${edu.degree}${edu.inst ? ` at ${edu.inst}` : ""}${edu.end ? `, finishing in ${showDate(edu.end)}` : ""}.` : `I hold a ${edu.degree}${edu.inst ? ` from ${edu.inst}` : ""}.`) : "";
+  // a bullet that starts with a verb becomes "I led…"; one that doesn't ("Customer service for 150+ guests") becomes "my work included…"
+  const clause = b => { const t = String(b).replace(/[.\s]+$/, ""); if (!t) return null; return (ACTION_START.test(t) || /^(cut|hit|let|shut|split|spread|grew|drove|rose|saw|began|became|bought|caught|dealt|fed|got|hired|knew|left|lost|paid|rode|sought|stood|swept|threw|understood)(?![a-z])/i.test(t)) ? { t: "I " + t[0].toLowerCase() + t.slice(1), verb: true } : { t: "my work included " + t[0].toLowerCase() + t.slice(1), verb: false }; };
+  const eduLine = edu && !edu.degree ? (edu.inst ? `I studied at ${edu.inst}.` : "") : edu ? (lwEduStatus(edu).inProgress ? `I am currently completing a ${edu.degree}${edu.inst ? ` at ${edu.inst}` : ""}${edu.end ? `, finishing in ${showDate(edu.end)}` : ""}.` : `I hold a ${edu.degree}${edu.inst ? ` from ${edu.inst}` : ""}.`) : "";
   const out = [];
-  out.push({ part: "opening", text: `I am applying for the ${role} role${company ? ` at ${company}` : ""}. ${eduLine}${skills.length ? ` I would bring practical experience in ${listJoin(skills)} to your team.` : ""}`.replace(/\s+/g, " ").trim() });
+  // Template: the role, one line on why this company in particular, then the headline credential
+  const credential = `${eduLine}${skills.length ? ` I would bring practical experience in ${listJoin(skills)}.` : ""}`.trim() || LT_TPL.credential;
+  out.push({ part: "opening", text: (ltTemplate()
+    ? `I am applying for the ${role} role at ${company}. What draws me to this employer in particular is ${LT_TPL.hook}. ${credential}`
+    : `I am applying for the ${role} role${company ? ` at ${company}` : ""}. ${eduLine}${skills.length ? ` I would bring practical experience in ${listJoin(skills)}.` : ""}`).replace(/\s+/g, " ").trim() });
   const exp = exps.map((e, i) => {
-    const cl = e.bullets.map(clause).filter(Boolean);
+    const cl = lwBestBullets(e.bullets, 4).map(clause).filter(Boolean);
     if (!cl.length) return "";
-    const first = i === 0 ? `As ${/^[aeiou]/i.test(e.title) ? "an" : "a"} ${e.title}${e.org ? ` at ${e.org}` : ""}, ${cl[0]}.` : `${e.org ? `At ${e.org}` : `As ${e.title}`}, ${cl[0]}.`;
-    // the most recent job gets more examples, so the paragraph proves the point
-    return first + cl.slice(1, i === 0 ? 3 : 2).map(c => ` ${c.replace(/^I /, "I also ")}.`).join("");
+    const first = i === 0 ? `As ${/^[aeiou]/i.test(e.title) ? "an" : "a"} ${e.title}${e.org ? ` at ${e.org}` : ""}, ${cl[0].t}.` : `${e.org ? `At ${e.org}` : `As ${e.title}`}, ${cl[0].t}.`;
+    // the closest job gets more examples, so the paragraph proves the point
+    return first + cl.slice(1, i === 0 ? 3 : 2).map(c => c.verb ? ` ${c.t.replace(/^I /, "I also ")}.` : ` ${c.t.replace(/^my work included/, "My work also included")}.`).join("");
   }).filter(Boolean);
-  out.push({ part: "experience", text: exp.length ? exp.join(" ") + " [Why this experience matters for the job]" : "[Your most relevant job or project: what you did and what came of it.]" });
-  const proj = edu && val(edu.project) ? ` I also completed ${lowerFirst(val(edu.project).replace(/^(thesis|project|capstone)\s*:\s*/i, (m, w) => `a ${w.toLowerCase()} on `).replace(/[.\s]+$/, "").replace(/ on ([A-Z])(?=[a-z])/, (m, c) => " on " + c.toLowerCase()))}.` : "";
+  out.push({ part: "experience", text: exp.length ? exp.join(" ") + " [One line on why this experience matters for this job.]" : experienceFromProfile(p) });
+  const proj = edu && val(edu.project) ? ` I also completed ${lowerFirst(val(edu.project).replace(/^(thesis|project|capstone)\s*:\s*/i, (m, w) => `a ${/^(thesis|project|capstone)$/i.test(w) ? "major project" : w.toLowerCase()} on `).replace(/[.\s]+$/, "").replace(/ on ([A-Z])(?=[a-z])/, (m, c) => " on " + c.toLowerCase()))}.` : "";
   const certs = p.skills.certs.length ? ` I also hold ${listJoin(p.skills.certs.slice(0, 2))}.` : "";
   const subj = edu ? pickSubjects(edu, p).slice(0, 5) : [];
-  out.push({ part: "education", text: edu && subj.length ? `My studies have given me a strong foundation, including ${listJoin(subj)}.${proj}${p.skills.software.length ? ` I am proficient in ${listJoin(p.skills.software.slice(0, 3))}.` : ""}${certs}` : p.skills.software.length ? `I am proficient in ${listJoin(p.skills.software.slice(0, 3))}.${proj}${certs}` : edu ? `My ${edu.degree} has given me a strong foundation for this role.${proj}${certs}` : "[The study, tools and certificates behind your experience.]" });
+  // Education and skills runs to about 100 words: the most relevant degree, the subjects and project, the tools and certificates, and a line that ties them to the role
+  const when = edu && lwEduStatus(edu).inProgress ? (edu.end ? `, finishing in ${showDate(edu.end)},` : ", which I am completing now,") : edu && edu.end ? `, finished in ${showDate(edu.end)},` : "";
+  const degreeS = edu && edu.degree ? `My ${edu.degree}${edu.inst ? ` at ${edu.inst}` : ""}${when} is the foundation I would bring to the ${role} role.` : edu && edu.inst ? `I studied at ${edu.inst}.` : "";
+  const subjS = subj.length ? ` My coursework included ${listJoin(subj)}.` : "";
+  const toolsS = p.skills.software.length ? ` I work with ${listJoin(p.skills.software.slice(0, 3))}.` : "";
+  const eduText = `${degreeS}${subjS}${proj}${toolsS}${certs}`.trim();
+  // Template: ends with a tailored line that links the major project or a course to the role
+  const eduGaps = "[Your degree or course, where you studied it and when you finish.] [The subjects or project closest to the job, and what they taught you.] [The tools and certificates you use, and what each lets you do.]";
+  out.push({ part: "education", text: ltTemplate() ? `${eduText || eduGaps} ${LT_TPL.tailored}` : (eduText || `${eduGaps} [Why that study and those skills matter for this role.]`) });
   const why = ltTemplate() ? "" : lwClean(BL().why);   // the person's own reason for choosing this employer, if they gave one
-  out.push({ part: "motivation", text: `I am drawn to ${company || "[the company]"} because ${why ? (/^I( |')/.test(why) ? why : lowerFirst(why)) : "[one specific reason: a project, a value or the work they do]"}.${soft.length ? ` My experience has also developed my ${listJoin(soft)}, which I would bring to your team.` : ""}` });
+  // brackets that are not the company's name are about ten words each, so a template fills about the space it should
+  // Template: why this company, with the ad's key requirement written into the paragraph itself as its own blank
+  out.push({ part: "motivation", text: ltTemplate()
+    ? `I want to work at ${company || "[the company]"} because [one specific reason you want to work for this employer]. I want to do [the work you want to do and why it suits you], and the ad's key requirement, ${LT_TPL.requirement}, is where I would contribute most. [One strength of yours, and how it would help this team do its work.]`
+    : why ? `I want to work at ${company} because ${/^I( |')/.test(why) ? why : lowerFirst(why)}.` : "" });   // (no reason given: the paragraph waits for one)
   const avail = lwClean(BL().avail) || p.availability;   // the start date typed for this letter, or the one in the profile
-  out.push({ part: "closing", text: `I would welcome the opportunity to discuss how I could contribute${avail ? `, and I am available ${lowerFirst(String(avail).replace(/[.\s]+$/, "").replace(/^available\s+/i, "")).replace(/,\s*available\s+/i, ", ")}` : ""}. Thank you for considering my application.` });
+  const availTxt = avail ? lowerFirst(String(avail).replace(/[.\s]+$/, "").replace(/^available\s+/i, "")).replace(/,\s*available\s+/i, ", ") : "";
+  // Template: thanks first, then availability, then a call to action
+  const reach = [p.contact.phone, p.contact.email].filter(Boolean)[0];
+  out.push({ part: "closing", text: ltTemplate()
+    ? clNoContractions(`Thank you for considering my application. ${availTxt ? `I am available ${availTxt.replace(/^available\s+/i, "")}.` : "[AVAILABILITY: when you can start and the days you can work.]"} I would welcome the chance to discuss the role${reach ? `, and I can be reached on ${reach}` : ""}.`)
+    : clNoContractions(LR.closeFallback({ availability: availTxt })) });
   return out;
 }
 // Your base letter also becomes a "previous letter" in Tailor to a job, so its best sentences get reused
@@ -138,16 +181,16 @@ function renderLetterPage() {
   for (const k of ["role", "company", "recipient", "salutation", "signoff", "ref"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el && document.activeElement !== el) el.value = d[k] || ""; }
   const roleEl = $("lt-role"); if (roleEl && !d.role) roleEl.placeholder = P().target.title || "e.g. Graduate Engineer";
   // blank company / addressed-to boxes are yellow and read [XXX] in the letter
-  for (const k of ["role", "company", "recipient"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el) el.classList.toggle("gap-input", !String(d[k] || "").trim()); }
+  for (const k of ["role", "company"]) { const el = document.querySelector(`[data-lt="${k}"]`); if (el) el.classList.toggle("gap-input", !String(d[k] || "").trim()); }
   const box = $("ltParts");
   if (!box.dataset.built) {
-    box.innerHTML = COVER_PARTS.map((p, i) => `<div class="lt-part"><label class="q-label" for="ltp-${i}">${i + 1}. ${esc(p.label)} <span class="opt" id="ltw-${i}"></span></label><p class="q-hint">${esc(p.purpose)}</p><div id="ltg-${i}"></div>
+    box.innerHTML = COVER_PARTS.map((p, i) => `<div class="lt-part"><label class="q-label" for="ltp-${i}">${i + 1}. <span id="ltl-${i}">${esc(p.label)}</span> <span class="opt" id="ltw-${i}"></span></label><p class="q-hint" id="lth-${i}">${esc(p.purpose)}</p><div id="ltg-${i}"></div>
       <div class="hl-wrap"><div class="hl-back" id="ltb-${i}" aria-hidden="true"></div><textarea id="ltp-${i}" data-ltp="${i}" rows="8" spellcheck="true" placeholder="Write this paragraph, or use Write with AI below."></textarea></div>
       <div class="lt-part-acts" id="lta-${i}"></div><div class="lt-alts bl-alts" id="lts-${i}"></div></div>`).join("");
     box.dataset.built = "1";
   }
+  COVER_PARTS.forEach((p, i) => { const t = (ltTemplate() && LT_TPL_PARTS[p.key]) || p, l = $("ltl-" + i), h = $("lth-" + i); if (l) l.textContent = t.label; if (h) h.textContent = t.purpose; });
   d.parts.forEach((p, i) => { const el = $("ltp-" + i); if (el && document.activeElement !== el) el.value = p.text; partCount(i); $("ltg-" + i).innerHTML = $("ltg-" + i).dataset.stage === letterStage() ? $("ltg-" + i).innerHTML : clGuideHtml(p.part, letterStage()); $("ltg-" + i).dataset.stage = letterStage(); });
-  const r = letterRange(), st = (STAGES.find(s => s.key === letterStage()) || {}).label;
   ltTargetText();
   renderLetterDesigns();
   renderLetterPreview();
@@ -196,6 +239,19 @@ const ltEditor = {
   after() { renderLetterPreview(true); syncBaseToTailor(); },
   commit() { renderLetterPreview(); }
 };
+// What ltValidate (23e) finds in the letter, as rows like the other checks: the same kind of problem is one row, with a button to go to its paragraph
+const LT_ISSUE_TITLES = { tense: "A degree still in progress is written as finished", repeat_term: "The same name or date in too many paragraphs", repeat_stem: "The same word again and again", too_long: "A paragraph is longer than its budget", too_many_sentences: "Too many sentences in a paragraph", opening_title: "The opening doesn't name the job", opening_employer: "The opening doesn't name the employer", filler: "A sentence that explains why something matters", banned: "Stiff or padded wording", placeholder: "A gap that was never filled in" };
+function ltIssueRows() {
+  try {
+    const by = {};
+    for (const x of ltValidate()) if (LT_ISSUE_TITLES[x.type] && x.type !== "placeholder") (by[x.type] = by[x.type] || []).push(x);
+    const quoted = d => ((String(d).match(/[“"]([^”"]{3,70})[”"]/) || [])[1] || "").replace(/…$/, "").trim().toLowerCase();
+    return Object.entries(by).map(([type, list]) => ({
+      where: [...new Set(list.map(x => x.i))], fix: "reword", level: "warn", title: LT_ISSUE_TITLES[type], detail: list.slice(0, 3).map(x => x.detail).join("; "),
+      fixes: list.map(x => { const q = quoted(x.detail); return { i: x.i, ask: type === "banned" || type === "filler" ? `Reword it: ${x.detail}.` : x.detail, test: (type === "banned" || type === "filler") && q ? (s2 => s2.toLowerCase().includes(q)) : null }; })
+    }));
+  } catch { return []; }
+}
 function renderLetterPreview(keepPaper) {
   const st = currentLetterStyle(), L = baseLetterParts();
   if (!keepPaper) {
@@ -207,33 +263,35 @@ function renderLetterPreview(keepPaper) {
   const text = blText().join(" "), wc = wordCount(text);
   // gaps: [brackets] in the paragraphs, plus a blank company or "addressed to", which read [XXX]
   const bodyGaps = (text.match(TOKEN_RE) || []).length, d = BL();
-  const blanks = ltTemplate() ? [] : [!String(d.recipient || "").trim() && "who it is addressed to", !String(d.company || "").trim() && "the company"].filter(Boolean);
+  const blanks = ltTemplate() ? [] : [!String(d.role || "").trim() && "the job title", !String(d.company || "").trim() && "the company"].filter(Boolean);
   const gaps = bodyGaps + blanks.length;
-  for (const el of document.querySelectorAll("#ltParts [data-ltp]")) lwBack(+el.dataset.ltp, el.value);
   const own = blText().length > 0, r = letterRange();
   const parts = BL().parts, lab = i => partOf(parts[i].part).label;
   // words the AI put in that aren't in the profile (shown in red in the paragraph)
   const made = parts.flatMap((pp, k) => (pp.madeUp || []).filter(t => pp.text.includes(t)).map(t => ({ i: k, t })));
   const thinIdx = parts.map((p, i) => p.text.trim() && wordCount(p.text) < partMin(p.part, r) ? i : -1).filter(i => i >= 0);
-  const quality = own ? coverQuality(parts.map(p => p.text), profileToText(P()) + "\n" + (d.role || "") + " " + (d.company || "")) : [];
+  const quality = own ? coverQuality(parts.map(p => p.text), profileToText(P()) + "\n" + (d.role || "") + " " + (d.company || "") + "\n" + String(ltPlan().salary || ""), { allowSalary: !!ltPlan().salary }).concat(ltIssueRows()) : [];
   // each warning can be clicked to jump to the paragraph it's about, and has a button that fixes just that one thing
   const goBtn = i => `<button class="linkish" type="button" data-ck="go:${i}">Go to ${esc(lab(i).toLowerCase())}</button>`;
   const row = (cls, title, detail, acts, go) => `<li class="ck${go ? " ck-go" : ""}"${go ? ` data-ck-go="${go}" tabindex="0" role="button" aria-label="${esc(String(title).replace(/<[^>]+>/g, ""))}. Go to it"` : ""}><span class="ico ${cls}"></span><div><div class="title">${title}</div><div class="detail">${detail}</div>${acts ? `<div class="ck-acts">${acts}</div>` : ""}</div></li>`;
   const shortest = parts.map((p, i) => [i, wordCount(p.text) - partMin(p.part, r)]).filter(([i]) => parts[i].text.trim()).sort((a, b) => a[1] - b[1])[0];
   const longest = parts.map((p, i) => [i, wordCount(p.text)]).sort((a, b) => b[1] - a[1])[0];
-  const fixLabel = { dash: "Fix the dashes", exclaim: "Fix the exclamation marks", reword: "Reword", go: "Go to" };
-  const qualityRows = quality.map(q => {
+  // every warning that is about words has a button that opens Reword on the one sentence it is about (or the paragraph, when it is about all of it)
+  ltQualityNow = quality;
+  // (after the warnings are worked out: each sentence a warning is about is marked in soft yellow in its paragraph)
+  for (const el of document.querySelectorAll("#ltParts [data-ltp]")) lwBack(+el.dataset.ltp, el.value);
+  const qualityRows = quality.map((q, qi) => {
     const where = q.where || [], first = where[0];
-    const acts = first == null ? "" : where.slice(0, 4).map(i => q.fix === "go" ? goBtn(i) : `<button class="btn" type="button" data-ck="${q.fix}:${i}">${q.fix === "reword" ? "Reword " + esc(lab(i).toLowerCase()) : fixLabel[q.fix] + " in " + esc(lab(i).toLowerCase())}</button>`).join("");
+    const acts = first == null ? "" : where.slice(0, 4).map(i => { const t = ltFixTarget(q, i, parts[i].text); return q.fix === "go" ? goBtn(i) : `<button class="btn" type="button" data-ck="rw:${qi}:${i}">${t.sel >= 0 ? `Reword sentence ${t.sel + 1} in ${esc(lab(i).toLowerCase())}` : `Reword ${esc(lab(i).toLowerCase())}`}</button>`; }).join("");
     return row("warn", esc(q.title), esc(q.detail), acts, first == null ? "" : "part:" + first);
   }).join("");
-  $("ltChecks").innerHTML = own ? `<h3 class="ck-head">Before you send it</h3><p class="small muted">Select a warning to jump to it. Each button changes just that one thing.</p><ul class="checks lt-checklist">
+  $("ltChecks").innerHTML = own ? `<h3 class="ck-head">Before you send it</h3><p class="small muted">Select a warning to jump to it. The sentence it is about is highlighted in <mark class="ck-flag-key">soft yellow</mark> in the paragraphs above. Each button opens Reword on just that sentence, with the problem already written in.</p><ul class="checks lt-checklist">
     ${row(wc >= r[0] && wc <= r[1] ? "pass" : "warn", `${wc} words`, wc < r[0] ? `A little short. About ${r[0]} to ${r[1]} words fill one page at your spacing and margins.` : wc <= r[1] ? `Fits one page (${r[0]} to ${r[1]} words).` : `Trim it to ${r[1]} words or fewer so it fits on one page.`,
-      wc < r[0] && shortest ? (EXPAND_PARTS.has(parts[shortest[0]].part) ? `<button class="btn" type="button" data-ck="expand:${shortest[0]}">Expand ${esc(lab(shortest[0]).toLowerCase())} with AI</button>` : goBtn(shortest[0])) : wc > r[1] && longest ? goBtn(longest[0]) : "",
+      wc < r[0] && shortest ? `<button class="btn" type="button" data-ck="rwlen:${shortest[0]}:longer">Reword ${esc(lab(shortest[0]).toLowerCase())}</button>` : wc > r[1] && longest ? `<button class="btn" type="button" data-ck="rwlen:${longest[0]}:shorter">Reword ${esc(lab(longest[0]).toLowerCase())}</button>` : "",
       wc < r[0] && shortest ? "part:" + shortest[0] : wc > r[1] && longest ? "part:" + longest[0] : "")}
-    ${thinIdx.length ? thinIdx.map(i => row("warn", `Too short: ${esc(lab(i).toLowerCase())}`, `${wordCount(parts[i].text)} words. It needs at least ${partMin(parts[i].part, r)}. Add a detail or an example.`, EXPAND_PARTS.has(parts[i].part) ? `<button class="btn" type="button" data-ck="expand:${i}">Expand with AI</button>${goBtn(i)}` : goBtn(i), "part:" + i)).join("") : row("pass", "Every paragraph has enough to it", "Each one does its job.", "", "")}
-    ${ltTemplate() ? row("pass", "A template: its gaps are meant to be there", bodyGaps ? `The yellow gaps are for each job's details. Fill them in when you send the letter to a job.` : "No gaps to fill.", bodyGaps ? '<button class="btn" type="button" data-ck="gap">Go to the next gap</button>' : "", bodyGaps ? "gap" : "") : row(gaps ? "warn" : "pass", gaps ? `<mark class="gap-mark">${gaps} gap${gaps === 1 ? "" : "s"} to fill</mark>` : "No gaps left", gaps ? `Missing information is highlighted in yellow${blanks.length ? ` (${esc(listJoin(blanks))} shows as [XXX])` : ""}. You can save and come back to it. Fill each one before you send the letter.` : "Ready to send, or to tailor to a job.",
-      gaps ? `${bodyGaps ? '<button class="btn" type="button" data-ck="gap">Go to the next gap</button>' : ""}${!String(d.company || "").trim() ? '<button class="btn" type="button" data-ck="field:company">Add the company</button>' : ""}${!String(d.recipient || "").trim() ? '<button class="btn" type="button" data-ck="field:recipient">Add who it is addressed to</button>' : ""}` : "", gaps ? (bodyGaps ? "gap" : !String(d.company || "").trim() ? "field:company" : "field:recipient") : "")}
+    ${thinIdx.length ? thinIdx.map(i => row("warn", `Too short: ${esc(lab(i).toLowerCase())}`, `${wordCount(parts[i].text)} words. It needs at least ${partMin(parts[i].part, r)}. Add a detail or an example.`, `<button class="btn" type="button" data-ck="rwlen:${i}:longer">Reword ${esc(lab(i).toLowerCase())}</button>`, "part:" + i)).join("") : row("pass", "Every paragraph has enough to it", "Each one does its job.", "", "")}
+    ${ltTemplate() ? row("pass", "A template: its gaps are meant to be there", bodyGaps ? `The yellow gaps are for each job's details. Fill them in when you send the letter to a job.` : "No gaps to fill.", "", "") : row(gaps ? "warn" : "pass", gaps ? `<mark class="gap-mark">${gaps} gap${gaps === 1 ? "" : "s"} to fill</mark>` : "No gaps left", gaps ? `Missing information is highlighted in yellow${blanks.length ? ` (still to add: ${esc(listJoin(blanks))})` : ""}. You can save and come back to it. Fill each one before you send the letter.` : "Ready to send, or to tailor to a job.",
+      gaps ? `${bodyGaps ? '<button class="btn" type="button" data-ck="gap">Go to the next gap</button>' : ""}${!String(d.company || "").trim() ? '<button class="btn" type="button" data-ck="field:company">Add the company</button>' : ""}${!String(d.role || "").trim() ? '<button class="btn" type="button" data-ck="field:role">Add the job title</button>' : ""}` : "", gaps ? (bodyGaps ? "gap" : !String(d.company || "").trim() ? "field:company" : "field:role") : "")}
     ${made.length ? row("warn", `${made.length} detail${made.length === 1 ? "" : "s"} not in your profile`, `${esc(listJoin(made.slice(0, 5).map(m => m.t)))}. Hover the red words in the paragraph to keep one (it's saved to your profile) or discard it.`, goBtn(made[0].i), "part:" + made[0].i) : ""}
     ${qualityRows}
     ${quality.length ? "" : row("pass", "Reads like you wrote it", "No clichés, long dashes or repeated openings.", "", "")}
@@ -241,10 +299,9 @@ function renderLetterPreview(keepPaper) {
   const sc = letterScore(parts, r, wc, gaps, quality.concat(made)), se = $("ltScore");
   if (se) se.innerHTML = `Cover letter strength: <span style="color:${sc >= 80 ? "var(--good)" : sc >= 60 ? "var(--accent)" : "var(--warn)"}">${sc}/100</span>`;
   // a letter with gaps can still be saved, copied and downloaded as a draft (Word highlights the gaps yellow)
-  ["ltDl", "ltCopy"].forEach(id => { $(id).disabled = !own; });
+  ["ltDl", "ltCopy", "ltCopyEmail"].forEach(id => { const b = $(id); if (b) b.disabled = !own; });
   $("ltSave").disabled = !own;
   if (typeof ltV22Preview === "function") ltV22Preview();
-  lfRender();
   $("ltDlStatus").textContent = !own ? "" : gaps && !ltTemplate() ? `${gaps} gap${gaps === 1 ? "" : "s"} still highlighted in yellow. You can save or download it as a draft; Word keeps the highlight.` : "";
 }
 async function downloadBaseLetter(kind, btn) {
@@ -253,7 +310,7 @@ async function downloadBaseLetter(kind, btn) {
   if (kind === "txt") return downloadTextFile(name, letterPlainText(L), $("ltDlStatus"), btn);
   await downloadMade(name, () => kind === "pdf" ? buildCoverPdf(L, st) : buildCoverDocx(L, st), $("ltDlStatus"), btn);
 }
-const letterPlainText = L => [L.name, L.contact.join(" | "), "", L.date, "", ...L.recipient, "", L.re, "", L.salutation, "", ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, "", L.signName].join("\n");
+const letterPlainText = L => [L.name, L.contact.join(" | "), "", L.date, "", ...(L.recipient && L.recipient.length ? [...L.recipient, ""] : []), ...(L.greetFirst ? [L.salutation, "", ...(L.re ? [L.re, ""] : [])] : [...(L.re ? [L.re, ""] : []), L.salutation, ""]), ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, "", L.signName].join("\n");
 let ltSaveTimer = null;
 function letterEdited() {
   baseLetter.save();
@@ -265,24 +322,27 @@ onInit(() => {
     const k = e.target.dataset.lt, i = e.target.dataset.ltp;
     if (k) {
       BL()[k] = e.target.value;
-      if (["role", "company", "recipient"].includes(k)) e.target.classList.toggle("gap-input", !e.target.value.trim());
+      if (["role", "company"].includes(k)) e.target.classList.toggle("gap-input", !e.target.value.trim());
       // a company or role typed in fills the matching [gap] in the letter
       const gap = { company: "[the company]", role: "[the role]" }[k], v = e.target.value.trim();
       if (gap && v && e.type === "change") BL().parts.forEach((p, j) => { if (p.text.includes(gap)) { p.text = p.text.split(gap).join(v); const el = $("ltp-" + j); if (el) el.value = p.text; } });
       letterEdited();
     }
-    else if (i != null) { BL().parts[+i].text = e.target.value; lwBack(+i, e.target.value); partCount(+i); letterEdited(); }
+    else if (i != null) { const bp = BL().parts[+i]; bp.text = e.target.value; lwBack(+i, e.target.value); partCount(+i); letterEdited(); }
   };
   $("view-letter").addEventListener("input", ltEdit);
   $("view-letter").addEventListener("change", e => { if (e.target.dataset.lt) ltEdit(e); });
-  $("ltFromProfile").addEventListener("click", async () => {
-    const st = $("ltStatus"), btn = $("ltFromProfile");
+  // Start from my profile (top of the page) and Write all (top of the letter) do the same thing
+  const writeAll = async btn => {
+    const st = $("ltStatus");
     if (!hasProfile(P())) { st.textContent = "Add your details in the resume builder first, so the letter has something to draw on."; return; }
     if (blText().length && !confirmReplace(btn)) return;
     // the AI writes each section in turn (23e-letter-writer.js); anything it can't write is filled in from the standard version
     await lwStart(btn);
     syncBaseToTailor();
-  });
+  };
+  $("ltFromProfile").addEventListener("click", () => writeAll($("ltFromProfile")));
+  $("ltWriteAll").addEventListener("click", () => writeAll($("ltWriteAll")));
   $("ltPickBtn").addEventListener("click", async () => {
     const box = $("ltPick"), b = $("ltPickBtn"), open = box.hidden;
     box.hidden = !open; b.setAttribute("aria-expanded", String(open));
@@ -300,12 +360,8 @@ onInit(() => {
   $("ltDesignBtn").addEventListener("click", () => openView("cv", { kind: "letter" }));
   $("ltSave").addEventListener("click", saveLetterTemplate);
   $("view-letter").addEventListener("click", e => {
-    const x = e.target.closest("[data-lt-expand]"); if (x) { expandPart(+x.dataset.ltExpand, x); return; }
     const wr = e.target.closest("[data-lt-write]"); if (wr) { writePartAI(+wr.dataset.ltWrite, wr); return; }
     const rm = e.target.closest("[data-lt-rwmenu]"); if (rm) { rewordMenu(+rm.dataset.ltRwmenu); return; }
-    const rs = e.target.closest("[data-lt-rwsel]");
-    if (rs) { const [ri, what] = rs.dataset.ltRwsel.split("."), box = $("lts-" + ri); rwSel[ri] = what === "all" ? -1 : what === "pick" ? (Number.isInteger(rwSel[ri]) && rwSel[ri] >= 0 ? rwSel[ri] : -2) : +what; if (box) box.innerHTML = rewordMenuHtml(+ri); return; }
-    const rw = e.target.closest("[data-lt-rw]"); if (rw) { const [ri, mode] = rw.dataset.ltRw.split("."); rewordPart(+ri, rw, mode); return; }
     const alt = e.target.closest("[data-lt-alt]");
     if (alt) {
       const [i, k] = alt.dataset.ltAlt.split(".").map(Number), box = $("lts-" + i), p = BL().parts[i];
@@ -337,22 +393,20 @@ onInit(() => {
   baseLetter.on(() => { if (currentView === "letter") renderLetterPage(); if (currentView === "cv" && cvLetters()) renderCv(); syncBaseToTailor(); });
   onProfile(() => { if (currentView === "letter") renderLetterPreview(); });
 });
-/* --- Each paragraph's length: a minimum for each, and Expand with AI for a thin one --- */
+/* --- Each paragraph's length: a minimum for each. A thin paragraph is made longer with Reword (Longer) --- */
 function partCount(i) {
   const p = BL().parts[i], w = $("ltw-" + i), acts = $("lta-" + i);
   if (!p || !w) return;
-  const n = wordCount(p.text), min = partMin(p.part, letterRange());
+  const n = wordCount(p.text), min = partMin(p.part, letterRange()), blank = ltBracketOnly(p.text);
   const aim = partTarget(p.part, letterRange());
   w.textContent = n ? `${n} words · aim for about ${aim}` : `aim for about ${aim} words`;
   w.classList.toggle("short", !!n && n < min); w.classList.toggle("good", n >= min);
-  // Opening, Experience and Education and skills can be expanded with AI (or written, when empty); every paragraph can be reworded.
-  // "Why this company" is your own reason, so AI only drafts it when it's empty.
+  // An empty paragraph can be written with AI; one with words in it can be reworded (shorter, longer, another tone, or in your own words).
   const keepNote = ($("ltx-" + i) || {}).innerHTML || "";
-  if (acts && !acts.dataset.busy) acts.innerHTML = `${EXPAND_PARTS.has(p.part) ? `<button class="btn" type="button" data-lt-expand="${i}">${n ? "Expand with AI" : "Write with AI"}</button>` : !n ? `<button class="btn" type="button" data-lt-write="${i}">Write with AI</button>` : ""}${n ? `<button class="btn" type="button" data-lt-rwmenu="${i}" aria-haspopup="true" title="Other ways to say it: shorter, longer, casual or formal, or in your own words">Reword…</button>` : ""}<span class="small muted lt-note" id="ltx-${i}">${keepNote}</span>`;
+  if (acts && !acts.dataset.busy) acts.innerHTML = `${!n || blank ? `<button class="btn" type="button" data-lt-write="${i}">Write with AI</button>` : ""}${n && !blank ? `<button class="btn" type="button" data-lt-rwmenu="${i}" aria-haspopup="true" title="Other ways to say it: shorter, longer, casual or formal, or in your own words">Reword…</button>` : ""}${ltPartExtras(i)}<span class="small muted lt-note" id="ltx-${i}">${keepNote}</span>`;
 }
 /* --- Write a paragraph with AI, using the craft rules and the rules for your career stage --- */
 // Every AI job on this page writes one paragraph of a letter: begin with context, and use full sentences only
-const EXPAND_PARTS = new Set(["opening", "experience", "education", "motivation", "closing"]);
 // Is this text one paragraph of full sentences? Returns what's wrong, or "".
 function proseOk(t) {
   const x = String(t || "").trim();
@@ -361,11 +415,7 @@ function proseOk(t) {
   // (full sentences starting with a capital letter is a suggestion in the prompt, not a rule the answer is rejected for)
   return "";
 }
-const hardPhrase = t => { for (const re of CL_HARD) { const m = String(t).match(re); if (m) return m[0]; } return ""; };
-function partSource(i) {
-  const d = BL();
-  return { facts: profileToText(P()).slice(0, 5000), src: [profileToText(P()), d.role, d.company, d.recipient, BL().parts.map(p => p.text).join("\n")].join("\n") };
-}
+const hardPhrase = t => { for (const re of CL_HARD) { const m = String(t).match(re); if (m) return m[0]; } return LR.patternsFound(t)[0] || ""; };
 // Writing a paragraph from your profile: see 23e-letter-writer.js (one sentence per field, checked, with the standard version as a fallback)
 const writePartAI = (i, btn) => lwWriteOne(i, btn);
 /* --- Reword: up to three other ways to say a paragraph --- */
@@ -378,7 +428,7 @@ Rules:
 5. Never name a company, employer, product or person that is not in the original or the details.
 6. Never write a phone number, email address, link or LinkedIn: the letter head already has them.
 7. Copy every number exactly as it appears in the original. Never add anything about the company's reputation, values, culture or work.
-8. At most one sentence begins with "I". Never write "I am writing to", eager, passionate, excited, thrilled or dynamic. No contractions unless you are told they are fine: write "I am", never "I'm".
+8. No more than two sentences in a row begin with "I". Never write "I am writing to", "My name is", "in short", "from day one", eager, passionate, excited, thrilled or dynamic. No contractions unless you are told they are fine: write "I am", never "I'm".
 Reply with JSON only: {"options": ["...", "...", "..."]}`;
 // The ways to reword a paragraph (the "Reword as…" menu): size is the length to aim for, note is said to the AI
 const RW_MODES = {
@@ -387,6 +437,8 @@ const RW_MODES = {
   longer: { label: "Longer", size: o => o * 1.25, note: "Make it a little longer (about a quarter more words) with more detail from the candidate's details. Do not pad." },
   casual: { label: "More casual", note: "Make it more casual and conversational (contractions are fine), still professional." },
   formal: { label: "More formal", note: "Make it more formal and polished, with no contractions." },
+  simpler: { label: "Simpler words", note: "Use simpler, shorter everyday words. Keep every fact and every number exactly." },
+  personal: { label: "More personal", note: "Make it sound more personal and specific to this applicant, using only the details already in the original. Add no new facts." },
   fit: { label: "To fit the page", size: (o, aim) => aim, note: "" },
   custom: { label: "In your own words", note: "" }
 };
@@ -395,27 +447,97 @@ function ltSentences(text) {
   const masked = String(text).replace(/\[[^\]]*\]|\{[^}]*\}/g, m => m.replace(/\./g, "\u0001"));
   return (masked.match(/[^.!?]+(?:[.!?]+["”']?|$)\s*/g) || [masked]).map(x => x.replace(/\u0001/g, ".")).filter(x => x.trim());
 }
-const rwSel = {};   // which sentence of each paragraph is being reworded (-1: the whole paragraph, -2: choosing a sentence)
+const rwSel = {};   // which sentence of each cover letter paragraph is being reworded (-1: the whole paragraph); set when the popup's Reword is pressed
 const rwShort = t => { const w = t.trim().split(/\s+/); return w.slice(0, 7).join(" ") + (w.length > 7 ? "…" : ""); };
-function rewordMenuHtml(i) {
-  const p = BL().parts[i], sents = ltSentences(p.text), sel = Number.isInteger(rwSel[i]) && rwSel[i] >= 0 && sents[rwSel[i]] ? rwSel[i] : -1, choosing = sel >= 0 || rwSel[i] === -2;
-  const b = (k, extra = "") => `<button type="button" data-lt-rw="${i}.${k}"${extra}>${esc(RW_MODES[k].label)}${k === "shorter" ? " <small>−25%</small>" : k === "longer" ? " <small>+25%</small>" : ""}</button>`;
-  return `<div class="lt-rw" data-nohelp="1">
-    <p class="small muted rw-head">How should it change?</p>
-    <div class="rw-row"><span class="rw-lab">Reword</span><div class="seg" role="group" aria-label="What to reword"><button type="button" data-lt-rwsel="${i}.all" aria-pressed="${!choosing}">The whole paragraph</button><button type="button" data-lt-rwsel="${i}.pick" aria-pressed="${choosing}"${sents.length < 2 ? " disabled" : ""}>One sentence</button></div></div>
-    ${choosing ? `<div class="rw-sents" role="group" aria-label="Choose the sentence">${sents.map((t, k) => `<button type="button" class="rw-sent" data-lt-rwsel="${i}.${k}" aria-pressed="${sel === k}"><b>${k + 1}</b> ${esc(rwShort(t))}</button>`).join("")}</div>${sel < 0 ? `<p class="small muted">Choose the sentence to reword.</p>` : ""}` : ""}
-    <div class="rw-row"><span class="rw-lab">Length</span><div class="seg seg-fill" role="group" aria-label="Length">${b("shorter")}${b("longer")}</div></div>
-    <div class="rw-row"><span class="rw-lab">Tone</span><div class="seg seg-fill" role="group" aria-label="Tone">${b("casual")}${b("formal")}</div></div>
-    <div class="rw-row"><span class="rw-lab">Or</span><div class="seg" role="group" aria-label="Other ways">${b("same")}${b("fit", choosing ? " disabled" : "")}</div></div>
-    <div class="seg-in"><input type="text" id="rwFree${i}" maxlength="120" placeholder="Or say it yourself, e.g. lead with my software skills" aria-label="Tell the AI how to change this paragraph"><button class="btn" type="button" data-lt-rw="${i}.custom">Reword</button></div>
-    <button class="linkish" type="button" data-lt-altclose="${i}">Close</button></div>`;
+// The Reword box is ONE popup used everywhere on the site (cover letter paragraphs, resume bullet points, the summary, extras): pick as many changes
+// as you like (one length, one tone, and more), or say it yourself, and, for text of several sentences, choose which sentence. Then press Reword.
+// ctx: { title, sub, text, sentences (offer "One sentence"), fit (offer "To fit the page"), sel (-1 whole text), modes[], free, go({ modes, free, sel }) }
+const rwUi = { ctx: null, sel: -1, modes: new Set(), opener: null, free: "" };
+const RW_GROUPS = { length: ["shorter", "longer"], tone: ["casual", "formal"] };
+function rwModalHtml() {
+  const c = rwUi.ctx, sents = c.sentences ? ltSentences(c.text) : [], st = rwUi.sel, sel = st >= 0 && sents[st] ? st : -1, choosing = c.sentences && (sel >= 0 || st === -2);
+  const on = k => rwUi.modes.has(k);
+  const tog = (k, extra = "") => `<button type="button" data-rw-mode="${k}" aria-pressed="${on(k)}"${extra}>${esc(RW_MODES[k].label)}${k === "shorter" ? " <small>−25%</small>" : k === "longer" ? " <small>+25%</small>" : ""}</button>`;
+  return `<div class="rw-box" role="dialog" aria-modal="true" aria-labelledby="rwTitle" data-nohelp="1">
+    <button type="button" class="rw-x" data-rw-close="1" aria-label="Close">×</button>
+    <h2 id="rwTitle">${esc(c.title || "Reword this paragraph")}</h2>
+    <p class="small muted rw-sub">${esc(c.sub || "Choose as many changes as you like, then press Reword. You will get up to three wordings to pick from.")}</p>
+    ${c.sentences ? `<div class="rw-sec"><span class="rw-lab">What to reword</span><div class="seg" role="group" aria-label="What to reword"><button type="button" data-rw-scope="all" aria-pressed="${!choosing}">The whole paragraph</button><button type="button" data-rw-scope="pick" aria-pressed="${choosing}"${sents.length < 2 ? " disabled" : ""}>One sentence</button></div></div>` : ""}
+    ${choosing ? `<div class="rw-sents" role="group" aria-label="Choose the sentence">${sents.map((t, k) => `<button type="button" class="rw-sent" data-rw-sent="${k}" aria-pressed="${sel === k}"><b>${k + 1}</b><span>${esc(rwShort(t))}</span></button>`).join("")}</div>${sel < 0 ? `<p class="small muted">Choose the sentence to reword.</p>` : ""}` : ""}
+    <div class="rw-sec"><span class="rw-lab">Length</span><div class="seg" role="group" aria-label="Length">${tog("shorter", on("fit") ? " disabled" : "")}${tog("longer", on("fit") ? " disabled" : "")}</div></div>
+    <div class="rw-sec"><span class="rw-lab">Tone</span><div class="seg" role="group" aria-label="Tone">${tog("casual")}${tog("formal")}</div></div>
+    <div class="rw-sec"><span class="rw-lab">Also</span><div class="seg" role="group" aria-label="Also">${tog("simpler")}${tog("personal")}${c.fit ? tog("fit", choosing || on("shorter") || on("longer") ? " disabled" : "") : ""}</div></div>
+    <div class="rw-sec"><label class="rw-lab" for="rwFree">Or say it yourself</label><input type="text" id="rwFree" maxlength="240" placeholder="e.g. lead with my software skills" value="${esc(rwUi.free || "")}"></div>
+    <div class="rw-act"><button type="button" class="btn" data-rw-close="1">Cancel</button><button type="button" class="btn primary" data-rw-go="1"${choosing && sel < 0 ? " disabled" : ""}>Reword</button></div>
+  </div>`;
 }
-function rewordMenu(i) {
+function rwRender(focusSel) {
+  const host = $("rwModal"); if (!host) return;
+  const keep = ($("rwFree") || {}).value; if (keep !== undefined) rwUi.free = keep;
+  host.innerHTML = rwModalHtml();
+  if (focusSel) { const f = host.querySelector(focusSel); if (f) f.focus(); }
+}
+function rwClose() {
+  const host = $("rwModal"); if (host) host.remove();
+  document.body.classList.remove("rw-open");
+  document.removeEventListener("keydown", rwKey, true);
+  const o = rwUi.opener; rwUi.opener = null; rwUi.ctx = null; if (o && o.isConnected) o.focus({ preventScroll: true });
+}
+function rwKey(e) {
+  if (e.key === "Escape") { e.preventDefault(); rwClose(); return; }
+  if (e.key !== "Tab") return;
+  const f = [...document.querySelectorAll("#rwModal button:not([disabled]), #rwModal input")]; if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+function rwOpen(ctx) {
+  if ($("rwModal")) return;
+  rwUi.ctx = ctx; rwUi.modes = new Set((ctx.modes || []).filter(k => RW_MODES[k])); rwUi.free = ctx.free || ""; rwUi.sel = Number.isInteger(ctx.sel) ? ctx.sel : -1; rwUi.opener = document.activeElement;
+  const host = document.createElement("div"); host.id = "rwModal"; host.className = "rw-modal";
+  document.body.appendChild(host); document.body.classList.add("rw-open");
+  host.addEventListener("click", e => {
+    if (e.target === host || e.target.closest("[data-rw-close]")) { rwClose(); return; }
+    const m = e.target.closest("[data-rw-mode]");
+    if (m) {
+      const k = m.dataset.rwMode, was = rwUi.modes.has(k);
+      for (const g of Object.values(RW_GROUPS)) if (g.includes(k)) g.forEach(x => rwUi.modes.delete(x));   // one length, one tone
+      if (!was) rwUi.modes.add(k);
+      rwRender(`[data-rw-mode="${k}"]`); return;
+    }
+    const sc = e.target.closest("[data-rw-scope]");
+    if (sc) { rwUi.sel = sc.dataset.rwScope === "all" ? -1 : (rwUi.sel >= 0 ? rwUi.sel : -2); if (rwUi.sel !== -1) rwUi.modes.delete("fit"); rwRender(`[data-rw-scope="${sc.dataset.rwScope}"]`); return; }
+    const se = e.target.closest("[data-rw-sent]");
+    if (se) { rwUi.sel = +se.dataset.rwSent; rwRender(`[data-rw-sent="${se.dataset.rwSent}"]`); return; }
+    if (e.target.closest("[data-rw-go]")) {
+      const free = (($("rwFree") || {}).value || "").trim(), modes = [...rwUi.modes], sel = rwUi.sel >= 0 ? rwUi.sel : -1, go = rwUi.ctx && rwUi.ctx.go;
+      rwClose();
+      if (go) go({ modes, free, sel });
+    }
+  });
+  document.addEventListener("keydown", rwKey, true);
+  // a problem already written in "Or say it yourself": the Reword button is ready to press
+  rwRender(rwUi.free ? "[data-rw-go]" : ctx.sentences ? "[data-rw-scope=all]" : "[data-rw-mode]");
+}
+// The cover letter's Reword button on one paragraph. o: { sel (a sentence to start on), modes[], free (what is wrong, written for the person) }
+function rewordMenu(i, o = {}) {
+  if ($("rwModal")) return;
   const box = $("lts-" + i);
-  if (!box) return;
-  if (box.dataset.menu === "1") { box.innerHTML = ""; box.dataset.menu = ""; return; }
-  box.dataset.menu = "1"; box._alts = null; rwSel[i] = -1;
-  box.innerHTML = rewordMenuHtml(i);
+  if (box) { box.innerHTML = ""; box.dataset.menu = ""; box._alts = null; }
+  rwOpen({
+    title: "Reword this paragraph", text: BL().parts[i].text, sentences: true, fit: true, sel: Number.isInteger(o.sel) ? o.sel : -1, modes: o.modes || [], free: o.free || "",
+    go: ({ modes, free, sel }) => {
+      rwSel[i] = sel;
+      const b = document.querySelector(`[data-lt-rwmenu="${i}"]`) || document.createElement("button");
+      rewordPart(i, b, "combo", { modes: modes.length || free ? modes : ["same"], free });
+    }
+  });
+}
+// What a set of chosen changes asks of the AI: the length to aim for and the notes it is told
+function rwCombine(modes, free) {
+  const ms = modes.map(k => RW_MODES[k]).filter(Boolean);
+  const size = (ms.find(m => m.size) || {}).size;
+  const notes = ms.map(m => m.note).filter(Boolean); if (free) notes.push(`Change it like this: ${free}`);
+  return { label: "Reword", size, note: notes.join(" ") };
 }
 const ltClean = t => stripMarkup(String(t == null ? "" : t)).replace(/\s+/g, " ").trim();
 const LT_REWORD_ONE_NANO = `You write different wordings of ONE sentence from a paragraph of a formal Australian cover letter.
@@ -429,17 +551,13 @@ Rules:
 7. Never write "I am writing to", eager, passionate, excited, thrilled or dynamic. No contractions unless you are told they are fine: write "I am", never "I'm".
 Reply with JSON only: {"options": ["...", "...", "..."]}`;
 const LT_NO_NAMES = "\nThis letter is a template for any job: never name a company, employer, product or person. Where the company goes, write [the company].";
-async function rewordPart(i, btn, mode = "same") {
+async function rewordPart(i, btn, mode = "same", combo = null) {
   const d = BL(), p = d.parts[i], box = $("lts-" + i);
-  let M = RW_MODES[mode] || RW_MODES.same;
-  if (mode === "custom") {
-    const how = (($("rwFree" + i) || {}).value || "").trim();
-    if (!how) { const inp = $("rwFree" + i); if (inp) inp.focus(); return; }
-    M = { ...M, note: `Change it like this: ${how}` };
-  }
+  const g0 = ltGate(); if (!g0.ok) { if (box) box.innerHTML = `<span class="small">${esc(ltGateSay(g0, null))}</span> <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`; return; }
+  const picked = combo ? combo.modes : [mode], has = k => picked.includes(k);
+  const M = combo ? rwCombine(combo.modes, combo.free) : (RW_MODES[mode] || RW_MODES.same);
   // one chosen sentence, or the whole paragraph
-  const sents = ltSentences(p.text), sIdx = Number.isInteger(rwSel[i]) ? rwSel[i] : -1, one = sIdx >= 0 && !!sents[sIdx] && mode !== "fit", scope = one ? sents[sIdx].trim() : p.text;
-  if (rwSel[i] === -2 && mode !== "fit") { if (box) box.innerHTML = rewordMenuHtml(i); return; }
+  const sents = ltSentences(p.text), sIdx = Number.isInteger(rwSel[i]) ? rwSel[i] : -1, one = sIdx >= 0 && !!sents[sIdx] && !has("fit"), scope = one ? sents[sIdx].trim() : p.text;
   // a rewording stays within about 15% of the length it's aiming for (the paragraph's own length, or what the menu choice asks for)
   const orig = wordCount(scope), n = Math.max(one ? 6 : 15, Math.round(M.size ? M.size(orig, partTarget(p.part, letterRange())) : orig)), lo = one ? 0.8 : 0.85, hi = one ? 1.2 : 1.15;
   const show = m => { if (box) box.innerHTML = `<p class="progress">${esc(m)}</p>`; };
@@ -447,7 +565,7 @@ async function rewordPart(i, btn, mode = "same") {
   btn.disabled = true; show("Finding other ways to say it…");
   // why a version can't be used, or "": the same rules the AI is told to follow
   // contractions go back to full words unless the original has them or the casual tone was asked for
-  const keepContr = mode === "casual" || new RegExp(CL_CONTRACTION_RE.source, "i").test(scope);
+  const keepContr = has("casual") || new RegExp(CL_CONTRACTION_RE.source, "i").test(scope);
   const fixWording = t => keepContr ? ltClean(t) : clNoContractions(ltClean(t));
   const bad = (t, seen) => {
     const ct = contactIn(t, p.part); if (ct) return contactWhy(ct, p.part);
@@ -464,7 +582,7 @@ async function rewordPart(i, btn, mode = "same") {
   };
   const seen0 = new Set([norm(scope)]);
   const nano = one ? LT_REWORD_ONE_NANO : LT_REWORD_NANO;
-  const res = await aiJSON({ nano, full: nano + "\n\n" + CL_CRAFT, label: "Rewording", progress: show,
+  const res = await aiJSON({ nano, full: nano + "\n\n" + CL_CRAFT, label: "Rewording", tier: one ? "small" : "", progress: show,
     prompt: one ? `This is one sentence from the "${partOf(p.part).label}" paragraph of a cover letter. Reword only this sentence.\nSentence:\n${scope}\nThe whole paragraph, for context only (do not copy other sentences into it):\n${p.text}\nAbout ${n} words (the sentence has ${orig}).${M.note ? "\n" + M.note : ""}${ltTemplate() ? LT_NO_NAMES : ""}\nThe candidate's details (for checking only):\n${profileToText(P()).slice(0, 3000)}`
       : `This is the "${partOf(p.part).label}" paragraph (${partOf(p.part).purpose}) of a cover letter. Keep it one paragraph of full sentences that opens with context.\nAbout ${n} words (the original has ${orig}).${M.note ? "\n" + M.note : ""}${ltTemplate() ? LT_NO_NAMES : ""}\nOriginal:\n${p.text}\nThe candidate's details (for checking only):\n${profileToText(P()).slice(0, 3500)}`,
     expect: n * 7 * 3 + 150,   // three versions of the paragraph, in characters
@@ -482,7 +600,7 @@ async function rewordPart(i, btn, mode = "same") {
       if (got.length >= 3) break;
       const w = bad(t, seen);
       if (!w) { seen.add(norm(t)); got.push(t); continue; }
-      const fx = await aiFixText({ text: t, why: w, check: x => bad(x, seen), progress: show, context: CL_CRAFT_SHORT, expect: n * 7 + 100 });
+      const fx = await aiFixText({ text: t, why: w, check: x => bad(x, seen), progress: show, context: CL_CRAFT_SHORT, expect: n * 7 + 100, tier: one ? "small" : "" });
       if (fx.text) { seen.add(norm(fx.text)); got.push(fx.text); }
     }
     list = got;
@@ -494,47 +612,6 @@ async function rewordPart(i, btn, mode = "same") {
     box._alts = one ? list.map(t => sents.map((x, k) => k === sIdx ? t + (x.match(/\s*$/) || [""])[0] : x).join("")) : list;
   } else if (box) box.innerHTML = `<span class="small">${res.rejected ? aiMissHtml(aiMissWords(res)) : esc(aiMissWords(res) || "No other wordings this time.")} </span>${aiRawHtml(res)} <button class="linkish" type="button" data-lt-altclose="${i}">Close</button>`;
 }
-const LT_EXPAND_NANO = `You lengthen one paragraph of an Australian cover letter so it does its job fully.
-Rules:
-1. Keep everything it already says. Add detail from the candidate's details: never invent tasks, tools, numbers, employers or dates.
-2. First person ("I"), formal, specific, Australian spelling. Never write a phone number, email address, link or LinkedIn: the letter head already has them.
-3. Reach the length you're given with real detail, not padding. No clichés ("passionate", "team player", "hard-working").
-4. The result is ONE paragraph of full sentences, not a list. It opens with a sentence that gives context (who you are, or what the paragraph is about) before the detail.
-5. If a helpful detail is missing (for example why this company), write a short gap in square brackets such as [one specific reason] instead of guessing. Never name a company, employer, product or person that is not in the details.
-6. Copy every number exactly as it appears in the details. You know nothing about the company except its name: never say anything about its reputation, values, culture, products or work.
-7. At most one sentence begins with "I". Never write "I am writing to", eager, passionate, excited, thrilled or dynamic. No contractions: write "I am", never "I'm".
-Reply with JSON only: {"text": "..."}`;
-async function expandPart(i, btn) {
-  if (!BL().parts[i].text.trim()) return writePartAI(i, btn);
-  const d = BL(), p = d.parts[i], part = partOf(p.part), r = letterRange(), min = partMin(p.part, r), aim = partTarget(p.part, r), note = $("ltx-" + i), acts = $("lta-" + i), box = $("lts-" + i);
-  const facts = profileToText(P()).slice(0, 5000);
-  // praise of the company that wasn't already in the paragraph is made up (a claim you wrote yourself is left alone)
-  const hadClaim = !!clCompanyClaim(p.text, d.company);
-  const chk = t => {
-    const ct = contactIn(t, p.part); if (ct) return contactWhy(ct, p.part);
-    if (wordCount(t) < min * 0.9) return `it needs at least ${min} words`;
-    const cc = hadClaim ? "" : clCompanyClaim(t, d.company); if (cc) return `it says "${cc}" about the company, but you know nothing about it except its name`;
-    return proseOk(t);
-  };
-  const show = m => { if (box) { box.dataset.menu = ""; box.innerHTML = `<p class="progress">${esc(m)}</p>`; } };
-  if (acts) acts.dataset.busy = "1";
-  btn.disabled = true; show("Adding detail…");
-  let res = await aiJSON({ nano: LT_EXPAND_NANO, label: "Expanding", progress: show, expect: Math.round(aim * 1.3 * 7) + 100,
-    prompt: `Paragraph: ${part.label} (${part.purpose})\nAbout ${aim} words\nIt says now: ${p.text}\nRole: ${ltTemplate() ? "[the role]" : d.role || P().target.title || "(not given)"}\nCompany: ${ltTemplate() ? "[the company]" : d.company || "(not given: use [the company])"}${ltTemplate() ? LT_NO_NAMES : ""}\nThe candidate's details:\n${facts}`,
-    schema: TEXT_SCHEMA, check: x => { const t = clNoContractions(ltClean(x.text)), w = chk(t); return w ? { ok: false, why: w } : { ok: true, value: t }; } });
-  let text = res.data;
-  // instead of giving up, show the AI the rule it broke and ask it to change just that part
-  if (!text && res.raw && res.raw.text) {
-    const fx = await aiFixText({ text: ltClean(res.raw.text), why: res.rawWhy || "it broke a rule", check: chk, progress: show, context: CL_CRAFT_SHORT });
-    if (fx.text) { text = fx.text; res = { ...res, via: res.rawVia || res.via }; }
-  }
-  if (acts) delete acts.dataset.busy;
-  btn.disabled = false;
-  if (box) box.innerHTML = "";
-  if (text) { lwApply(i, text); const n2 = $("ltx-" + i); if (n2) n2.textContent = `Expanded by ${viaWords(res.via)}. Check every detail is true.`; }
-  else if (note) note.innerHTML = aiMissHtml(aiMissWords(res)) + " Add a detail or an example yourself." + aiRawHtml(res);
-}
-
 /* --- Saving the letter to your profile as a named template --- */
 const savedLetters = privateDoc("savedLetters", "jobfinder.savedLetters.v1", () => ({ list: [] }));
 const savedLetterRows = (list, del) => `<ul class="saved-list">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">Saved ${esc(fmtSaved(x.saved))} · ${wordCount((x.letter.parts || []).map(p => p.text).join(" "))} words</span></span><span class="b-actions"><button class="btn" type="button" data-lt-use="${k}">Use it</button>${del ? `<button class="btn ghost" type="button" data-lt-del="${k}">Delete</button>` : ""}</span></li>`).join("")}</ul>`;
@@ -559,7 +636,9 @@ function ltImportText(text, label) {
     const five = paras.length <= 5 ? paras : [paras[0], paras.slice(1, -2).join(" "), paras[paras.length - 2], "", paras[paras.length - 1]];
     BL().parts = COVER_PARTS.map((p, i) => ({ part: p.key, text: five[i] || "" }));
     baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
-    if (typeof ltShowStep === "function") ltShowStep(1);
+    // from the opening page the person stays there until they press Next, which goes to Layout; from anywhere else it goes to the paragraphs
+    if (typeof ltWelcomeOn !== "undefined" && ltWelcomeOn) ltWelcomeHold = true;
+    else if (typeof ltShowStep === "function") ltShowStep(1);
     ltSay(`Brought in ${paras.length} paragraph${paras.length === 1 ? "" : "s"} from ${label}. Check each one sits under the right heading.`);
     return true;
   } catch (e) { ltSay(e && e.message ? e.message : "Couldn't read that.", true); return false; }
@@ -567,7 +646,7 @@ function ltImportText(text, label) {
 // A message under the buttons; on the opening page it shows there too
 function ltSay(m, bad) {
   const st = $("ltStatus"); if (st) st.textContent = m;
-  const w = $("ltwStatus"); if (w) { w.textContent = typeof ltWelcomeOn !== "undefined" && ltWelcomeOn ? m : ""; w.classList.toggle("err", !!bad); }
+  const w = $("ltwLetterStatus"); if (w) { w.textContent = typeof ltWelcomeOn !== "undefined" && ltWelcomeOn ? m : ""; w.classList.toggle("err", !!bad); }
 }
 function renderLetterPick(box = $("ltPick")) {
   const list = savedLetters.data.list || [];
@@ -576,7 +655,7 @@ function renderLetterPick(box = $("ltPick")) {
 async function saveLetterTemplate() {
   const st = $("ltDlStatus");
   if (!blText().length) { st.textContent = "Write your letter first, then save it."; return; }
-  const gapsNow = (blText().join(" ").match(TOKEN_RE) || []).length + (BL().company.trim() ? 0 : 1) + (BL().recipient.trim() ? 0 : 1);
+  const gapsNow = (blText().join(" ").match(TOKEN_RE) || []).length + (BL().company.trim() ? 0 : 1) + (BL().role.trim() ? 0 : 1);
   const d = BL();
   const name = await askName({ title: "Save as a cover letter template", text: "It's saved to your profile, so you can start your next letter from it. Saving again with the same name replaces it.", label: "Name it", value: [d.role || P().target.title || "My cover letter", d.company].filter(Boolean).join(" – ") });
   if (!name) return;
@@ -621,20 +700,32 @@ function setPartText(i, text) {
   const el = $("ltp-" + i); if (el) el.value = text;
   baseLetter.save(true); partCount(i); renderLetterPreview(); syncBaseToTailor();
 }
+// The warnings from the last time the page was drawn, so a button can find the one it belongs to
+let ltQualityNow = [];
+// The sentence of paragraph i a warning is about, and what to say is wrong with it: { sel (a sentence number, or -1 for the whole paragraph), ask }
+function ltFixTarget(q, i, text) {
+  const f = (q.fixes || []).find(x => x.i === i) || q, ss = ltSentences(text);
+  let sel = -1;
+  try {
+    if (typeof f.pick === "function") sel = f.pick(ss);
+    else if (typeof f.test === "function") sel = ss.findIndex(x => f.test(x));
+  } catch { sel = -1; }
+  if (ss.length < 2 && sel === 0) sel = -1;   // (one sentence is the whole paragraph)
+  return { sel: Number.isInteger(sel) && sel >= 0 ? sel : -1, ask: f.ask || q.ask || q.detail || "" };
+}
 function ckFix(spec) {
-  const [kind, arg] = String(spec).split(":"), i = +arg, p = BL().parts[i];
+  const [kind, arg, arg2] = String(spec).split(":"), i = +arg, p = BL().parts[i];
   if (kind === "go" || kind === "gap" || kind === "field") return ckGo(spec);
   if (!p) return;
-  if (kind === "dash") { setPartText(i, fixDashes(p.text)); goPart(i); return; }
-  if (kind === "exclaim") { setPartText(i, fixExclaims(p.text)); goPart(i); return; }
-  if (kind === "expand") { goPart(i); return expandPart(i, document.querySelector(`[data-lt-expand="${i}"]`) || {}); }
+  if (kind === "rw") { const q = ltQualityNow[+arg], pi = +arg2, t = q ? ltFixTarget(q, pi, BL().parts[pi].text) : { sel: -1, ask: "" }; goPart(pi); return rewordMenu(pi, { sel: t.sel, free: t.ask }); }
+  if (kind === "rwlen") { goPart(i); return rewordMenu(i, { modes: [arg2 === "shorter" ? "shorter" : "longer"], free: arg2 === "shorter" ? "Cut the least useful detail." : "Add one specific detail or example from my profile." }); }
   if (kind === "reword") { goPart(i); return rewordMenu(i); }
 }
 /* --- Sign-off: other ways to close that suit the greeting, always shown below the box --- */
 let signOpen = false;
 function renderSignAlts() {
   const box = $("ltSignAlts");
-  if (box) box.innerHTML = signOpen ? signOptions().map(x => `<button type="button" class="bl-alt" data-lt-sign="${esc(x)}">${esc(x)}</button>`).join("") : `<button class="btn" type="button" data-lt-signmore="1" aria-expanded="false">More</button>`;
+  if (box) box.innerHTML = signOpen ? signOptions().map(x => `<button type="button" class="bl-alt" data-lt-sign="${esc(x)}">${esc(x)}</button>`).join("") : `<button class="btn" type="button" data-lt-signmore="1" aria-expanded="false">More Sign-offs…</button>`;
 }
 // six sign-offs that suit the greeting, other than the one in use
 function signOptions() {
@@ -642,7 +733,16 @@ function signOptions() {
   const pool = named ? ["Yours sincerely,", "Kind regards,", "Warm regards,", "Best regards,", "With thanks,", "Many thanks,", "Regards,"] : ["Yours faithfully,", "Kind regards,", "Yours sincerely,", "Regards,", "Many thanks,", "Warm regards,", "Best wishes,"];
   return pool.filter(x => norm(x) !== cur).slice(0, 6);
 }
+// The other sign-offs fold back into the button when you don't pick one: a click or a keypress somewhere else, or Escape
+function signClose(focusBack) {
+  if (!signOpen) return;
+  signOpen = false; renderSignAlts();
+  if (focusBack) { const b = $("ltSignAlts").querySelector("[data-lt-signmore]"); if (b) b.focus(); }
+}
 onInit(() => {
+  document.addEventListener("pointerdown", e => { if (signOpen && !e.target.closest("#ltSignAlts")) signClose(false); }, true);
+  document.addEventListener("focusin", e => { if (signOpen && !e.target.closest("#ltSignAlts")) signClose(false); });
+  document.addEventListener("keydown", e => { if (signOpen && e.key === "Escape") { e.preventDefault(); signClose(true); } });
   $("ltChecks").addEventListener("click", e => {
     const fix = e.target.closest("[data-ck]");
     if (fix) { e.stopPropagation(); ckFix(fix.dataset.ck); return; }

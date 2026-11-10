@@ -63,35 +63,41 @@ onInit(() => {
 //       • …
 // Newest first, as in the builder. A single job is shown as it always was.
 const orgKey = s => String(s || "").toLowerCase().replace(/\b(pty|ltd|limited|inc|the)\b\.?/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
-function stackRoles(list, make) {
-  const out = [];
-  let i = 0;
-  while (i < list.length) {
-    const k = orgKey(list[i].org);
-    let j = i + 1;
-    while (k && j < list.length && orgKey(list[j].org) === k) j++;
-    if (j - i < 2) { out.push(make(list[i])); i++; continue; }
-    const run = list.slice(i, j), newest = run[0], oldest = run[run.length - 1];
-    out.push({ title: newest.org, org: "", loc: val(newest.location), dates: rangeOf({ start: oldest.start, end: newest.end, current: newest.current }), bullets: [], stack: "company" });
-    for (const e of run) out.push({ ...make(e), title: e.title || "Role", org: "", loc: "", stack: "role" });
-    i = j;
-  }
+function stackRoles(list, make, grouped) {
+  // every job at the same employer goes under one heading (even if they are not next to each other), where the first of them appears
+  const out = [], used = new Set();
+  list.forEach((e, i) => {
+    if (used.has(i)) return;
+    const k = orgKey(e.org), run = k ? list.filter((x, j) => j >= i && !used.has(j) && orgKey(x.org) === k) : [e];
+    list.forEach((x, j) => { if (j >= i && run.includes(x)) used.add(j); });
+    used.add(i);
+    if (run.length < 2) { out.push(make(e)); return; }
+    const newest = run[0], oldest = run[run.length - 1];
+    const dates = rangeOf({ start: oldest.start, end: newest.end, current: newest.current });
+    // grouped: the designs with the dates in a left column show it as one entry like any other job: the dates, the company, then each title with its own dates and bullet points
+    if (grouped) { out.push({ title: newest.org, org: "", loc: val(newest.location), dates, bullets: [], roles: run.map(x => { const m = make(x); return { title: x.title || "Role", dates: m.dates, bullets: m.bullets }; }) }); return; }
+    out.push({ title: newest.org, org: "", loc: val(newest.location), dates, bullets: [], stack: "company" });
+    for (const x of run) out.push({ ...make(x), title: x.title || "Role", org: "", loc: "", stack: "role" });
+  });
   return out;
 }
 
 /* --- Font --- */
 const fontPref = () => { const f = (P().prefs || {}).font; return FONTS[f] ? f : ""; };
-const fontOptions = cur => Object.keys(FONTS).map(f => `<option value="${esc(f)}"${cur === f ? " selected" : ""}>${esc(f)}${SERIF_FONTS.has(f) ? " (serif)" : ""}</option>`).join("");
+// The design's own font ("Original") is always first; every other font follows in alphabetical order
+const fontNames = () => Object.keys(FONTS).sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+const originalLabel = t => `Original (${t.body === t.head ? t.body : t.head + " and " + t.body})`;
+const fontOptions = cur => fontNames().map(f => `<option value="${esc(f)}"${cur === f ? " selected" : ""}>${esc(f)}${SERIF_FONTS.has(f) ? " (serif)" : ""}</option>`).join("");
 function fontQ() {
-  const cur = fontPref(), t = builderTpl(), own = t.body === t.head ? t.body : `${t.head} and ${t.body}`;
-  return `<div class="q"><label class="q-label" for="ps_font_sel">Font</label><select id="ps_font_sel" data-font="1"><option value="">The design's own (${esc(own)})</option>${fontOptions(cur)}</select><p class="q-hint">Used for the whole resume, and for your cover letter when it matches your resume. Every font here is read well by applicant tracking systems.</p></div>`;
+  const cur = fontPref(), t = builderTpl();
+  return `<div class="q"><label class="q-label" for="ps_font_sel">Font</label><select id="ps_font_sel" data-font="1"><option value="">${esc(originalLabel(t))}</option>${fontOptions(cur)}</select><p class="q-hint">Used for the whole resume, and for your cover letter when it matches your resume. Every font here is read well by applicant tracking systems.</p></div>`;
 }
 // The Templates page has its own font box beside the colours
 function cvFontFill() {
   const sel = $("cvFont");
   if (!sel) return;
   const t = selectedTpl();
-  sel.innerHTML = `<option value="">The design's own (${esc(t.body === t.head ? t.body : t.head + " and " + t.body)})</option>${fontOptions(fontPref())}`;
+  sel.innerHTML = `<option value="">${esc(originalLabel(t))}</option>${fontOptions(fontPref())}`;
 }
 onInit(() => {
   document.addEventListener("change", e => {

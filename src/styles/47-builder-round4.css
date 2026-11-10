@@ -1,0 +1,81 @@
+/* ===================== Resume builder, round 4 =====================
+   - "Tell us about this job" folds away once a job has bullet points
+   - An employer that is folded away still lists each job under it
+   - Thesis or project: a small x at the far right to remove it */
+
+/* --- The boxes of questions that are only for the AI: they fold down to a faded glimpse of what is inside --- */
+.b-aiin-head { align-items: center; }
+.b-aiin-tog { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font: inherit; font-size: var(--step--1); font-weight: 600; cursor: pointer; }
+.b-aiin-tog:hover { border-color: var(--accent); color: var(--accent); }
+.b-aiin-tog:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.b-aiin-tog svg { transition: transform 0.15s; }
+.b-aiin.is-folded .b-aiin-tog svg { transform: rotate(0); }
+.b-aiin:not(.is-folded) .b-aiin-tog svg { transform: rotate(180deg); }
+.b-aiin-body { display: grid; gap: 10px; }
+.b-aiin-body > .q-hint { margin: 0; }
+.b-aiin.is-folded { cursor: pointer; }
+.b-aiin.is-folded .b-aiin-body { max-height: 6.4rem; overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, rgba(0, 0, 0, 0.4) 75%, transparent 100%); mask-image: linear-gradient(to bottom, #000 0%, #000 45%, rgba(0, 0, 0, 0.4) 75%, transparent 100%); }
+
+/* --- An employer folded away: its jobs are still listed, and each one opens straight to that job --- */
+.b-co > summary .co-peek { grid-column: 1 / -1; grid-row: 3; display: grid; gap: 2px; margin-top: 2px; padding-top: 8px; border-top: 1px dashed var(--line); font-weight: 400; }
+.b-co[open] > summary .co-peek { display: none; }
+.co-peek-job { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: var(--step--1); color: var(--ink); text-align: left; cursor: pointer; }
+.co-peek-job:hover { background: var(--accent-soft); }
+.co-peek-job:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.co-peek-t { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.co-peek-d { flex: none; color: var(--muted); white-space: nowrap; }
+/* a summary that is not the grid one (no tags) still lays the list out under the title */
+.b-co > summary:not(:has(> .card-tags)) .co-peek { flex-basis: 100%; }
+
+/* --- Thesis or project: each row has its kind, its title and a small x on the same line as the boxes --- */
+.proj-wrap { display: grid; gap: 10px; margin-bottom: 8px; }
+.proj-row { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr) auto; gap: 10px; align-items: end; }
+.proj-row > .q { margin: 0; }
+.proj-row > .proj-x { width: 34px; height: 34px; margin-bottom: 4px; padding: 0; border-radius: 50%; font-size: 1.3rem; line-height: 1; display: grid; place-items: center; }
+.proj-row > .proj-x:hover { background: var(--bad-bg); color: var(--bad); opacity: 1; }
+.proj-row > .proj-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 640px) { .proj-row { grid-template-columns: minmax(0, 1fr) auto; } .proj-row > .q:first-of-type { grid-column: 1 / -1; } .proj-row > .proj-x { align-self: end; } }
+
+/* ===================== Cover letter, round 4 ===================== */
+/* --- A small grey label in the header, like Create or Edit Resume, with no gap before the opening page --- */
+#ltTitle { font-size: 0.75rem; font-weight: 700; font-stretch: normal; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0; }
+#view-letter .view-head { padding-block: 16px 0; }
+#view-letter.is-welcome .wrap { gap: 0; }
+#view-letter.is-welcome .b-welcome { margin-top: 0; }
+#view-letter.is-welcome .bw-hero { padding-top: 0; }
+
+/* --- Create or Edit LinkedIn: the same small grey label and opening page as the resume and the cover letter --- */
+#liTitle { font-size: 0.75rem; font-weight: 700; font-stretch: normal; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0; }
+#view-linkedin .view-head { padding-block: 16px 0; }
+#view-linkedin.is-welcome .wrap { gap: 0; }
+#view-linkedin.is-welcome .b-welcome { margin-top: 0; }
+#view-linkedin.is-welcome .bw-hero { padding-top: 0; }
+#liWelcome .bw-card:not(.bw-card--go) i { color: var(--ink); }
+#liWelcome .bw-card--go .bw-ico { background: rgba(255, 255, 255, .2); color: inherit; }
+#liWelcome .bw-card:disabled .bw-ico { background: var(--line); color: var(--muted); }
+#liWelcome .bw-card:disabled i { color: var(--muted); }
+
+/* --- Next: Layout, blue, in the right-hand corner of the upload panel --- */
+.lt-welcome-next { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* --- Reword: a popup in the middle of the screen, with everything in it centred --- */
+body.rw-open { overflow: hidden; }
+.rw-modal { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(12, 16, 28, 0.55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); overflow-y: auto; }
+.rw-box { position: relative; display: grid; justify-items: center; gap: 14px; width: min(34rem, 100%); max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; padding: 26px 24px 22px; text-align: center; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 70px rgba(8, 12, 24, 0.45); }
+.rw-box h2 { margin: 0; font-size: var(--step-1); }
+.rw-sub { margin: 0; max-width: 28rem; }
+.rw-x { position: absolute; top: 10px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--muted); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.rw-x:hover { background: var(--surface-2); color: var(--ink); }
+.rw-sec { display: grid; justify-items: center; gap: 6px; width: 100%; }
+.rw-lab { font-size: var(--step--1); font-weight: 600; color: var(--muted); }
+.rw-box .seg { display: flex; flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.rw-box .seg button { display: inline-flex; justify-content: center; align-items: baseline; gap: 6px; text-align: center; }
+.rw-box .seg button small { font-family: var(--font-mono); font-size: 0.68rem; opacity: 0.75; }
+.rw-box .seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+.rw-sents { display: grid; gap: 6px; width: 100%; }
+.rw-sent { display: flex; justify-content: center; align-items: center; gap: 8px; text-align: center; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 10px; font: inherit; font-size: var(--step--1); cursor: pointer; }
+.rw-sent b { display: inline-grid; place-items: center; flex: none; width: 1.4em; height: 1.4em; border-radius: 50%; background: var(--surface-2); font-size: 0.72rem; }
+.rw-sent[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.rw-sent[aria-pressed="true"] b { background: var(--accent); color: var(--accent-ink); }
+.rw-box input[type="text"] { width: 100%; text-align: center; }
+.rw-act { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }

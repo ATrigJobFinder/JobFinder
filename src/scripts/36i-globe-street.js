@@ -14,6 +14,8 @@ function globeStreet(el) {
     onPick: null,              // called with the job a pin was pressed for (one tap)
     onSave: null,              // called with the job a pin was double tapped for
     isSaved: () => false,      // asked whether a job is already saved, to mark its pin
+    isApplied: () => false,    // asked whether a job has moved on from "Saved" in the tracker (applied, interview...), to grey its pin out
+    status: () => "",          // where the job is in the Application tracker ("Saved", "Tracker: Applied"...), or "" if it is not there
     get bad() { return bad; }
   };
   // Google calls this by name when the key is wrong, restricted to another site, or the API isn't switched on
@@ -79,12 +81,12 @@ function globeStreet(el) {
         this.items = this.jobs.map(j => {
           const b = document.createElement("button"), tip = document.createElement("span"), lab = document.createElement("span");
           const icon = globeOrgIcon(j.org);
-          b.type = "button"; b.className = "gl-pin" + (j.keen ? " keen" : "") + (api.isSaved(j) ? " saved" : ""); b.style.setProperty("--pin-c", icon.colour);
+          b.type = "button"; b.className = "gl-pin" + (j.keen ? " keen" : "") + (api.isSaved(j) ? " saved" : "") + (api.isApplied(j) ? " applied" : ""); b.style.setProperty("--pin-c", icon.colour);
           b.setAttribute("aria-label", `${j.title}, ${j.org}, ${j.at}. Example job, ${j.kind}${j.pay ? ", " + j.pay : ""}${j.keen ? ". Keen for applicants" : ""}. ${j.about} Press to open it, press twice to save it for later.`);
           lab.className = "gl-pin-l"; lab.setAttribute("aria-hidden", "true"); lab.textContent = icon.text; b.appendChild(lab);
           tip.className = "gl-pin-tip"; tip.setAttribute("aria-hidden", "true");
           const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; n.textContent = text; tip.appendChild(n); };
-          add("b", "", j.title); add("span", "", `${j.org} · ${j.at}`); add("em", "", ["Example job", j.kind, j.pay].filter(Boolean).join(" · ")); if (j.keen) add("strong", "gl-keen-tip", "Keen for applicants"); add("p", "", j.about);
+          add("b", "", j.title); add("span", "", `${j.org} · ${j.at}`); add("em", "", ["Example job", j.kind, j.pay].filter(Boolean).join(" · ")); if (j.keen) add("strong", "gl-keen-tip", "Keen for applicants"); { const s = api.status(j); if (s) add("strong", "gl-trk-tip", s); } add("p", "", j.about);
           b.appendChild(tip);
           b.addEventListener("pointerenter", () => this.place(b)); b.addEventListener("focus", () => this.place(b));
           // one tap opens the job (and keeps its summary up); a second tap on the same pin within the double-tap time saves it
@@ -116,7 +118,18 @@ function globeStreet(el) {
           if (on) { this.place(i.b); this.open1 = i; this.armed = !!near; }
         }
       }
-      refreshSaved() { if (this.items) this.items.forEach(i => i.b.classList.toggle("saved", !!api.isSaved(i.j))); }
+      refreshSaved() {
+        if (!this.items) return;
+        for (const i of this.items) {
+          i.b.classList.toggle("saved", !!api.isSaved(i.j)); i.b.classList.toggle("applied", !!api.isApplied(i.j));
+          // the summary says where the job is in the Application tracker
+          const tip = i.b.querySelector(".gl-pin-tip"); if (!tip) continue;
+          let n = tip.querySelector(".gl-trk-tip"), s = api.status(i.j);
+          if (!s) { if (n) n.remove(); continue; }
+          if (!n) { n = document.createElement("strong"); n.className = "gl-trk-tip"; const p = tip.querySelector("p"); tip.insertBefore(n, p); }
+          n.textContent = s;
+        }
+      }
     }
     return new Pins();
   }

@@ -17,7 +17,6 @@ const SP_QUESTION = /^(what|why|how|when|where|who|which|do you|did you|does the
 const SP_PROPER = { australia: "Australia", australian: "Australian", sydney: "Sydney", melbourne: "Melbourne", brisbane: "Brisbane", perth: "Perth", adelaide: "Adelaide", canberra: "Canberra", hobart: "Hobart", darwin: "Darwin", queensland: "Queensland", victoria: "Victoria", tasmania: "Tasmania", monday: "Monday", tuesday: "Tuesday", wednesday: "Wednesday", thursday: "Thursday", friday: "Friday", saturday: "Saturday", sunday: "Sunday", january: "January", february: "February", april: "April", june: "June", july: "July", august: "August", september: "September", october: "October", november: "November", december: "December", linkedin: "LinkedIn", microsoft: "Microsoft", google: "Google", tafe: "TAFE", rmit: "RMIT", unsw: "UNSW", qut: "QUT", uts: "UTS", ndis: "NDIS", pos: "POS", crm: "CRM", cpr: "CPR", ohs: "OHS", whs: "WHS" };
 const SP_COMMANDS = [[/\s*\bfull stop\b\s*/gi, ". "], [/\s*\bquestion mark\b\s*/gi, "? "], [/\s*\bexclamation (?:mark|point)\b\s*/gi, "! "], [/\s*\bnew (?:line|paragraph)\b\s*/gi, "\n"], [/\s*\bcomma\b\s*/gi, ", "]];
 const spWords = s => String(s || "").trim().split(/\s+/).filter(Boolean);
-const spEnds = s => /[.!?]$/.test(s);
 function punctuateSpeech(parts, opts = {}) {
   const names = new Map(Object.entries(SP_PROPER));
   for (const n of opts.names || []) for (const w of spWords(n)) if (w.length > 2 && /[A-Za-z]/.test(w)) names.set(w.toLowerCase().replace(/[^a-z0-9']/g, ""), w);
@@ -57,7 +56,7 @@ function punctuateSpeech(parts, opts = {}) {
   const low = i => String(tokens[i] || "").toLowerCase().replace(/[^a-z0-9']/g, "");
   let count = 0;
   for (let n = 0; n < words.length; n++) {
-    const i = words[n], t = tokens[i];
+    const i = words[n];
     const prevI = words[n - 1];
     const lastChar = prevI != null ? tokens[prevI].slice(-1) : "";
     if (n === 0 || /[.!?\n]/.test(lastChar) || /\n/.test(tokens[i - 1] || "")) { count = 0; }

@@ -64,7 +64,6 @@ function jobTitleCase(v, live) {
 }
 
 /* --- Places: only real suburbs and towns, picked from a list, so the state (and where it is) is always known --- */
-const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"];
 // Regions people use that aren't one suburb, and a few places abroad, for jobs and study overseas
 const AU_REGIONS = [["Gold Coast", "QLD", "4217", -2800, 15343], ["Sunshine Coast", "QLD", "4558", -2665, 15306], ["Central Coast", "NSW", "2250", -3343, 15134], ["Northern Beaches", "NSW", "2100", -3375, 15128], ["Inner West", "NSW", "2204", -3390, 15115], ["Illawarra", "NSW", "2500", -3443, 15089], ["Hunter Valley", "NSW", "2320", -3274, 15156], ["Blue Mountains", "NSW", "2780", -3371, 15031], ["Mornington Peninsula", "VIC", "3931", -3835, 14503], ["Yarra Valley", "VIC", "3777", -3766, 14551], ["Pilbara", "WA", "6714", -2074, 11685], ["Goldfields", "WA", "6430", -3075, 12147], ["South West", "WA", "6230", -3333, 11564], ["Riverina", "NSW", "2650", -3512, 14737]];
 const WORLD_CITIES = "Auckland|New Zealand;Wellington|New Zealand;Christchurch|New Zealand;London|United Kingdom;Manchester|United Kingdom;Edinburgh|United Kingdom;Birmingham|United Kingdom;Glasgow|United Kingdom;Dublin|Ireland;Singapore|Singapore;Kuala Lumpur|Malaysia;Penang|Malaysia;Jakarta|Indonesia;Bali|Indonesia;Bangkok|Thailand;Manila|Philippines;Cebu|Philippines;Ho Chi Minh City|Vietnam;Hanoi|Vietnam;Hong Kong|Hong Kong;Shanghai|China;Beijing|China;Shenzhen|China;Guangzhou|China;Taipei|Taiwan;Tokyo|Japan;Osaka|Japan;Seoul|South Korea;Mumbai|India;Delhi|India;Bengaluru|India;Hyderabad|India;Chennai|India;Pune|India;Kolkata|India;Kathmandu|Nepal;Colombo|Sri Lanka;Dhaka|Bangladesh;Karachi|Pakistan;Lahore|Pakistan;Dubai|United Arab Emirates;Abu Dhabi|United Arab Emirates;Doha|Qatar;Riyadh|Saudi Arabia;Johannesburg|South Africa;Cape Town|South Africa;Nairobi|Kenya;Lagos|Nigeria;Cairo|Egypt;Paris|France;Berlin|Germany;Munich|Germany;Amsterdam|Netherlands;Brussels|Belgium;Zurich|Switzerland;Geneva|Switzerland;Vienna|Austria;Madrid|Spain;Barcelona|Spain;Lisbon|Portugal;Rome|Italy;Milan|Italy;Athens|Greece;Stockholm|Sweden;Copenhagen|Denmark;Oslo|Norway;Helsinki|Finland;Warsaw|Poland;Prague|Czechia;Istanbul|Turkey;New York|United States;San Francisco|United States;Los Angeles|United States;Seattle|United States;Boston|United States;Chicago|United States;Houston|United States;Toronto|Canada;Vancouver|Canada;Montreal|Canada;Mexico City|Mexico;São Paulo|Brazil;Buenos Aires|Argentina;Santiago|Chile;Bogotá|Colombia;Lima|Peru;Suva|Fiji;Port Moresby|Papua New Guinea;Apia|Samoa;Nuku'alofa|Tonga;Nouméa|New Caledonia";
@@ -127,7 +126,6 @@ function placeOf(saved) {
   const [n, s] = t.split(/,\s*/);
   return allPlaces().find(x => x.key === placeKey(n) && (!s || x.s.toLowerCase() === s.toLowerCase())) || null;
 }
-const placeCoords = saved => { const x = placeOf(saved); return x && x.kind === "au" ? { lat: x.lat, lng: x.lng } : null; };
 // Older entries were "Suburb, STATE" typed freely: show the suburb in the box and the state beside it
 function splitLoc(s) { const t = val(s); const m = t.match(/^(.*?)[,\s]+(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)(?:\s+\d{4})?$/i); return m ? [m[1].trim(), m[2].toUpperCase()] : [t, ""]; }
 function locQ(path, label, o = {}) {
@@ -135,8 +133,8 @@ function locQ(path, label, o = {}) {
   const [sub, st] = x && x.kind === "au" ? [x.n, x.s] : x && x.kind === "world" ? [`${x.n}, ${x.s}`, ""] : splitLoc(saved);
   const known = !saved || !!x;
   return `<div class="q${o.wide ? " wide" : ""}"><label class="q-label" for="${id}">${o.plain || /suburb|town/i.test(String(label)) ? label : label + " (suburb)"}${o.opt ? ' <span class="opt">(optional)</span>' : ""}</label><div class="q-body">
-    <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Start typing a suburb or town")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : o.nofill ? "nope" : "off"}"${o.nofill ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" data-lpignore="true" data-1p-ignore data-form-type="other" readonly` : ""} spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
-    <p class="pick-msg${known ? "" : " err"}" id="${id}-msg" role="status">${known ? "" : "We don't know that place. Pick it from the list as you type, so employers (and Job Finder) know where it is."}</p>${o.hint ? `<p class="q-hint">${o.hint}</p>` : ""}</div></div>`;
+    <div class="pick place${known ? "" : " bad"}"><input type="text" id="${id}" data-place="${path}" value="${esc(sub)}" placeholder="${esc(o.ph || "Suburb or City")}" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="${id}-list" aria-describedby="${id}-msg" autocomplete="${o.ac ? "address-level2" : o.nofill ? "nope" : "off"}"${o.nofill ? ` name="nofill-${Math.random().toString(36).slice(2, 8)}" data-nofill="1" data-lpignore="true" data-1p-ignore data-form-type="other" readonly` : ""} spellcheck="false"><span class="pick-tag" aria-hidden="true">${esc(st)}</span><ul class="pick-list" id="${id}-list" role="listbox" aria-label="${esc(label)} suggestions" hidden></ul></div>
+    <p class="pick-msg${known ? "" : " err"}" id="${id}-msg" role="status">${known ? "" : "We don't know that place. Pick it from the list as you type, so employers (and Job Finder) know where it is."}</p><p class="q-hint">${o.hint || "You can put your suburb or city."}</p></div></div>`;
 }
 
 /* --- Phone: country (flag and full name) plus the number, spaced the usual way --- */
@@ -206,7 +204,6 @@ function countryOptions(q) {
 /* --- Dates, grades and start dates --- */
 const datePh = ex => "e.g. " + showDate(ex);
 const dateStyleQ = () => { const st = dateStyle(); const b = (v, l) => `<button type="button" data-act="pick" data-path="prefs.dateStyle" data-val="${v}" aria-pressed="${st === v}">${l}</button>`; return `<div class="date-style"><span class="small muted" id="bDateL">Show dates as</span><div class="seg" role="group" aria-labelledby="bDateL">${b("words", "Nov 2012")}${b("long", "November 2012")}${b("numeric", "11/2012")}</div><span class="small muted">You can type any of them.</span></div>`; };
-const gradeNoteText = () => `Left off your resume: it's below the cut-off (${GRADE_MIN_WORDS}). A lower grade doesn't help your application.`;
 function gradeQ(e, base) {
   const id = fid(base + ".grade"), type = e.gradeType || guessGradeType(e.grade, "");
   return `<div class="q"><label class="q-label" for="${id}">Grade <span class="opt">(optional)</span></label><div class="q-body"><div class="seg-in grade"><input type="text" id="${id}" data-path="${base}.grade" value="${esc(val(e.grade))}" placeholder="e.g. 72.5 or 6.1" inputmode="decimal" autocomplete="off"><select data-path="${base}.gradeType" aria-label="Grade type">${GRADE_TYPES.map(([k, l]) => `<option value="${k}"${k === type ? " selected" : ""}>${l}</option>`).join("")}</select></div></div></div>`;
@@ -219,7 +216,6 @@ function startQ() {
 
 /* --- Older suggestion lists, still used by the type-ahead boxes (see the lists in 21a) --- */
 const COMMON_TITLES = ["Graduate Engineer", "Graduate Mechanical Engineer", "Graduate Civil Engineer", "Graduate Electrical Engineer", "Mechanical Engineer", "Civil Engineer", "Electrical Engineer", "Engineering Intern", "Project Engineer", "Site Engineer", "Drafter", "Data Analyst", "Business Analyst", "Financial Analyst", "Consulting Analyst", "Graduate Accountant", "Accountant", "Accounts Assistant", "Administration Officer", "Office Administrator", "Receptionist", "Executive Assistant", "Customer Service Officer", "Customer Service Representative", "Call Centre Operator", "Retail Assistant", "Retail Sales Assistant", "Sales Assistant", "Store Manager", "Assistant Store Manager", "Barista", "Waiter", "Bartender", "Kitchen Hand", "Chef", "Cook", "Warehouse Operator", "Storeperson", "Forklift Driver", "Delivery Driver", "Labourer", "Apprentice Electrician", "Apprentice Carpenter", "Electrician", "Carpenter", "Plumber", "Registered Nurse", "Enrolled Nurse", "Aged Care Worker", "Disability Support Worker", "Support Worker", "Teacher", "Teacher's Aide", "Tutor", "Software Developer", "Software Engineer", "Junior Developer", "IT Support Officer", "Help Desk Analyst", "Marketing Coordinator", "Marketing Assistant", "Social Media Coordinator", "Graphic Designer", "Project Coordinator", "Project Manager", "Research Assistant", "Laboratory Technician", "Policy Officer", "Human Resources Coordinator", "Recruitment Coordinator", "Night Desk Operator", "Team Leader", "Supervisor", "Volunteer"];
-const DEGREES = ["Bachelor of Engineering (Honours)", "Bachelor of Engineering (Honours) (Mechanical)", "Bachelor of Engineering (Honours) (Civil)", "Bachelor of Engineering (Honours) (Electrical)", "Bachelor of Science", "Bachelor of Science (Mechanical Engineering)", "Bachelor of Advanced Science", "Bachelor of Commerce", "Bachelor of Business", "Bachelor of Arts", "Bachelor of Laws", "Bachelor of Nursing", "Bachelor of Education (Primary)", "Bachelor of Education (Secondary)", "Bachelor of Information Technology", "Bachelor of Computer Science", "Bachelor of Design", "Bachelor of Psychological Science", "Bachelor of Health Science", "Master of Professional Engineering", "Master of Professional Engineering (Mechanical)", "Master of Engineering", "Master of Business Administration", "Master of Data Science", "Master of Information Technology", "Master of Teaching", "Master of Professional Accounting", "Graduate Certificate", "Graduate Diploma", "Diploma of Business", "Diploma of Information Technology", "Diploma of Nursing", "Diploma of Project Management", "Certificate III in Individual Support", "Certificate III in Early Childhood Education and Care", "Certificate III in Hospitality", "Certificate III in Carpentry", "Certificate III in Electrotechnology Electrician", "Certificate IV in Project Management Practice", "Certificate IV in Training and Assessment", "Year 12 (HSC)", "Year 12 (VCE)", "Year 12 (QCE)", "Year 12 (WACE)", "Year 12 (SACE)"];
 const UNI_CITY = { "Australian National University": "Canberra, ACT", "University of Canberra": "Canberra, ACT", "University of Sydney": "Sydney, NSW", "UNSW Sydney": "Sydney, NSW", "University of Technology Sydney": "Sydney, NSW", "Macquarie University": "Sydney, NSW", "Western Sydney University": "Sydney, NSW", "University of Newcastle": "Newcastle, NSW", "University of Wollongong": "Wollongong, NSW", "University of New England": "Armidale, NSW", "Southern Cross University": "Lismore, NSW", "Charles Sturt University": "", "Australian Catholic University": "", "University of Melbourne": "Melbourne, VIC", "Monash University": "Melbourne, VIC", "RMIT University": "Melbourne, VIC", "Deakin University": "", "La Trobe University": "Melbourne, VIC", "Swinburne University of Technology": "Melbourne, VIC", "Victoria University": "Melbourne, VIC", "Federation University Australia": "Ballarat, VIC", "University of Queensland": "Brisbane, QLD", "Queensland University of Technology": "Brisbane, QLD", "Griffith University": "", "James Cook University": "Townsville, QLD", "University of the Sunshine Coast": "Sunshine Coast, QLD", "Bond University": "Gold Coast, QLD", "University of Southern Queensland": "Toowoomba, QLD", "CQUniversity": "", "University of Western Australia": "Perth, WA", "Curtin University": "Perth, WA", "Murdoch University": "Perth, WA", "Edith Cowan University": "Perth, WA", "University of Notre Dame Australia": "", "Adelaide University": "Adelaide, SA", "University of Adelaide": "Adelaide, SA", "Flinders University": "Adelaide, SA", "University of South Australia": "Adelaide, SA", "University of Tasmania": "Hobart, TAS", "Charles Darwin University": "Darwin, NT", "Open Universities Australia": "", "TAFE NSW": "", "TAFE Queensland": "", "TAFE SA": "", "TasTAFE": "", "Canberra Institute of Technology": "Canberra, ACT", "Melbourne Polytechnic": "Melbourne, VIC", "Box Hill Institute": "Melbourne, VIC", "Holmesglen Institute": "Melbourne, VIC", "Kangan Institute": "Melbourne, VIC", "Chisholm Institute": "Melbourne, VIC", "William Angliss Institute": "Melbourne, VIC", "North Metropolitan TAFE": "Perth, WA", "South Metropolitan TAFE": "Perth, WA" };
 const LICENCE_OPTS = ["Full C class licence", "Full C class licence, own car", "Manual C class licence", "Provisional (P2) licence", "Provisional (P1) licence", "Learner licence", "Light rigid (LR) licence", "Medium rigid (MR) licence", "Heavy rigid (HR) licence"];
 /* --- Finishing an entry: tidy it, polish it with AI (unless it's already polished), then it goes on the resume --- */
@@ -256,22 +252,24 @@ function thesisLine(s) {
   const lab = label.toLowerCase().replace(/\bhonors\b/, "honours").replace(/\bfinal year\b/, "final-year");
   return cap1(lab) + ": " + body[0].toUpperCase() + body.slice(1);
 }
-const tidyLine = (l, current) => { let x = autocorrect(String(l).replace(/\s+/g, " ").replace(/[.;,\s]+$/, "").replace(/^(I|We)\s+/i, "")).text; x = startVerb(x, current); return x ? x[0].toUpperCase() + x.slice(1) : x; };
+// Capitals are never "corrected": tidy the spaces only, because many words are acronyms
+const keepCaps = v => String(v || "").replace(/\s+/g, " ").trim();
+const tidyLine = (l, current) => { let x = autocorrect(dropFirstPerson(String(l).replace(/\s+/g, " ").replace(/[.;,\s]+$/, ""))).text; x = startVerb(x, current); return x ? x[0].toUpperCase() + x.slice(1) : x; };
 function tidyEntry(list, e) {
   if (list === "experience" || list === "volunteering") {
-    e.title = jobTitleCase(e.title); e.org = smartCase(e.org, "title");
+    e.title = keepCaps(e.title); e.org = keepCaps(e.org);
     e.bullets = e.bullets.map(b => val(b)).filter(Boolean).map(b => tidyLine(b, e.current));
   } else if (list === "projects") {
-    e.name = smartCase(e.name, "title");
+    e.name = keepCaps(e.name);
     e.details = linesOf(e.details).map(l => tidyLine(l, e.current)).join("\n");
   } else if (list === "referees") {
-    e.name = smartCase(e.name, "name"); e.role = jobTitleCase(e.role); e.org = smartCase(e.org, "title");
+    e.name = keepCaps(e.name); e.role = keepCaps(e.role); e.org = keepCaps(e.org);
     if (val(e.phone)) e.phone = refPhone(e.phone);
     e.email = val(e.email).toLowerCase();
   } else {
     syncQual(e);
-    e.subject = smartCase(e.subject, "title"); syncQual(e);
-    e.inst = smartCase(e.inst, "title");
+    e.subject = keepCaps(e.subject); syncQual(e);
+    e.inst = keepCaps(e.inst);
     for (const k of ["grade", "awards", "coursework", "project"]) if (isBlank(e[k])) e[k] = ""; else if (k !== "grade") e[k] = autocorrect(e[k]).text;
     if (e.project) e.project = thesisLine(e.project);
     if (e.grade) e.gradeType = guessGradeType(e.grade, e.gradeType);
@@ -285,6 +283,7 @@ Rules:
 4. Fix spelling (Australian), grammar and capitals, including tool and company names.
 5. Each bullet 10 to 30 words, no full stop at the end, never "I", "me" or "my". Don't start two bullets with the same verb.
 6. Return the same number of bullets, in the same order.
+${BULLET_STYLE}
 Reply with JSON only.`;
 const POLISH_FULL = `You are an experienced Australian resume writer. Polish one entry so it reads as professionally as a resume written by an expert, while staying completely true to what the candidate wrote.
 For each bullet:
@@ -294,6 +293,7 @@ For each bullet:
 - Correct spelling (Australian English), grammar, punctuation and the capitals of names, tools and companies.
 - 10 to 30 words, no full stop at the end, no "I", "me" or "my", and no two bullets starting with the same verb.
 Never add a task, tool, number, result, team size or claim that isn't in the bullet. Return exactly the same number of bullets, in the same order, plus the title and organisation with corrected capitals.
+${BULLET_STYLE}
 Reply with only JSON: {"title": "...", "org": "...", "bullets": ["..."]}`;
 const POLISH_EXAMPLES = [[
   `<job>Retail Assistant at Bright Shoes (a past job: past tense)</job>
@@ -327,7 +327,7 @@ function polishLines(kind, e, title, org, lines, progress) {
   const src = [title, org, kind === "experience" ? Object.values(e.answers).join("\n") : "", lines.join("\n")].join("\n");
   const what = kind === "projects" ? " (a project)" : kind === "volunteering" ? " (a volunteer role)" : "";
   const prompt = `<job>${title}${org ? ` at ${org}` : ""}${what}${e.current ? " (current: present tense)" : " (finished: past tense)"}</job>\n<bullets>\n${lines.map((b, k) => `${k + 1}. ${b}`).join("\n")}\n</bullets>`;
-  return aiJSON({ nano: POLISH_NANO, full: POLISH_FULL, examples: POLISH_EXAMPLES, prompt, schema: POLISH_SCHEMA, label: "Polishing", progress,
+  return aiJSON({ tier: "small", nano: POLISH_NANO, full: POLISH_FULL, examples: POLISH_EXAMPLES, prompt, schema: POLISH_SCHEMA, label: "Polishing", progress,
     check: d => {
       const bl = (Array.isArray(d.bullets) ? d.bullets : []).map(b => stripMarkup(String(b)).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, ""));
       if (bl.length !== lines.length) return { ok: false, why: `return exactly ${lines.length} bullets, in the same order` };
@@ -336,7 +336,7 @@ function polishLines(kind, e, title, org, lines, progress) {
         if (why) return { ok: false, why: `bullet ${k + 1}: ${why}` };
         if (keepsFacts(lines[k], bl[k]) < 0.6) return { ok: false, why: `bullet ${k + 1} lost facts from the original` };
       }
-      return { ok: true, value: { title: sameLetters(d.title, title) ? String(d.title).trim() : title, org: sameLetters(d.org, org) ? String(d.org).trim() : org, bullets: bl } };
+      return { ok: true, value: { title, org, bullets: bl } };
     } });
 }
 async function polishEntry(list, e, progress) {
@@ -348,15 +348,16 @@ async function polishEntry(list, e, progress) {
   if (list === "projects") return polishProject(e, progress);
   if (list === "referees") return { data: null, via: null };
   if (![e.coursework, e.project, e.awards].some(x => val(x))) return { data: null, via: null };
-  const prompt = `<qualification>${e.degree}, ${e.inst}</qualification>\n<coursework>${val(e.coursework)}</coursework>\n<project>${val(e.project)}</project>\n<awards>${val(e.awards)}</awards>`;
-  return aiJSON({ nano: POLISH_EDU_NANO, examples: POLISH_EDU_EXAMPLES, prompt, schema: POLISH_EDU_SCHEMA, label: "Polishing this qualification", progress,
+  const awardsLine = awardList(e).join("; ");
+  const prompt = `<qualification>${e.degree}, ${e.inst}</qualification>\n<coursework>${val(e.coursework)}</coursework>\n<project>${val(e.project)}</project>\n<awards>${awardsLine}</awards>`;
+  return aiJSON({ tier: "small", nano: POLISH_EDU_NANO, examples: POLISH_EDU_EXAMPLES, prompt, schema: POLISH_EDU_SCHEMA, label: "Polishing this qualification", progress,
     check: d => {
       const out = {};
       for (const k of ["coursework", "project", "awards"]) {
-        const was = val(e[k]), now = stripMarkup(String(d[k] || "")).trim().replace(/[.\s]+$/, was.endsWith(".") ? "." : "");
+        const was = k === "awards" ? awardsLine : val(e[k]), now = stripMarkup(String(d[k] || "")).trim().replace(/[.\s]+$/, was.endsWith(".") ? "." : "");
         if (!was) { out[k] = ""; continue; }
         if (factCheck(now, was, { years: true }) || keepsFacts(was, now) < 0.75 || wordCount(now) > wordCount(was) * 1.6 + 3) return { ok: false, why: `${k}: keep every fact and add nothing new` };
-        out[k] = now;
+        out[k] = k === "awards" ? now.split(/\s*;\s*|\n/).filter(Boolean).join("\n") : now;
       }
       return { ok: true, value: out };
     } });
@@ -365,7 +366,7 @@ const entryOf = (list, i) => list === "referees" ? P().referees.list[i] : P()[li
 // What an entry needs before it can go on the resume: [missing?, words, the box to jump to]
 function entryNeeds(list, e) {
   const rows = {
-    experience: () => [[!val(e.title), "a job title", "title"], [!val(e.org), "the employer", "org"], [!val(e.start), "when you started", "start"], [!(e.bullets || []).some(b => val(b)), "at least one bullet point", null]],
+    experience: () => [[!val(e.title), "a job title", "title"], [!val(e.org), "the employer", "org"], [!val(e.start), "when you started", "start"]],
     education: () => [[!val(e.degree), "the qualification's level and subject", "level"], [!val(e.inst), "where you studied", "inst"], [!val(e.start) && !val(e.end), "dates", "start"]],
     projects: () => [[!val(e.name), "the project's name", "name"]],
     volunteering: () => [[!val(e.title) && !val(e.org), "the role or organisation", "title"]],
@@ -383,13 +384,20 @@ async function polishOnly(list, i, btn) {
   if (btn) { btn.disabled = true; btn.textContent = "Polishing…"; }
   tidyEntry(list, e);
   let r = { data: null, via: null };
-  if (list !== "referees") { say2("Polishing with AI…"); try { r = await polishEntry(list, e, m => say2(m)); } catch { /* keep the tidy version */ } }
+  if (list !== "referees" && list !== "volunteering") { say2("Polishing with AI…"); try { r = await polishEntry(list, e, m => say2(m)); } catch { /* keep the tidy version */ } }
   if (r.data) Object.assign(e, r.data);
   e.polished = polishSig(list, e);
-  builder.finNote = { list, i, before, text: r.data ? `Polished by ${viaWords(r.via)}.${e.done ? "" : " Finish it to add it to your resume."}` : list === "referees" ? "Tidied the capitals, number and email." : `Tidied capitals, tense and spelling. ${aiMissWords(r)}` };
+  builder.finNote = { list, i, before, text: r.data ? `Polished by ${viaWords(r.via)}.${e.done ? "" : " Finish it to add it to your resume."}` : list === "referees" ? "Tidied the number and email." : list === "volunteering" ? "Tidied the spelling and wording." : `Tidied tense and spelling. ${aiMissWords(r)}` };
   touchProfile("builder");
   renderBuilder(false);
   finToast();
+}
+// Why an entry can't be finished yet, or null: { msg, field } (field is the box to go to)
+function entryProblem(list, e) {
+  const order = endBeforeStart(e);
+  if (order) return { msg: order, field: "end" };
+  const need = entryNeeds(list, e);
+  return need.length ? { msg: `Add ${listJoin(need.map(x => x[1]))} first.`, field: need[0][2] } : null;
 }
 async function finishEntry(list, i, btn, quiet) {
   const p = P(), e = entryOf(list, i);
@@ -417,7 +425,8 @@ async function finishEntry(list, i, btn, quiet) {
   if (btn) { btn.disabled = true; btn.textContent = "Finishing…"; }
   tidyEntry(list, e);
   let r = { data: null, via: null }, already = isPolished(list, e) || (list === "experience" && e.bullets.length && e.bullets.every(b => builder.aiText.has(norm(b))));
-  if (!already && list !== "referees" && list !== "experience" && list !== "education") {
+  // volunteering is only tidied (capitals, spelling), never rewritten by AI
+  if (!already && list !== "referees" && list !== "experience" && list !== "education" && list !== "volunteering") {
     say2("Polishing with AI…");
     try { r = await polishEntry(list, e, m => say2(m)); } catch { /* keep the tidy version */ }
     if (r.data) Object.assign(e, r.data);
@@ -428,7 +437,7 @@ async function finishEntry(list, i, btn, quiet) {
   const arr = listArr(p, list);
   const nextI = arr.findIndex((x, k) => k > i && !x.done);
   if (nextI >= 0 && !quiet) builder.open[list].add(nextI);
-  builder.finNote = { list, i, before, text: list === "experience" || list === "education" ? (wasDone ? "Saved. It's on your resume." : "Added to your resume.") : already ? (wasDone ? "Saved. It's on your resume." : "Already polished, so it went straight on your resume.") : r.via ? `Polished by ${viaWords(r.via)} and added to your resume.` : `Tidied up and added to your resume.${list === "referees" ? "" : " " + aiMissWords(r)}` };
+  builder.finNote = { list, i, before, text: list === "experience" || list === "education" ? (wasDone ? "Saved. It's on your resume." : "Added to your resume.") : already ? (wasDone ? "Saved. It's on your resume." : "Already polished, so it went straight on your resume.") : r.via ? `Polished by ${viaWords(r.via)} and added to your resume.` : `Tidied up and added to your resume.${list === "referees" || list === "volunteering" ? "" : " " + aiMissWords(r)}` };
   touchProfile("builder");
   if (quiet) return true;
   renderBuilder(false);
@@ -469,7 +478,7 @@ async function polishText(key, btn, finish) {
   const sig = JSON.stringify(tidied);
   if (!(p.extrasDone[key] && finish) && builder.textPolished !== key + sig) {
     say2("Polishing with AI…");
-    r = await aiJSON({ nano: TEXT_POLISH_NANO, prompt: `Section: ${key}\n<lines>\n${tidied.map((l, k) => `${k + 1}. ${l}`).join("\n")}\n</lines>`, schema: { type: "object", properties: { lines: strArr }, required: ["lines"] }, label: "Polishing", progress: say2,
+    r = await aiJSON({ tier: "small", nano: TEXT_POLISH_NANO, prompt: `Section: ${key}\n<lines>\n${tidied.map((l, k) => `${k + 1}. ${l}`).join("\n")}\n</lines>`, schema: { type: "object", properties: { lines: strArr }, required: ["lines"] }, label: "Polishing", progress: say2,
       check: d => {
         const ls = (Array.isArray(d.lines) ? d.lines : []).map(x => stripMarkup(String(x)).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean);
         if (key !== "interests" && ls.length !== tidied.length) return { ok: false, why: `return exactly ${tidied.length} lines, in the same order` };
@@ -495,6 +504,7 @@ Rules:
 2. Keep every fact. Never add numbers, tools, results or tasks that aren't in the bullet or the facts.
 3. Start with a strong action verb.
 4. 10 to 28 words, no full stop at the end, never "I", "me" or "my".
+${BULLET_STYLE}
 Reply with JSON only: {"bullet": "..."}`;
 const FIX_EXAMPLES = [[
   `Problem: it's thin. Add how they did it, with what, or who it was for, using only the facts given.
@@ -510,6 +520,7 @@ Rules:
 2. Replace a weak opening ("Responsible for", "Duties included", "Helped with", "Worked on", "In charge of") or a noun opening ("Customer service at the front desk") with that verb.
 3. Keep every fact. Change as little else as possible. Never add numbers, tools, results or tasks.
 4. 8 to 28 words, no full stop at the end, never "I", "me" or "my".
+${BULLET_STYLE}
 Reply with JSON only: {"bullet": "..."}`;
 const FIX_VERB_EXAMPLES = [[
   `Tense: past tense
@@ -554,7 +565,7 @@ function fixWithoutAI(b, issue, current, number) {
   if (issue === "verb") { for (const [re, v] of WEAK_SWAP) if (re.test(x)) { x = x.replace(re, v); break; } x = startVerb(x, current); return isActionStart(x) && !WEAK_START.test(x) ? x : null; }
   if (issue === "tense") { const y = startVerb(x, current); return y !== x ? y : null; }
   if (issue === "present") { const y = toPresentStart(x); return y !== x ? y : null; }
-  if (issue === "first") return x.replace(/\b(I|we)\s+/gi, "").replace(/\bmy\b/gi, "the").replace(/\bme\b/gi, "them").replace(/^\w/, c => c.toUpperCase());
+  if (issue === "first") { const y = startVerb(dropFirstPerson(x).replace(/\b(I|we)\s+/g, "").replace(/\bme\b/gi, "them"), current); return y[0].toUpperCase() + y.slice(1); }
   if (issue === "buzz") return x.replace(new RegExp(FILLER.source, "gi"), "").replace(/\s{2,}/g, " ").trim();
   if (issue === "number" && number) return `${x}, ${number}`;
   return null;
@@ -591,7 +602,7 @@ async function fixBullet(i, j, issue, btn, number) {
   const verbs = verbChoices(b, e.current);
   const prompt = issue === "verb" ? `Tense: ${tense}\nVerbs to choose from: ${verbs.join(", ")}\nBullet: ${b}\nFacts: ${facts}`
     : `Problem: ${FIX_PROBLEMS[issue]}${number ? `: "${number}"` : ""}.\nTense: ${tense}\nBullet: ${b}\nFacts: ${facts}`;
-  const r = await aiJSON({ nano: issue === "verb" ? FIX_VERB_NANO : FIX_NANO, examples: issue === "verb" ? FIX_VERB_EXAMPLES : FIX_EXAMPLES, prompt, schema: { type: "object", properties: { bullet: { type: "string" } }, required: ["bullet"] }, label: "Fixing it", progress: m => { builder.alts[key] = { busy: m }; },
+  const r = await aiJSON({ tier: "small", nano: issue === "verb" ? FIX_VERB_NANO : FIX_NANO, examples: issue === "verb" ? FIX_VERB_EXAMPLES : FIX_EXAMPLES, prompt, schema: { type: "object", properties: { bullet: { type: "string" } }, required: ["bullet"] }, label: "Fixing it", progress: m => { builder.alts[key] = { busy: m }; },
     check: d => {
       const t = stripMarkup(String(d.bullet || "")).replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "");
       const why = factCheck(t, src, { noFirstPerson: true, min: issue === "verb" ? 3 : 5, max: issue === "long" ? 27 : 32 });
@@ -620,9 +631,11 @@ Rules:
 1. Write 3 versions. Each keeps every fact and adds nothing new: no new numbers, tools, results or tasks.
 2. Each starts with a different strong action verb, in the tense you're told.
 3. Each reads as a complete sentence, 10 to 28 words, no full stop at the end, never "I", "me" or "my".
+${BULLET_STYLE}
 Reply with JSON only: {"options": ["...", "...", "..."]}`;
 const REWORD_FULL = `You are an experienced Australian resume writer. Write three different wordings of one bullet point from a candidate's resume.
 Each version must keep every fact in the original (the task, any tool, number, team size or result) and add nothing that isn't in the bullet or the facts given. Start each with a different strong, specific action verb in the tense you're told, and vary the structure: one leads with the action, one with the result or scale, one with who it was for. Each reads as a complete sentence of 10 to 28 words, with Australian spelling, no full stop at the end, no "I", "me" or "my", and no buzzwords such as "leverage" or "utilise".
+${BULLET_STYLE}
 Reply with only JSON: {"options": ["...", "...", "..."]}`;
 const REWORD_EXAMPLES = [[
   `Tense: past tense
@@ -649,14 +662,14 @@ function rewordWithoutAI(b, current) {
   if (!swaps.length) return [];
   return alts.map((a, k) => `${current ? toPresentStart(a) : a} ${swaps[k % swaps.length]}`).filter(x => changedWords(b, x) >= 2);
 }
-async function rewordBullet(i, j) {
+async function rewordBullet(i, j, note = "") {
   const e = P().experience[i], key = `${i}.${j}`, b = e.bullets[j];
   if (!val(b)) return;
   keepOpen();
   builder.alts[key] = { busy: "Finding other ways to say it…" };
   renderBuilder(false);
   const src = [e.title, e.org, Object.values(e.answers).join("\n"), b].join("\n");
-  const r = await aiJSON({ nano: REWORD_NANO, full: REWORD_FULL, examples: REWORD_EXAMPLES, prompt: `Tense: ${e.current ? "present tense" : "past tense"}\nBullet: ${b}\nFacts: ${e.title}${e.org ? ` at ${e.org}` : ""}. ${Object.values(e.answers).filter(Boolean).join(". ")}`,
+  const r = await aiJSON({ tier: "small", nano: REWORD_NANO, full: REWORD_FULL, examples: REWORD_EXAMPLES, prompt: `Tense: ${e.current ? "present tense" : "past tense"}\nBullet: ${b}\nFacts: ${e.title}${e.org ? ` at ${e.org}` : ""}. ${Object.values(e.answers).filter(Boolean).join(". ")}${note ? `\nHow it should change: ${note}` : ""}`,
     schema: { type: "object", properties: { options: { type: "array", items: { type: "string" } } }, required: ["options"] }, label: "Rewording", progress: m => { builder.alts[key] = { busy: m }; const bx = document.querySelector(`.bl-item[data-i="${i}"][data-j="${j}"] .bl-alts .progress`); if (bx) bx.textContent = m; },
     check: d => {
       const seen = new Set([norm(b)]);
@@ -677,6 +690,7 @@ Rules:
 1. Write 3 versions. Each keeps every fact and adds nothing new: no new numbers, tools, results or tasks.
 2. Each version has the same number of lines as the original, one point per line, each a full sentence of 8 to 28 words starting with a strong action verb, no full stop at the end, never "I", "me" or "my".
 3. The three versions must read differently: change the verbs and the order of ideas.
+${BULLET_STYLE}
 Reply with JSON only: {"options": ["line one\\nline two", "...", "..."]}`;
 const EXTRA_REWORD_AWARDS = `You write different wordings of a list of awards and achievements on a resume.
 Rules:
@@ -697,7 +711,7 @@ function extraRewordHtml(list, i) {
     : `<span class="small muted">${aiMissHtml(a.msg || "No other wordings this time.")}</span>`;
   return bar + `<div class="bl-alts">${body}<button class="linkish" type="button" data-act="x-close" data-list="${list}" data-i="${i}">Close</button></div>`;
 }
-async function rewordExtra(list, i) {
+async function rewordExtra(list, i, note = "") {
   const box = extraBox(list, i), lines = box.text().map(l => String(l).replace(BULLET_RE, "").trim()).filter(Boolean), key = `${list}.${i}`;
   if (!lines.length) { keepOpen(); builder.extraAlts[key] = { items: [], msg: "Write what you did first, then reword it." }; renderBuilder(false); return; }
   keepOpen();
@@ -714,7 +728,7 @@ async function rewordExtra(list, i) {
     return "";
   };
   const tidyOpts = d => (Array.isArray(d && d.options) ? d.options : []).map(x => stripMarkup(String(x)).split(/\n+/).map(l => l.replace(BULLET_RE, "").replace(/\s+/g, " ").trim().replace(/[.\s]+$/, "")).filter(Boolean)).filter(v => v.length).map(v => v.map(l => l[0].toUpperCase() + l.slice(1)));
-  const r = await aiJSON({ nano: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, full: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, noRetry: true, prompt: `Tense: ${box.current ? "present tense" : "past tense"}\nOriginal lines:\n${lines.join("\n")}\nWhere: ${[e.title || e.name, e.org].filter(Boolean).join(" at ")}`,
+  const r = await aiJSON({ tier: "small", nano: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, full: awards ? EXTRA_REWORD_AWARDS : EXTRA_REWORD_NANO, noRetry: true, prompt: `Tense: ${box.current ? "present tense" : "past tense"}\nOriginal lines:\n${lines.join("\n")}\nWhere: ${[e.title || e.name, e.org].filter(Boolean).join(" at ")}${note ? `\nHow they should change: ${note}` : ""}`,
     schema: { type: "object", properties: { options: { type: "array", items: { type: "string" } } }, required: ["options"] }, label: "Rewording", progress: m => { builder.extraAlts[key] = { busy: m }; },
     check: d => {
       const seen = new Set([norm(lines.join(" "))]), why = [];
@@ -925,20 +939,6 @@ function applyCheck(act, k) {
   c.note = c.onePage ? (pages === 1 ? "✓ It now fits on one page." : `Still ${pages} pages. Accept more suggestions, try Compact spacing in Page setup, or check again.`) : c.note;
   const n = $("bCheckNote"); if (n) n.textContent = c.note;
 }
-function reviewCheckHtml() {
-  const p = P(), c = builder.check, pages = builder.pages || 1;
-  const act = x => ({ cut: "Cut", shorten: "Shorten", combine: "Combine", rewrite: "Reword" })[x.action];
-  const item = (x, k) => `<li class="chk${x.state ? " " + x.state : ""}"><div class="chk-head"><span class="chk-act ${x.action}">${act(x)}</span><span class="small muted">${esc(x.where || "")}${x.action === "cut" && x.pri ? ` · ${x.pri} priority` : ""}</span></div>
-    ${x.before.map(b => `<p class="chk-before">${esc(b)}</p>`).join("")}${x.action !== "cut" ? `<p class="chk-after">${esc(x.text)}</p>` : ""}<p class="small"><b>Why:</b> ${esc(x.why)}</p>
-    <div class="b-actions">${x.state === "yes" ? '<span class="chip found">Done</span>' : x.state === "no" ? '<span class="small muted">Skipped</span>' : `<button class="btn primary" type="button" data-act="check-yes" data-k="${k}">${x.action === "cut" ? "Cut it" : x.action === "combine" ? "Combine them" : "Use this"}</button><button class="btn" type="button" data-act="check-no" data-k="${k}">Keep mine</button>`}</div></li>`;
-  return `<div class="b-sub">AI check</div><div class="b-ai-check">
-    <p class="q-hint">A read-through of the whole resume, the way a recruiter would. It combines and rewords before it cuts, only cuts less important lines (never your profile), and says why. You decide.</p>
-    <div class="b-actions"><label class="q-check"><input type="checkbox" data-path="prefs.onePage"${p.prefs.onePage ? " checked" : ""}> Keep it to one page</label><span class="small muted">It's ${pages} page${pages === 1 ? "" : "s"} now.</span></div>
-    <div class="b-actions"><button class="btn primary" type="button" data-act="check-run">${c && c.ran ? "Check again" : "Check my whole resume"}</button><span class="engine-note" id="bCheckNote" role="status">${c && c.note ? esc(c.note) : ""}</span></div>
-    ${c && c.items.length ? `<ul class="chk-list">${c.items.map(item).join("")}</ul>${c.items.filter(x => !x.state).length > 1 ? '<div class="b-actions"><button class="btn" type="button" data-act="check-all">Accept all the rest</button></div>' : ""}` : c && c.ran ? `<p class="small">Nothing to change${p.prefs.onePage && pages === 1 ? ", and it fits on one page" : ""}.</p>` : ""}
-    ${c && c.advice && c.advice.length ? `<div class="chk-advice"><b>Also worth doing</b><ul>${c.advice.map(a => `<li>${esc(a)}</li>`).join("")}</ul></div>` : ""}
-  </div>`;
-}
 
 /* --- How the place and country pickers behave --- */
 const pickNow = { inp: null, items: [], i: -1 };
@@ -1138,7 +1138,7 @@ function pageSetupQ() {
   const pr = P().prefs, design = (builderTpl() || {}).margin || 16;
   const unit = (k, o, path) => path === "prefs.margins" ? `${k === "normal" ? design : o.mm} mm` : o.unit;
   const seg = (path, opts, cur, label) => `<div class="q"><div class="q-label" id="ps_${path.split(".")[1]}">${label}</div><div class="seg seg-fill" role="group" aria-labelledby="ps_${path.split(".")[1]}">${Object.entries(opts).map(([k, o]) => `<button type="button" data-act="pick" data-path="${path}" data-val="${k}" aria-pressed="${(cur || "normal") === k}"><span>${o.label}</span><small>${unit(k, o, path)}</small></button>`).join("")}</div></div>`;
-  return `<div class="page-setup">${seg("prefs.spacing", SPACING, pr.spacing, "Line spacing")}${seg("prefs.margins", MARGINS, pr.margins, "Page margins")}</div>${fontQ()}<p class="q-hint">Compact spacing and narrow margins fit more on a page. Line spacing is relative to the design's own (1.0×); normal margins are the design's own (${design} mm).</p>${dateStyleQ()}${languageQ()}`;
+  return `<div class="page-setup">${seg("prefs.spacing", SPACING, pr.spacing, "Line spacing")}${seg("prefs.margins", MARGINS, pr.margins, "Page margins")}</div><p class="q-hint">Compact spacing and narrow margins fit more on a page. Line spacing is relative to the design's own (1.0×); normal margins are the design's own (${design} mm).</p>${dateStyleQ()}${languageQ()}`;
 }
 // Which English to write in: it sets the spelling autocorrect fixes to, and the language the browser's spell check uses
 function languageQ() {
@@ -1181,20 +1181,33 @@ const SUGGEST_SRC = {
   inst: () => [...P().education.map(e => val(e.inst)), ...institutionNames()],
   licence: () => [...LICENCE_OPTS, ...licenceList().filter(x => /licen[cs]e/i.test(x))],
   subject: inp => { const i = +(inp.dataset.subjIn != null ? inp.dataset.subjIn : (inp.dataset.path || "").split(".")[1]), e = P().education[i] || {}; return subjectList(/subject2$/.test(inp.dataset.path || "") ? e.level2 : e.level); },
+  // the "specific relevant subjects" box: school subjects for Year 10 and Year 12, and for everything else the usual study areas plus school subjects
+  relsubject: inp => { const i = +inp.dataset.subjIn, e = P().education[i] || {}; const q = qualLevel(e.level); return q && q.school ? HS_SUBJECTS : [...subjectList(e.level), ...HS_SUBJECTS]; },
+  award: () => AWARD_IDEAS,
   "chip-software": () => [...Object.values(COMMON_SKILLS).flatMap(x => x.software), ...SOFTWARE, ...PROGRAMMING],
   "chip-hard": () => [...Object.values(COMMON_SKILLS).flatMap(x => x.hard), ...SKILLS.filter(s => s.kind === "hard" && !SOFTWARE.has(s.name) && !PROGRAMMING.has(s.name)).map(s => s.name)],
   "chip-certs": () => [...licenceList(), ...Object.values(COMMON_CERTS).flat()],
   "chip-soft": () => [...COMMON_SOFT, ...SKILLS.filter(s => s.kind === "soft").map(s => s.name)]
 };
 // short lists open as soon as you click in, like a drop-down; long ones once you start typing (or press the down arrow)
-const SUGGEST_OPEN_EMPTY = new Set(["subject", "licence", "chip-certs", "detail", "employers"]);
+const SUGGEST_OPEN_EMPTY = new Set(["subject", "relsubject", "award", "licence", "chip-certs", "detail", "employers"]);
 const sugNow = { inp: null, items: [], i: -1 };
 function sugItems(inp, browse) {
   const src = SUGGEST_SRC[inp.dataset.suggest];
-  const have = inp.dataset.chipIn ? new Set(P().skills[inp.dataset.chipIn].map(s => s.toLowerCase())) : inp.dataset.subjIn != null ? new Set(subjList(P().education[+inp.dataset.subjIn] || {}).map(s => s.toLowerCase())) : null;
-  // the box's own value isn't a suggestion
-  const seen = new Set([String(inp.value || "").trim().toLowerCase()]), list = [];
-  for (const x of src ? src(inp) : []) { const k = String(x || "").trim(); if (!k || seen.has(k.toLowerCase()) || (have && have.has(k.toLowerCase()))) continue; seen.add(k.toLowerCase()); list.push(k); }
+  const have = inp.dataset.chipIn ? new Set(P().skills[inp.dataset.chipIn].map(s => s.toLowerCase())) : inp.dataset.subjIn != null ? new Set(fldList(P().education[+inp.dataset.subjIn] || {}, fldOf(inp)).map(s => s.toLowerCase())) : null;
+  // The example in the box (“e.g. Graduate Mechanical Engineer”) is always something you can pick
+  const ex = inp.dataset.chipIn || inp.dataset.subjIn != null ? "" : ((String(inp.placeholder || "").match(/^e\.g\.\s+(.+)$/i) || [])[1] || "").trim();
+  const base = [...(src ? src(inp) : []), ...(ex ? [ex] : [])];
+  // The box's own value isn't a suggestion, unless it is exactly a name from our lists (or the example): then it stays as an option you can select
+  const own = String(inp.value || "").trim(), ownKey = placeKey(own);
+  let known = false;
+  if (ownKey && !have) {
+    if (ex && placeKey(ex) === ownKey) known = true;
+    else if (inp.dataset.suggest === "titles") known = [...allJobTitles(), ...COMMON_TITLES].some(x => placeKey(x) === ownKey);
+    else { const p = P(), mine = new Set([p.target.title, p.target.company, ...p.experience.flatMap(e => [e.title, e.org]), ...p.volunteering.flatMap(e => [e.title, e.org]), ...p.education.map(e => e.inst)].map(x => placeKey(val(x)))); known = !mine.has(ownKey) && base.some(x => placeKey(x) === ownKey); }
+  }
+  const seen = new Set(known ? [] : [own.toLowerCase()]), list = [];
+  for (const x of base) { const k = String(x || "").trim(); if (!k || seen.has(k.toLowerCase()) || (have && have.has(k.toLowerCase()))) continue; seen.add(k.toLowerCase()); list.push(k); }
   const q = placeKey(inp.value);
   if (!q) return browse || SUGGEST_OPEN_EMPTY.has(inp.dataset.suggest) ? list.slice(0, 80) : [];
   const hits = [];
@@ -1252,7 +1265,7 @@ let sugPicking = false;
 function sugPick(inp, x) {
   sugClose(inp);
   if (inp.dataset.chipIn) { inp.value = ""; inp.blur(); addChip(inp.dataset.chipIn, x); return; }
-  if (inp.dataset.subjIn != null) { inp.value = ""; subjAdd(+inp.dataset.subjIn, x, true); return; }
+  if (inp.dataset.subjIn != null) { inp.value = ""; subjAdd(+inp.dataset.subjIn, x, true, fldOf(inp)); return; }
   sugPicking = true;
   try {
     inp.value = x;

@@ -1,7 +1,7 @@
 /* ===================== App shell: sidebar and tabs ===================== */
-const VIEWS = { "advice-resume": "Resume Advice", "advice-letter": "Cover Letter Advice", "advice-linkedin": "LinkedIn Advice", support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Hiring" };
+const VIEWS = { "advice-resume": "Resume Advice", "advice-letter": "Cover Letter Advice", "advice-linkedin": "LinkedIn Advice", support: "Contact or help", home: "Home", connect: "Choose your AI", builder: "Create or edit resume", letter: "Create or edit cover letter", cv: "Resume and cover letter templates", linkedin: "Create or edit LinkedIn", profile: "Create or edit profile", jobs: "Find jobs", scanner: "Tailor to a job", companies: "Company guides", tracker: "Application tracker", interview: "Interviews", aptitude: "Aptitude tests", learning: "Learning", employer: "Employer dashboard", "emp-jobs": "Jobs", "emp-post": "Post a job", "emp-candidates": "Candidates", "emp-talent": "Talent Search", "emp-reports": "Reports", "emp-company": "Company profile" };
 const NAV_KEY = "jobfinder.nav.v1", VIEW_KEY = "jobfinder.view.v1", MODE_KEY = "jobfinder.mode.v1";
-const EMPLOYER_VIEWS = new Set(["employer", "jobs", "connect"]);
+const EMPLOYER_VIEWS = new Set(["employer", "emp-jobs", "emp-post", "emp-candidates", "emp-talent", "emp-reports", "emp-company", "jobs", "connect"]);
 const appEl = $("app");
 const initFns = [];
 const onInit = fn => initFns.push(fn);

@@ -100,11 +100,39 @@ const chSideTotal = secs => secs.reduce((a, s) => a + (s.off || !s.side ? 0 : s.
 
 // The page count the preview actually shows (it is drawn from the same ticks), or null before it has been drawn
 const livePages = () => { const f = $("bPaper"); const n = f ? +f.dataset.pages : 0; return n > 0 ? n : null; };
-const SKILLS_TICKED_MAX = 4;
+// Fit to a page keeps at most this many skills under each skill heading (Technical, Software & tools, Languages, Strengths), the ones that matter most for the job
+const SKILLS_FIT_MAX = 8;
+const SKILLS_TICKED_MAX = SKILLS_FIT_MAX;
+
+/* --- How many lines really fit: learned from the preview --- */
+// The line count is an estimate worked out from the design's numbers; the preview is the truth. Every time the preview has been drawn,
+// we note whether the lines we counted fitted on one page and on two. "Fit to one page" then aims for what really fitted last time,
+// instead of the estimate. lo: a count that fitted. hi: the most lines that can fit (one below a count that did not).
+const capLearn = { sig: "", q: {} };
+function capSig() { const t = pageGeometry().tpl, pf = P().prefs || {}; return [t.key, t.margin, t.size, t.lh, t.gap, pf.font || "", pf.spacing || "", pf.margins || ""].join("|"); }
+function learnCap(p) {
+  const live = livePages();
+  if (live == null) return;
+  const sig = capSig();
+  if (capLearn.sig !== sig) { capLearn.sig = sig; capLearn.q = { 1: { lo: 0, hi: Infinity }, 2: { lo: 0, hi: Infinity } }; }
+  const geo = pageGeometry(), secs = chooseSections(p), T = Math.max(chTotal(secs), geo.sidebar ? chSideTotal(secs) : 0);
+  for (const q of [1, 2]) {
+    const o = capLearn.q[q];
+    if (live <= q) { if (T > o.hi) o.hi = Infinity; o.lo = Math.max(o.lo, T); }
+    else { const h = T - 1; if (h < o.lo) o.lo = 0; o.hi = Math.min(o.hi, h); }
+  }
+}
+// How many lines `pages` pages hold: the design's estimate, moved to what the preview has shown
+function fitCap(pages) {
+  const est = pageGeometry().cap * pages;
+  if (capLearn.sig !== capSig()) return est;
+  const o = capLearn.q[pages] || { lo: 0, hi: Infinity };
+  return Math.max(1, Math.min(o.hi, Math.max(o.lo, est)));
+}
 function chooseInner() {
   const p = P(), secs = chooseSections(p), geo = pageGeometry();
   const pages = builder.chPages === 2 ? 2 : 1;
-  let capAll = geo.cap * pages;
+  let capAll = fitCap(pages);
   const total = chTotal(secs), sideT = geo.sidebar ? chSideTotal(secs) : 0;
   // The preview is the truth. If it shows the pages we want, the lines used are within the maximum; if it shows more, they are not.
   const live = livePages();
@@ -122,7 +150,7 @@ function chooseInner() {
       ${e.rows.length && !e.off ? `<ul class="ch-rows">${e.rows.map(r => rowHtml(r, e)).join("")}</ul>` : ""}</li>`;
   const skillItemHtml = x => `<label class="ch-skill${x.off ? " off" : ""}"><input type="checkbox" data-ch-line="${esc(x.key)}"${x.off ? "" : " checked"}><span>${esc(x.text)}</span></label>`;
   const groupHtml = r => `<li class="${r.off ? "off" : ""}"><div class="ch-row"><label class="q-check"><input type="checkbox" data-ch-line="${esc(r.key)}"${r.off ? "" : " checked"}><span class="ch-txt"><b>${esc(r.label)}</b> <span class="small muted">${r.items.length === 1 ? "1 skill" : r.shown === r.items.length ? `${r.items.length} skills` : `${r.shown} of ${r.items.length} shown`}</span></span></label><span class="ch-count">${r.off ? "off" : r.lines}</span></div>${r.off ? "" : `<div class="ch-skills" role="group" aria-label="${esc(r.label)}: tick up to ${SKILLS_TICKED_MAX} to show">${r.items.map(skillItemHtml).join("")}</div>
-      <p class="ch-skill-note small muted">Up to ${SKILLS_TICKED_MAX} ticked here: ${SKILLS_TICKED_MAX} is a good number, because recruiters skim and a short list of your best reads as confident.${r.shown > SKILLS_TICKED_MAX ? ` <button class="linkish" type="button" data-act="ch-top4" data-label="${esc(r.label)}">Keep my top ${SKILLS_TICKED_MAX}</button>` : ""}</p>`}</li>`;
+      <p class="ch-skill-note small muted">Up to ${SKILLS_TICKED_MAX} ticked here: recruiters skim, so a short list of your best reads as confident.${r.shown > SKILLS_TICKED_MAX ? ` <button class="linkish" type="button" data-act="ch-top4" data-label="${esc(r.label)}">Keep my top ${SKILLS_TICKED_MAX}</button>` : ""}</p>`}</li>`;
   const rowHtml = (r, en) => r.items ? groupHtml(r) : `<li class="${r.off ? "off" : ""}"${en && (en.list === "experience" || en.list === "volunteering") ? ` data-ch-row="${en.list}.${en.i}"` : ""}><div class="ch-row">${en && (en.list === "experience" || en.list === "volunteering") && !r.off ? grip(`data-ch-drag="row" data-list="${en.list}" data-i="${en.i}" data-text="${esc(r.text)}"`, "this bullet point") : ""}<label class="q-check"><input type="checkbox" data-ch-line="${esc(r.key)}"${r.off ? "" : " checked"}><span class="ch-txt">${esc(r.text.length > 150 ? r.text.slice(0, 147) + "…" : r.text)}</span></label><span class="ch-count">${r.off ? "off" : r.lines}</span></div>${whyNote(r.why, "line:" + r.key)}</li>`;
   const secHtml = s => `<li class="ch-sec${s.off ? " off" : ""}" data-sec="${s.key}">
       <div class="ch-sec-head">${grip(`data-ch-drag="sec" data-key="${s.key}"`, s.title)}<label class="q-check"><input type="checkbox" data-ch-sec="${s.key}"${s.off ? "" : " checked"}><span class="ch-txt"><b>${esc(s.title)}</b></span></label><span class="ch-count">${s.off ? "off" : lineWord(s.lines)}</span></div>
@@ -141,7 +169,7 @@ function chooseInner() {
       <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
       <span>About <b>${Math.max(total, sideT)} lines</b> in the longest column. ${pageWord} about <b>${capAll}</b> in the ${esc(geo.tpl.name)} layout with ${geo.tpl.margin} mm margins${geo.tpl.lh && geo.tpl.lh !== 1 ? ` and ${geo.tpl.lh}× line spacing` : ""}. ${over > 0 || sideOver > 0 ? `<b>${lineWord(Math.max(over, sideOver))} over</b>, so it runs onto ${pages === 2 ? "a third page" : "a second page"}.` : `It fits on ${pages === 2 ? "two pages" : "one page"}${capAll - Math.max(total, sideT) >= 4 ? ` with about ${lineWord(capAll - Math.max(total, sideT))} to spare` : ""}.`}${geo.sidebar ? ` Column 1 uses ${sideT} lines and column 2 uses ${total}.` : ""}</span></div>
     <div class="b-actions"><button class="btn primary" type="button" data-act="ch-fit">Fit to one page</button><button class="btn" type="button" data-act="ch-fit2">Fit on two pages</button><button class="btn" type="button" data-act="ch-all">Show everything again</button></div>
-    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. It checks both columns, then checks the preview, and keeps going until the preview agrees. If there's room later, press it again and it ticks back what it hid. Drag the handles to change the order."}</p>
+    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. It checks both columns, then checks the preview, and keeps going until the preview agrees. It also keeps up to " + SKILLS_FIT_MAX + " skills under each skill heading (Technical, Software & tools, Languages, Strengths), the ones that matter most for the job, and after each fit it learns how many lines really fit, so the next press aims for that. If there's room later, press it again and it ticks back what it hid. Drag the handles to change the order."}</p>
     <ol class="ch-list${geo.sidebar ? " two-col" : ""}">${list || '<li class="small muted">Finish a job or qualification first, and it will show here.</li>'}</ol>`;
 }
 function chooseHtml() {
@@ -152,13 +180,14 @@ function chooseHtml() {
 function refreshChoose() {
   touchProfile("builder");
   renderPreview();   // first, so the page count in the box below is the one the preview shows
+  learnCap(P());
   const el = $("bChoose");
   if (el) el.innerHTML = chooseInner();
 }
 
 /* --- Fit to one page: hide the least useful things first, each with its reason --- */
 function planOnePage(p, pages = 1, shrink = 0) {
-  const secs = chooseSections(p), geo = pageGeometry(), cap = geo.cap * pages - shrink;
+  const secs = chooseSections(p), geo = pageGeometry(), cap = fitCap(pages) - shrink;
   const pri = entryPriority(p), target = val(p.target.title) || "the job you're going for";
   const steps = [];
   const sec = k => secs.find(s => s.key === k && !s.off);
@@ -196,6 +225,52 @@ function planOnePage(p, pages = 1, shrink = 0) {
   }
   return { steps, total, cap, fits: total <= cap && sideT <= cap, side: sideT };
 }
+/* --- Forcing the fit: when the usual hiding is not enough, tighten the page setup, then trim harder one thing at a time until the preview shows the pages asked for --- */
+// What can still be taken off, least harmful first. Each step has the same shape as the ones planOnePage makes, so applyPlan can apply it.
+function forceSteps(p, pages) {
+  const secs = chooseSections(p), pri = entryPriority(p), steps = [], seen = new Set();
+  const sec = k => secs.find(s => s.key === k && !s.off);
+  const rank = e => ({ high: 3, medium: 2, low: 1 }[pri["E" + (e.i + 1)]] || 2);
+  const why = t => `Still over ${pages === 1 ? "one page" : "two pages"} after everything else, so ${t}`;
+  const add = s => { const id = s.type + s.key; if (!seen.has(id)) { seen.add(id); steps.push(s); } };
+  const lines = (e, from, t) => e.rows.slice(from).filter(r => !r.off).forEach(r => add({ type: "line", key: r.key, why: why(t), lines: r.lines }));
+  const exp = sec("experience") ? sec("experience").entries.filter(e => !e.off) : [];
+  const weakFirst = [...exp].sort((a, b) => rank(a) - rank(b) || b.i - a.i);   // the weakest and oldest job first
+  const edu = sec("education") ? sec("education").entries.filter(e => !e.off) : [];
+  // 1. the strengths line, which says the least
+  const sk = sec("skills"); if (sk) sk.rows.filter(r => r.label === "Strengths" && !r.off).forEach(r => add({ type: "line", key: r.key, why: why("the Strengths line goes first: the skills above it say more."), lines: r.lines }));
+  // 2. the third bullet point onward on every job, then the notes under every qualification but the newest
+  for (const e of weakFirst) lines(e, 2, `the third bullet point onward for ${e.title} goes.`);
+  edu.slice(1).forEach(e => lines(e, 0, `the notes under ${e.title} go.`));
+  // 3. down to one bullet point on every job but the strongest
+  weakFirst.slice(0, -1).forEach(e => lines(e, 1, `${e.title} is cut to its first bullet point.`));
+  // 4. certificates, then older qualifications, then the notes under the newest qualification
+  if (sec("certs")) add({ type: "sec", key: "certs", why: why("licences and certificates are left off."), lines: sec("certs").lines });
+  edu.slice(1).reverse().forEach(e => add({ type: "entry", key: `entry:education.${e.i}`, list: "education", i: e.i, why: why(`${e.title} is left off; your newest qualification says enough.`), lines: Math.round(pageGeometry().entry) }));
+  if (edu[0]) lines(edu[0], 0, `the notes under ${edu[0].title} go.`);
+  // 5. the summary, then the weakest jobs altogether (the newest job always stays)
+  if (sec("summary")) add({ type: "sec", key: "summary", why: why("the summary is left off so your experience can stay."), lines: sec("summary").lines });
+  weakFirst.slice(0, -1).forEach(e => add({ type: "entry", key: `entry:experience.${e.i}`, list: "experience", i: e.i, why: why(`${e.title} is left off; it ranks lowest of your jobs.`), lines: Math.round(pageGeometry().entry) }));
+  // 6. the last job is cut to two bullet points
+  weakFirst.slice(-1).forEach(e => lines(e, 2, `${e.title} is cut to its first two bullet points.`));
+  return steps;
+}
+// Returns what was done: the page setup it tightened, and how many things it hid
+function forceFit(p, pages) {
+  const out = { tightened: [], hidden: 0 };
+  const over = () => livePages() != null && livePages() > pages;
+  if (!over()) return out;
+  // Compact line spacing, then narrow margins: nothing is lost from the resume itself
+  if (p.prefs.spacing !== "compact") { p.prefs.spacing = "compact"; out.tightened.push("compact line spacing"); renderPreview(); learnCap(p); }
+  if (over() && p.prefs.margins !== "narrow") { p.prefs.margins = "narrow"; out.tightened.push("narrow margins"); renderPreview(); learnCap(p); }
+  if (!over()) return out;
+  // Then one thing at a time, checking the preview after each, so it never hides more than it has to
+  for (const s of forceSteps(p, pages)) {
+    if (!over()) break;
+    applyPlan(p, { steps: [s] }); out.hidden++; renderPreview(); learnCap(p);
+  }
+  return out;
+}
 // Put back one thing that was hidden (a section, a line, or a whole job or qualification)
 function restoreKey(p, key) {
   const cv = p.cv;
@@ -208,8 +283,8 @@ function restoreKey(p, key) {
 function chooseList(secs, secHtml, p) {
   const html = secs.map(secHtml);
   if (val(p.contact.licence)) {
-    const off = !!p.cv.hideLicence;
-    const lic = `<li class="ch-sec ch-lic${off ? " off" : ""}"><div class="ch-sec-head"><label class="q-check"><input type="checkbox" data-ch-lic="1"${off ? "" : " checked"}><span class="ch-txt"><b>Driver's licence</b> <span class="small muted">${esc(p.contact.licence)}</span></span></label><span class="ch-count">${off ? "off" : "1 line"}</span></div></li>`;
+    const off = !licenceShown(p);
+    const lic = `<li class="ch-sec ch-lic${off ? " off" : ""}"><div class="ch-sec-head"><label class="q-check"><input type="checkbox" data-ch-lic="1"${off ? "" : " checked"}><span class="ch-txt"><b>Driver's licence</b> <span class="small muted">${esc(p.contact.licence)}${licenceShown(p) ? "" : " (not shown at the top for this kind of work)"}</span></span></label><span class="ch-count">${off ? "off" : "1 line"}</span></div></li>`;
     const k = secs.findIndex(s => s.key === "summary");
     html.splice(k + 1, 0, lic);
   }
@@ -222,18 +297,45 @@ function hideLoad(p, snap) {
   p.cv.hideSections = o.s; p.cv.hideLines = o.l; p.cv.hideWhy = o.w;
   HIDE_LISTS.forEach((k, n) => p[k].forEach((x, i) => { [x.hidden, x.hideWhy] = o.e[n][i]; }));
 }
-// If there's room, tick back what an earlier fit hid, the most useful first. Stops at the first one that wouldn't fit.
+// If there's room, tick back what an earlier fit hid, the most useful first. Each one is put back and the preview is drawn again: it stays only if
+// the preview still shows the pages asked for. (The preview is the truth about how many lines fit; the estimate is used only if it can't be drawn.)
+// Stops at the first one that wouldn't fit.
 function restoreFit(p, pages) {
-  const geo = pageGeometry(), cap = geo.cap * pages;
+  const geo = pageGeometry();
   const entryKeys = HIDE_LISTS.flatMap(l => p[l].map((x, i) => x.hidden && x.hideWhy ? `entry:${l}.${i}` : null).filter(Boolean));
-  const keys = [...entryKeys, ...p.cv.hideWhy.map(x => x.split("||")[0]).reverse()];
+  const keys = [...entryKeys, ...p.cv.hideWhy.map(x => x.split("||")[0]).filter(k => !k.startsWith("line:skill:")).reverse()];
   let n = 0;
   for (const key of keys) {
     const before = hideSnap(p);
     restoreKey(p, key);
-    const secs = chooseSections(p);
-    if (chTotal(secs) > cap || (geo.sidebar && chSideTotal(secs) > cap)) { hideLoad(p, before); break; }
+    renderPreview(); learnCap(p);
+    let fits;
+    if (livePages() != null) fits = livePages() <= pages;
+    else { const secs = chooseSections(p), cap = fitCap(pages); fits = !(chTotal(secs) > cap || (geo.sidebar && chSideTotal(secs) > cap)); }
+    if (!fits) { hideLoad(p, before); renderPreview(); learnCap(p); break; }
     n++;
+  }
+  return n;
+}
+// Fit to a page keeps at most `max` skills under each skill heading (so up to 8 Technical, 8 Software & tools, 8 Languages and 8 Strengths).
+// The best are the ones the job ad asks for, then the ones the resume itself shows (in a job, a qualification or a project), then the rest
+// in the order they were added. Returns how many were left off.
+function capSkills(p, max) {
+  const sk = chooseSections(p).find(s => s.key === "skills");
+  if (!sk || sk.off) return 0;
+  const cv = p.cv, ad = p.target.specific ? norm(p.target.ad || "") : "";
+  const body = norm([p.summary, ...p.experience.filter(e => e.done !== false).flatMap(e => [e.title, ...e.bullets, ...Object.values(e.answers)]), ...p.education.flatMap(e => [e.degree, e.coursework, e.project]), ...p.projects.flatMap(x => [x.name, x.details])].join(" "));
+  let n = 0;
+  for (const r of sk.rows) {
+    if (r.off) continue;
+    const on = r.items.filter(x => !x.off);
+    if (on.length <= max) continue;
+    const scored = on.map((x, i) => {
+      const w = norm(x.text), inAd = !!ad && w.length > 1 && ad.includes(w), inBody = w.length > 1 && body.includes(w);
+      return { x, score: (inAd ? 4 : 0) + (inBody ? 2 : 0) - i * 0.01 };
+    });
+    const keep = new Set(scored.slice().sort((a, b) => b.score - a.score).slice(0, max).map(o => o.x.key));
+    for (const o of scored) if (!keep.has(o.x.key)) { if (!cv.hideLines.some(h => norm(h) === norm(o.x.key))) cv.hideLines.push(o.x.key); n++; }
   }
   return n;
 }
@@ -258,23 +360,38 @@ function chooseAct(act, b) {
     return;
   }
   if (act === "ch-fit" || act === "ch-fit2") {
+    // a press that arrives just after a fit finished is the same press again (it can't be a second one by hand): ignore it
+    if (builder.fitDoneAt && Date.now() - builder.fitDoneAt < 600) return;
     const pages = act === "ch-fit2" ? 2 : 1, word = pages === 1 ? "one page" : "two pages";
     builder.chPages = pages;
+    learnCap(p);   // what the preview shows now says how many lines really fit
     const back = restoreFit(p, pages);   // anything an earlier fit hid comes back first if there's room now
+    const trimmedSkills = capSkills(p, SKILLS_FIT_MAX);   // at most 8 skills under each skill heading, the ones that matter most for the job
     const plan = planOnePage(p, pages), sideNote = pageGeometry().sidebar ? " Both columns were checked." : "";
     let hidden = plan.steps.length, stillOver = !plan.fits;
     if (hidden) applyPlan(p, plan);
     // the preview has the last word: while it still shows more pages than asked for, hide a little more
-    renderPreview();
+    renderPreview(); learnCap(p);
     for (let tries = 0, extra = 2; tries < 10 && livePages() != null && livePages() > pages; tries++, extra += 2) {
       const more = planOnePage(p, pages, extra);
       if (!more.steps.length) break;
-      applyPlan(p, more); hidden += more.steps.length; renderPreview();
+      applyPlan(p, more); hidden += more.steps.length; renderPreview(); learnCap(p);
     }
     stillOver = livePages() != null ? livePages() > pages : stillOver;
-    if (!hidden) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (!stillOver ? `It fits on ${word}, and the preview agrees. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote;
-    else builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${hidden} thing${hidden === 1 ? "" : "s"} to fit ${word}${stillOver ? ", but the preview still shows it a little over" : ", and the preview agrees"}. Each has its reason below, with a button to put it back.` + sideNote;
+    // The preview still shows too many pages and the usual hiding has run out: force it
+    let forced = null;
+    if (livePages() != null && livePages() > pages) {
+      forced = forceFit(p, pages);
+      hidden += forced.hidden;
+      stillOver = livePages() > pages;
+    }
+    const skillNote = trimmedSkills ? ` Kept up to ${SKILLS_FIT_MAX} skills under each skill heading, the ones that matter most for the job (${trimmedSkills} left off).` : "";
+    const tight = forced && forced.tightened.length ? ` Switched to ${forced.tightened.join(" and ")} (change it back in Page setup).` : "";
+    if (forced && (forced.hidden || forced.tightened.length)) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"}. ` : "") + (stillOver ? `The preview still shows more than ${word} after hiding ${hidden} thing${hidden === 1 ? "" : "s"}.` : `It fits on ${word}, and the preview agrees${hidden ? ` (${hidden} thing${hidden === 1 ? "" : "s"} hidden, each with its reason below, and a button to put it back)` : ""}.`) + tight + (stillOver ? " Shorten your bullet points or choose a more compact design." : "") + sideNote + skillNote;
+    else if (!hidden) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (!stillOver ? `It fits on ${word}, and the preview agrees. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote + skillNote;
+    else builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${hidden} thing${hidden === 1 ? "" : "s"} to fit ${word}${stillOver ? ", but the preview still shows it a little over" : ", and the preview agrees"}. Each has its reason below, with a button to put it back.` + sideNote + skillNote;
     refreshChoose();
+    builder.fitDoneAt = Date.now();
     return;
   }
   if (act === "ch-top4") {
@@ -301,7 +418,7 @@ onInit(() => {
   $("bForm").addEventListener("change", e => {
     const t = e.target, p = P(), cv = p.cv;
     if (t.dataset.chLic) {
-      cv.hideLicence = !t.checked;
+      cv.hideLicence = !t.checked; cv.licenceShow = !!t.checked;
       builder.chNote = ""; refreshChoose();
     } else if (t.dataset.chSec) {
       const k = t.dataset.chSec;
@@ -312,7 +429,7 @@ onInit(() => {
       const k = t.dataset.chLine;
       if (t.checked && /^skill:/.test(k)) {
         const ticked = t.closest(".ch-skills") ? t.closest(".ch-skills").querySelectorAll("input:checked").length : 0;
-        if (ticked > SKILLS_TICKED_MAX) { t.checked = false; builder.chNote = ""; const n = t.closest("li") && t.closest("li").querySelector(".ch-skill-note"); if (n) { n.classList.add("warnflash"); n.textContent = `That's ${SKILLS_TICKED_MAX} already. ${SKILLS_TICKED_MAX} is a good number: untick one first if you'd like this one instead.`; } return; }
+        if (ticked > SKILLS_TICKED_MAX) { t.checked = false; builder.chNote = ""; const n = t.closest("li") && t.closest("li").querySelector(".ch-skill-note"); if (n) { n.classList.add("warnflash"); n.textContent = `That's ${SKILLS_TICKED_MAX} already under this heading, the most a resume shows. Untick one first if you'd like this one instead.`; } return; }
       }
       cv.hideLines = t.checked ? cv.hideLines.filter(x => norm(x) !== norm(k)) : [...cv.hideLines, k];
       cv.hideWhy = cv.hideWhy.filter(x => !x.startsWith("line:" + k + "||"));

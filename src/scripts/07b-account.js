@@ -133,7 +133,7 @@ async function acctBringBrowserData(progress) {
   }
   return n;
 }
-async function acctDeleteData() { await acctFetch(`/rest/v1/user_docs?user_id=eq.${encodeURIComponent(account.user.id)}`, { method: "DELETE" }); }
+
 // Signed in on this browser (and the session is still good)?
 const accountReady = (async () => {
   if (!acctOn() || (window.claude && window.claude.use)) return null;

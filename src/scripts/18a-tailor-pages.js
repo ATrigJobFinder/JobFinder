@@ -338,28 +338,6 @@ onInit(() => {
   });
   $("clReady").addEventListener("focusout", e => { if (e.target.matches && e.target.matches("[data-ready-in]")) setTimeout(() => { if (readyEdit) { readyEdit = null; renderReady(); } }, 0); });
 
-  /* --- Page 1: a cover letter from your profile --- */
-  const pickBtn = $("clUseProfile"), pickBox = $("clProfilePick");
-  pickBtn.addEventListener("click", async () => {
-    const open = pickBox.hidden;
-    pickBox.hidden = !open; pickBtn.setAttribute("aria-expanded", String(open));
-    if (!open) return;
-    pickBox.innerHTML = `<p class="progress">Looking in your profile…</p>`;
-    await Promise.all([baseLetter.ready, savedLetters.ready]);
-    const list = profileLetters();
-    pickBox.innerHTML = `<div class="b-sub">Cover letters in your profile</div>` + (list.length
-      ? `<ul class="saved-list">${list.map((x, k) => `<li><span class="saved-name"><b>${esc(x.name)}</b><span class="small muted">${x.saved ? `Saved ${esc(fmtSaved(x.saved))} · ` : ""}${wordCount(x.text)} words${cover.letters.some(l => l.name === x.name) ? " · already added" : ""}</span></span><span class="b-actions"><button class="btn" type="button" data-cl-use="${k}">Use it</button></span></li>`).join("")}</ul><p class="small muted">Up to 3 letters are used to match your voice and reuse real details.</p>`
-      : `<p class="small muted">You haven't saved a cover letter to your profile yet. Write one in Create or edit cover letter and press <b>Save to my profile…</b>, and it will be here next time.</p>`);
-    pickBox._list = list;
-  });
-  pickBox.addEventListener("click", async e => {
-    const b = e.target.closest("[data-cl-use]"); if (!b) return;
-    const x = (pickBox._list || [])[+b.dataset.clUse]; if (!x) return;
-    cover.letters = [{ name: x.name, text: x.text, added: new Date().toISOString() }, ...cover.letters.filter(l => l.name !== x.name)].slice(0, 3);
-    renderLetterFiles(); await saveCoverStore(); renderLetterFiles();
-    pickBox.hidden = true; pickBtn.setAttribute("aria-expanded", "false");
-  });
-
   /* --- Page 4: the paragraphs on the left, the breakdown and preview on the right, each pointing at the other --- */
   const cliOf = e => { const el = e.target.closest && e.target.closest("[data-cli]"); return el && el.closest("#sec-cover") ? el : null; };
   document.addEventListener("mouseover", e => { if (!e.target.closest || !e.target.closest("#sec-cover")) return; const el = cliOf(e); clHot(el ? +el.dataset.cli : null); });
@@ -389,6 +367,11 @@ onInit(() => {
     const b = $("clCopy"), text = coverPlainText();
     try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy here"; }
     setTimeout(() => { b.textContent = "Copy text"; }, 2200);
+  });
+  $("clCopyEmail").addEventListener("click", async () => {
+    const b = $("clCopyEmail");
+    try { await navigator.clipboard.writeText(coverEmailText()); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy here"; }
+    setTimeout(() => { b.textContent = "Copy as email"; }, 2200);
   });
   $("clAgain").addEventListener("click", generateCover);
   $("clSave").addEventListener("click", saveTailorLetter);

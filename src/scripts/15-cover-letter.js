@@ -3,22 +3,28 @@
 const COVER_PARTS = [
   { key: "opening", label: "Opening", purpose: "Names the job and the employer, then gives your strongest relevant result with its number. It's the part most hiring managers read." },
   { key: "experience", label: "Experience", purpose: "Proof of their top requirement as one short story: what you did, the result with its number, and why it matters to them." },
-  { key: "education", label: "Education and skills", purpose: "Proof of their next requirement from another side: the study, tools or way of working behind your experience." },
+  { key: "education", label: "Education and skills", purpose: "About 100 words. Your most relevant degree, the subjects or project closest to the job, and the tools you use, as proof of their next requirement." },
   { key: "motivation", label: "Why this company", purpose: "One specific reason you want this employer, in your own words, tied to something true about you. AI can't make this up for you." },
   { key: "closing", label: "Close", purpose: "One line on what you'd contribute, an invitation to talk, your availability and thanks." }
 ];
 const partOf = k => COVER_PARTS.find(p => p.key === k) || { key: k, label: "Paragraph", purpose: "" };
-// How long a letter should be: about 250 to 400 words for a student, more as people get more senior
-// (each paragraph's minimum is 20 words more than it was, so the totals are 100 words more)
-// (the cover letter advice says 250 to 400 words and under one page, so no stage goes past 400)
-const LETTER_WORDS = { student: [270, 360], early: [290, 380], returning: [270, 360], change: [310, 400], experienced: [320, 400] };
-const PART_SHARE = { opening: 0.15, experience: 0.32, education: 0.16, motivation: 0.22, closing: 0.1 };
+// How long a letter should be: 330 to 390 words in five paragraphs, one page (an ad's word limit, or a short letter the person chooses, is smaller).
+// (the global rules: every letter is 330 to 390 words, whatever the stage)
+const LETTER_WORDS = { student: [330, 390], early: [330, 390], returning: [330, 390], change: [330, 390], experienced: [330, 390] };
+// each paragraph's words come from the budgets in 14b (opening 55 to 70, work experience 95 to 110, education and skills 75 to 90, why this company 65 to 85, the close 35 to 50)
+// and are scaled when the letter's range is smaller or larger than the standard one
+const PART_KIND = { opening: "opening", experience: "experience", education: "education", motivation: "why", closing: "close" };
 function letterStage(text) {
   if (hasProfile(P())) return stageOf(P());
   return /expected|currently (studying|completing)|penultimate|final[- ]year/i.test(text || "") ? "student" : "early";
 }
-const letterRange = text => {
-  const r = LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student;
+// length: "short" or "standard" (the cover letter rules in 14b); with none given, the Create or edit cover letter page's own choice
+const letterRange = (text, length, limit) => {
+  const len = length || (typeof ltLength === "function" ? ltLength() : "standard");
+  let r = len === "short" ? LR.LENGTH.short : (LETTER_WORDS[letterStage(text)] || LETTER_WORDS.student);
+  // an ad that sets a word limit keeps the whole letter inside it (the letter head and sign-off take about 40 words)
+  const lim = limit != null ? limit : length ? 0 : (typeof ltWordLimit === "function" ? ltWordLimit() : 0);
+  if (lim) { const hi = Math.max(90, Math.min(r[1], lim - 40)); return [Math.round(hi * 0.85 / 10) * 10, hi]; }
   // the words that fit one page at the chosen spacing and margins (measured from the preview), when known
   const fit = typeof ltFitRange === "function" ? ltFitRange() : null;
   // (never more than the advice allows, even when more would fit on the page)
@@ -26,15 +32,14 @@ const letterRange = text => {
   return r;
 };
 // The fewest words each paragraph should have, so none of them is thin
-// each paragraph's share of the page, in rough proportion (the shares are scaled to add up to one)
-const PART_SHARE_N = (() => { const t = Object.values(PART_SHARE).reduce((a, b) => a + b, 0); return Object.fromEntries(Object.entries(PART_SHARE).map(([k, v]) => [k, v / t])); })();
-const partMin = (key, range) => Math.round(range[0] * (PART_SHARE_N[key] || 0.2) / 5) * 5;
-// about how many words this paragraph should have for the whole letter to fill the page
-const partTarget = (key, range) => Math.round(range[1] * (PART_SHARE_N[key] || 0.2) / 5) * 5;
+const partBudget = (key, range) => { const bud = (LR.BUDGET.standard[PART_KIND[key]] || [20, 50]), k = Math.min(1.15, Math.max(0.4, (range[1] || 390) / 390)); return [bud[0] * k, bud[1] * k]; };
+const partMin = (key, range) => Math.max(10, Math.round(partBudget(key, range)[0] * 0.8 / 5) * 5);
+// about how many words this paragraph should have: the middle of its budget
+const partTarget = (key, range) => { const b = partBudget(key, range); return Math.round((b[0] + b[1]) / 2 / 5) * 5; };
 const COVER_CLICHES = ["to whom it may concern", "i am writing to express my interest", "i am writing to apply", "team player", "hard-working", "hardworking", "hard working", "passionate", "perfect fit", "great fit", "ideal candidate", "think outside the box", "go-getter", "results-driven", "dynamic", "synergy", "i believe i would be", "dear sir/madam", "dear sir or madam"];
 const CL_KEY = "jobfinder.coverLetters.v1";
 const JSPDF = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-const cover = { letters: [], where: "loading", doc: null, draft: null, ctx: null, prefilledFor: null, downloaded: false };
+const cover = { letters: [], where: "loading", doc: null, draft: null, ctx: null, prefilledFor: null, downloaded: false, plan: {}, adOkFor: "" };
 
 // --- Remembering previous cover letters (privately, per person) ---
 const coverReady = memoryReady.then(async () => {
@@ -63,10 +68,12 @@ function renderLetterFiles() {
   const ul = $("clFiles");
   if (!ul) return;
   ul.innerHTML = "";
+  // each letter: its icon, its name and what was found in it (paragraphs, words, who it is written to)
   for (const [i, l] of cover.letters.entries()) {
     const li = document.createElement("li");
     const name = document.createElement("span");
-    name.textContent = `${l.name} · ${wordCount(l.text)} words`;
+    name.className = "cl-file";
+    name.innerHTML = `${tlIcon(l.name)}<span class="cl-file-t"><b>${esc(l.name)}</b><span class="small muted">${esc(tlLetterParts(l.text).join(" · "))}</span></span>`;
     const x = document.createElement("button");
     x.type = "button"; x.className = "linkish"; x.textContent = "Remove";
     x.setAttribute("aria-label", `Remove ${l.name}`);
@@ -76,6 +83,7 @@ function renderLetterFiles() {
   }
   const where = { account: `${accountWords()[0].toUpperCase()}${accountWords().slice(1)}.`, browser: "Saved in this browser only.", none: "Can't be saved on this page.", loading: "Loading your saved letters…" }[cover.where];
   $("clStore").textContent = cover.letters.length ? `${cover.letters.length} saved letter${cover.letters.length === 1 ? "" : "s"}. ${where}` : (cover.where === "loading" ? where : "");
+  tlRender();
 }
 async function addLetterFiles(files) {
   const status = $("clStore");
@@ -113,9 +121,16 @@ function companyFrom(jd) {
   const m = jd.match(/\b(?:at|join) ([A-Z][A-Za-z&.'-]+(?: [A-Z][A-Za-z&.'-]+){0,3})\b/);
   return m ? m[1] : "";
 }
+// Who the ad says to write to: "Applications to Ms Rahman", "Contact Priya Rahman" ... A title (Ms, Mr, Dr) is kept as the ad writes it.
 function recipientFrom(jd) {
-  const m = jd.match(/(?:contact|enquiries to|questions,? (?:please )?(?:contact|email)|reach out to|address your application to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'’-]+){1,2})/);
-  return m ? m[1] : "";
+  const lead = "(?:contact|enquiries to|questions,? (?:please )?(?:contact|email)|reach out to|address your application to|applications? (?:should be )?(?:addressed |sent |submitted )?to|send (?:your )?applications? to|attention:?|attn:?|hiring manager:?)";
+  for (const m of String(jd || "").matchAll(new RegExp(lead + "\\s+(.{0,40})", "ig"))) {
+    const n = m[1].match(/^(?:(?:Ms|Mr|Mrs|Miss|Mx|Dr|Prof)\.?\s+[A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+)?|[A-Z][a-z]+(?:\s+[A-Z][a-z'’-]+){1,2})/);
+    if (!n) continue;
+    const name = n[0].replace(/^(Ms|Mr|Mrs|Miss|Mx|Dr|Prof)\./, "$1");
+    if (name.toLowerCase() !== String(companyFrom(jd) || "").toLowerCase()) return name;   // (a company is not a person)
+  }
+  return "";
 }
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 function endDateWords(line) {
@@ -155,7 +170,12 @@ function coverContext() {
     const orgFull = (org || "").trim();
     return { title: (title || "").trim(), org: orgFull, orgShort: shortOrg(orgFull), dates: (head.match(RANGE_TEST) || [""])[0], bullets: scoredBullets, score: scoredBullets.reduce((a, b) => a + b.score, 0), label: z.label };
   });
+  const plan = cover.plan || (cover.plan = {}), adx = LR.adInstructions(lastScan.jd);
+  const roleNow = $("clRole").value.trim() || detectTitle(lastScan.jd, lastScan.title) || "";
+  const sit = hasProfile(P()) ? lrSituation(P(), { role: roleNow, eoi: plan.situation === "expression_of_interest" }, plan.situation) : { value: plan.situation || "standard", auto: "standard", reason: "", from_field: "", to_field: "" };
+  const length = lrLengthOf(plan, sit.value, adx);
   return {
+    plan, adx, sit, length,
     resume, jd: lastScan.jd, title: $("clRole").value.trim() || detectTitle(lastScan.jd, lastScan.title) || "the advertised position",
     company: $("clCompany").value.trim(), recipient: $("clRecipient").value.trim(), address: $("clAddress").value.trim(),
     source: $("clSource").value.trim(), why: $("clWhy").value.trim(), avail: $("clAvail").value.trim(),
@@ -171,7 +191,7 @@ function coverContext() {
     guide: guideForCover(),
     // from "Fit the job's criteria": the sentences chosen, what interests them and what they'll bring
     ...fitForCover(),
-    range: letterRange(resume)
+    range: letterRange(resume, length, adx.wordLimit || 0)
   };
 }
 // Sentences from earlier letters that are about the candidate's own roles (not the old employer they were writing to)
@@ -235,6 +255,7 @@ function renderReady() {
     <ul>${READY_NEED.map(r => item(r, v(r[0]) ? "ok" : "need")).join("")}${READY_OPT.map(r => item(r, v(r[0]) ? "ok" : "opt")).join("")}</ul>`;
   const inp = $("clReadyIn");
   if (inp) { inp.focus({ preventScroll: true }); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  renderCoverPlan();
 }
 
 // --- Writing it ---
@@ -270,7 +291,7 @@ function templateLetter(ctx) {
   const tools = (hard.length ? hard.map(x => x.name) : ctx.resumeHard).filter(n => ["software", "programming"].includes(skillGroup(n, "hard"))).slice(0, 4);
   const techn = hard.filter(x => !tools.includes(x.name) && !shown.includes(inSentence(x.name))).slice(0, 3).map(x => inSentence(x.name));
   const projLine = e ? (e.lines || []).find(l => /^(thesis|project|capstone|major project)\b/i.test(l)) : "";
-  if (e || tools.length) paras.push({ part: "education", text: `${e && e.coursework ? `My studies have given me a strong technical foundation, including ${listJoin(e.coursework.split(/;\s*|,\s*/).slice(0, 3))}.` : "My studies have given me a strong technical foundation."}${projLine ? ` I also completed ${lowerFirst(projLine.replace(/^(thesis|project|capstone|major project)\s*:\s*/i, (m, w) => `a ${w.toLowerCase()} on `).replace(/[.\s]+$/, "").replace(/ on ([A-Z])(?=[a-z])/, (m, c) => " on " + c.toLowerCase()))}.` : ""}${tools.length ? ` I am proficient in ${listJoin(tools)}` : ""}${tools.length && techn.length ? `, and I am comfortable with ${listJoin(techn)}.` : tools.length ? "." : techn.length ? ` I am comfortable with ${listJoin(techn)}.` : ""}`, evidence: e ? [e.coursework || e.degree].filter(Boolean) : [] });
+  if (e || tools.length) paras.push({ part: "education", text: `${e && e.coursework ? `My studies have given me a strong technical foundation, including ${listJoin(e.coursework.split(/;\s*|,\s*/).slice(0, 3))}.` : "My studies have given me a strong technical foundation."}${projLine ? ` I also completed ${lowerFirst(projLine.replace(/^(thesis|project|capstone|major project)\s*:\s*/i, (m, w) => `a ${/^(thesis|project|capstone)$/i.test(w) ? "major project" : w.toLowerCase()} on `).replace(/[.\s]+$/, "").replace(/ on ([A-Z])(?=[a-z])/, (m, c) => " on " + c.toLowerCase()))}.` : ""}${tools.length ? ` I am proficient in ${listJoin(tools)}` : ""}${tools.length && techn.length ? `, and I am comfortable with ${listJoin(techn)}.` : tools.length ? "." : techn.length ? ` I am comfortable with ${listJoin(techn)}.` : ""}`, evidence: e ? [e.coursework || e.degree].filter(Boolean) : [] });
   const duty = tidy(ctx.dutyLine || "");
   const softs = (soft.length ? soft.map(x => x.name) : ctx.resumeSoft).slice(0, 3).map(softPhrase);
   const otherRole = ctx.roles.find(r => !roles.includes(r));
@@ -281,94 +302,10 @@ function templateLetter(ctx) {
   return { salutation: ctx.recipient ? `Dear ${ctx.recipient},` : "Dear Hiring Manager,", paragraphs: paras, signoff: "Yours sincerely,", via: "Written from your resume and the ad, without AI" };
 }
 
-const COVER_RULES = `You are an experienced Australian career coach writing a formal cover letter for a job application.
-
-Use ONLY facts from the candidate's resume, their previous cover letters and the details given. Never invent experience, tools, results, numbers, employers, qualifications or personal details. If previous cover letters are given, match their voice and reuse genuine motivations or details that still fit this job, but rewrite them for this role.
-
-Write exactly five paragraphs, in this order:
-1. opening: the role and the company, where the ad was seen (if given), who the candidate is (degree and stage of study), and one sentence on why they fit.
-2. experience: the two or three most relevant experiences from the resume, each tied to something the ad asks for, with concrete evidence and figures from the resume.
-3. education: the degree, relevant coursework, and the technical skills and tools from the resume that the ad asks for.
-4. motivation: why this company and role (use the candidate's reason if given, otherwise point to specifics in the ad), plus the soft skills the ad asks for, shown through examples from the resume.
-5. closing: thanks, availability (if given) and a confident request for an interview. Do not put a phone number, email address, LinkedIn or any other contact detail in the closing (or anywhere in the paragraphs): they are already in the letter head.
-
-Getting the facts right:
-- Every experience you mention must be credited to the employer it is listed under in <experience_by_employer>. Never move a task, tool or result to a different employer, and never merge two jobs into one. When you name an employer, the sentence must describe work listed under that employer.
-- Use the candidate's real name from <candidate>. Their phone number, email and LinkedIn are already in the letter head, so never repeat them in a paragraph.
-- Never write placeholders, square brackets or template text such as "[Start Date]" or "[Phone Number]". If a detail like a start date isn't given, leave it out of the letter.
-
-Style: formal Australian business English in the first person, confident and specific, 280 to 380 words in total, Australian spelling. Do not claim skills the resume doesn't show; you may say the candidate is keen to learn something the ad mentions.
-
-${CL_CRAFT}`;
-const COVER_SCHEMA = {
-  type: "object",
-  properties: {
-    salutation: { type: "string" },
-    paragraphs: { type: "array", items: { type: "object", properties: { part: { type: "string", enum: COVER_PARTS.map(p => p.key) }, text: { type: "string" }, ad_points: { type: "array", items: { type: "string" } }, resume_evidence: { type: "array", items: { type: "string" } } }, required: ["part", "text", "ad_points", "resume_evidence"] } },
-    signoff: { type: "string" }
-  },
-  required: ["salutation", "paragraphs", "signoff"]
-};
-// The resume as facts grouped by employer, so the writer can't mix up who did what where
-function factSheet(ctx) {
-  return `<candidate>
-Name: ${ctx.cand.name}
-Phone: ${ctx.cand.phone || "(not given)"}
-Email: ${ctx.cand.email || "(not given)"}
-Location: ${ctx.cand.location || "(not given)"}
-</candidate>
-
-<experience_by_employer>
-${ctx.roles.map((r, i) => `[${i + 1}] ${r.title}${r.orgShort ? ` at ${r.orgShort}` : ""}${r.dates ? `, ${r.dates}` : ""}\n${r.bullets.map(b => `  - ${b.text}`).join("\n")}`).join("\n\n") || "(none listed)"}
-</experience_by_employer>
-
-<education>
-${ctx.edu.map(e => `- ${e.degree}${e.inst ? `, ${e.inst}` : ""}${e.dates ? `, ${e.dates}` : ""}${e.lines.length ? "\n" + e.lines.map(l => `  - ${l}`).join("\n") : ""}`).join("\n") || "(none listed)"}
-</education>`;
-}
 // For Chrome's small on-device model: only the parts of the ad that matter, and shorter extracts
 function adEssentials(jd) {
   const lines = readJobAd(jd).filter(L => L.text.trim() && !NOT_SCORED.has(L.kind));
   return lines.map(L => L.text.trim()).join("\n").slice(0, 2500);
-}
-function coverPrompt(ctx, compact) {
-  return `<job_ad>
-${compact ? adEssentials(ctx.jd) : ctx.jd.slice(0, 9000)}
-</job_ad>
-
-${factSheet(ctx)}
-${compact ? "" : `\n<resume_full_text>\n${ctx.resume.slice(0, 9000)}\n</resume_full_text>\n`}${ctx.letters.length ? ctx.letters.slice(0, compact ? 1 : 3).map((l, i) => `\n<previous_cover_letter n="${i + 1}">\n${l.slice(0, compact ? 1500 : 5000)}\n</previous_cover_letter>`).join("\n") : "\n(No previous cover letters were given.)"}
-
-<details>
-Role: ${ctx.title}
-Company: ${ctx.company || "(not given)"}
-Hiring manager: ${ctx.recipient || "(not known: use \"Dear Hiring Manager,\")"}
-Where the ad was seen: ${ctx.source || "(not given)"}
-Why this company, in the candidate's words: ${ctx.why || "(not given)"}
-What interests them most about the role: ${(ctx.interest || []).join("; ") || "(not given)"}
-What they want to lead with: ${(ctx.bring || []).join(", ") || "(your choice, from the matched skills)"}
-Availability: ${ctx.avail || "(not given)"}${(ctx.fit || []).length ? `
-Selection criteria they chose to address, each with a sentence built from their resume (use these in the experience paragraph, reworded to flow, keeping every fact and the employer it belongs to):
-${ctx.fit.map(f => `- ${f.criterion} → ${f.say}`).join("\n")}` : ""}
-${(ctx.criteria || []).length ? `Selection criteria the ad lists (address the ones the resume backs up, in the experience and education paragraphs; for the rest, never invent evidence):
-${ctx.criteria.map(c => `- ${c}`).join("\n")}
-` : ""}Skills the ad asks for that the resume shows: ${ctx.have.map(x => x.name).join(", ") || "(none matched)"}
-What the company says it values: ${(ctx.values || []).join(", ") || "(not stated)"} (link one of these to the candidate's own example in the motivation paragraph, if it fits)${ctx.guide ? `
-From ${ctx.guide.name}'s careers pages: ${ctx.guide.purpose ? `purpose "${ctx.guide.purpose}"; ` : ""}what they look for in graduates: ${ctx.guide.look.join("; ")} (use this to choose which of the candidate's real examples to lead with; don't quote it back word for word)` : ""}
-</details>
-
-Reply with only JSON in this shape: {"salutation": "Dear Hiring Manager,", "paragraphs": [{"part": "opening", "text": "...", "ad_points": ["what in the ad this paragraph answers"], "resume_evidence": ["short exact quote from the resume or a previous letter that supports it"]}], "signoff": "Yours sincerely,"}`;
-}
-function normaliseDraft(d, via) {
-  if (!d || typeof d !== "object" || !Array.isArray(d.paragraphs)) return null;
-  const paras = d.paragraphs.filter(p => p && typeof p.text === "string" && p.text.trim()).map(p => ({
-    part: COVER_PARTS.some(c => c.key === p.part) ? p.part : "experience",
-    text: p.text.trim().replace(/\s+/g, " "),
-    evidence: (Array.isArray(p.resume_evidence) ? p.resume_evidence : []).map(String).filter(Boolean).slice(0, 4),
-    adPoints: (Array.isArray(p.ad_points) ? p.ad_points : []).map(String).filter(Boolean).slice(0, 4)
-  }));
-  if (paras.length < 3 || wordCount(paras.map(p => p.text).join(" ")) < 120) return null;
-  return { salutation: typeof d.salutation === "string" && /^dear\b/i.test(d.salutation.trim()) ? d.salutation.trim() : "Dear Hiring Manager,", paragraphs: paras, signoff: typeof d.signoff === "string" && d.signoff.trim() ? d.signoff.trim() : "Yours sincerely,", via };
 }
 // Fill in anything the AI left as a placeholder that we already know; keep a list of what's still missing
 const ph = inner => new RegExp(`[\\[{]\\s*(?:${inner})\\s*[\\]}]`, "gi");
@@ -445,6 +382,11 @@ function polishDraft(d, ctx) {
   d.signoff = fillPlaceholders(d.signoff, ctx);
   d.paragraphs.forEach(p => { p.text = fillPlaceholders(p.text, ctx); });
   dropBlankGaps(d);
+  // made in code, never trusted to the model: Australian spelling, the greeting (a name the person gave, else Hiring Manager), the facts of the close
+  d.paragraphs.forEach(p => { p.text = LR.auSpelling(p.text); });
+  d.salutation = LR.greeting(ctx.recipient, "");
+  const cl = d.paragraphs.find(p => p.part === "closing");
+  if (cl && ctx.plan) cl.text = lrEnsureClose(cl.text, { salary: ctx.plan.salary, trial: lrTrialOn(ctx.plan, ctx.sit.value, lrTrialFits(ctx.jd, ctx.title, ctx.adx.employmentType)), held: LR.adInstructions(ctx.resume).checks.filter(c => LR.adInstructions(ctx.jd).checks.includes(c)) });
   return d;
 }
 // Anything optional the person left blank is left out: a sentence that still has a gap for it is taken out, and a greeting or sign-off with one
@@ -458,57 +400,25 @@ function dropBlankGaps(d) {
   d.paragraphs = d.paragraphs.filter(p => p.text);
   return d;
 }
-const correctionNote = issues => `Your draft credited work to the wrong employer:\n${issues.map(i => `- ${i.ai}`).join("\n")}\nRewrite the letter so every task is credited to the employer it is listed under. Keep everything else, and reply in the same JSON shape.`;
-// Last resort: swap any paragraph that still mixes up employers for the matching paragraph built straight from the resume
-function repairWithTemplate(d, ctx, issues) {
-  const t = templateLetter(ctx);
-  const bad = new Set(issues.map(i => i.pi));
-  d.paragraphs = d.paragraphs.map((p, i) => {
-    if (!bad.has(i)) return p;
-    const rep = t.paragraphs.find(x => x.part === p.part) || t.paragraphs.find(x => x.part === "experience");
-    return rep ? { ...rep, repaired: true } : p;
-  });
-  d.repaired = bad.size;
-  return d;
-}
+// The letter is written by ONE prompt (14c-letter-advice.js): a summary of the Cover Letter Advice page, this resume and the ad. The AI's answer is split
+// into the paragraphs below. With no AI (or no usable answer) the letter is assembled from the resume and the ad.
 async function writeCover(ctx, progress) {
-  // 1. The small model, on this computer (shorter prompts, one paragraph at a time)
-  const chrome = await withChromeAI(progress, async make => {
-    progress(`Writing your cover letter with ${SMALL()}…`);
-    // the small model writes one paragraph at a time, each seeing only the facts it needs
-    let d = await nanoCover(ctx, make, progress);
-    if (!d || d.paragraphs.every(p => p.repaired)) return null;
-    polishDraft(d, ctx);
-    const issues = attributionIssues(d, ctx);
-    if (issues.length) repairWithTemplate(d, ctx, issues);
-    return d;
-  });
-  if (chrome) return chrome;
-  // 2. A bigger AI: a key, or Claude on the viewer's account
-  const big = afterSmall();
-  if (big) {
-    progress("Writing your cover letter with " + BIG_NAME() + ". This usually takes 30 to 60 seconds…");
-    try {
-      const first = COVER_RULES.replace("280 to 380 words in total", `${ctx.range[0]} to ${ctx.range[1]} words in total, with no paragraph thin (the experience paragraph is the longest)`) + "\n\n" + coverPrompt(ctx, false);
-      const raw = await big.json(first, { cache: false });
-      let d = normaliseDraft(raw, "Written by " + BIG_NAME());
-      if (d) {
-        polishDraft(d, ctx);
-        let issues = attributionIssues(d, ctx);
-        if (issues.length) {
-          progress("Fixing which job each example came from…");
-          try {
-            const d2 = normaliseDraft(await big.json([{ role: "user", content: first }, { role: "assistant", content: JSON.stringify(raw) }, { role: "user", content: correctionNote(issues) }], { cache: false }), d.via);
-            if (d2) { d = polishDraft(d2, ctx); issues = attributionIssues(d, ctx); }
-          } catch { /* keep the first draft and repair it below */ }
-          if (issues.length) repairWithTemplate(d, ctx, issues);
-        }
-        return d;
-      }
-    } catch { /* fall through */ }
+  const extra = [
+    (ctx.interest || []).length ? `What interests the applicant most about the role: ${ctx.interest.join("; ")}` : "",
+    (ctx.bring || []).length ? `What the applicant wants to lead with: ${ctx.bring.join(", ")}` : "",
+    // the applicant's own words from "Add a detail" and from the questions before the letter is written
+    ...Object.entries((ctx.plan || {}).details || {}).filter(([, v]) => String(v || "").trim()).map(([part, v]) => `The applicant adds, for the ${partOf(part).label} paragraph (their own words): ${String(v).trim()}`),
+    ...Object.entries((ctx.plan || {}).gaps || {}).filter(([, v]) => String(v || "").trim()).map(([k, v]) => `The applicant adds, about "${k}" (their own words): ${String(v).trim()}`)
+  ];
+  progress("Writing your cover letter from the Cover Letter Advice and your resume…");
+  const { paragraphs, res } = await adviceWrite({ resume: ctx.resume, ad: adEssentials(ctx.jd) || ctx.jd, role: ctx.title, company: ctx.company, why: ctx.why, avail: ctx.avail, source: ctx.source, extra, words: ctx.range }, progress);
+  if (paragraphs) {
+    const parts = COVER_PARTS.map((c, i) => ({ part: c.key, text: paragraphs[i], evidence: [], adPoints: [] })).filter(p => p.text);
+    return polishDraft({ salutation: "Dear Hiring Manager,", paragraphs: parts, signoff: "Yours sincerely,", via: `Written by ${viaWords(res.via)} from the Cover Letter Advice and your resume` }, ctx);
   }
-  // 3. No AI: a structured letter assembled from the resume and the ad
-  return polishDraft(templateLetter(ctx), ctx);
+  const d = polishDraft(templateLetter(ctx), ctx);
+  d.via = `${aiMissWords(res)} ${d.via}`.trim();
+  return d;
 }
 
 // --- Checks: anything the letter says that the resume, previous letters or your details don't support ---
@@ -542,6 +452,7 @@ function letterChecks(draft, ctx) {
     const allowAd = p.part === "opening" || p.part === "closing";
     for (const n of numsOf(p.text)) if (!okNums.has(n) && !(allowAd && adNums.has(n))) flags.push(`The figure ${n} isn't in your resume. Check it's right.`);
     for (const c of COVER_CLICHES) if (new RegExp("\\b" + c.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&") + "\\b", "i").test(p.text)) flags.push(`"${c}" is a cliché. Say something specific instead.`);
+    for (const b of LR.bannedFound(p.text)) if (!COVER_CLICHES.includes(b)) flags.push(`"${b}" reads as AI-written. Replace it with a specific fact.`);
     const evidence = p.evidence.filter(q => q.length > 6 && sourceNorm.includes(norm(q).replace(/[.…\s]+$/, "")));
     return { ad: sk.filter(s => scoredNames.has(s)), evidence, flags };
   });
@@ -553,12 +464,12 @@ function letterParts(draft, ctx) {
   const contact = [ctx.cand.location, ctx.cand.phone, ctx.cand.email, ctx.cand.linkedin].filter(Boolean);
   // a hiring manager, company or address left blank is left out, never shown as a placeholder
   const recipient = [ctx.recipient, ctx.company, ctx.address].filter(Boolean);
-  return { name: ctx.cand.name || "Your name", contact, date: todayAU(), recipient, re: `Re: Application for ${ctx.title}`, salutation: draft.salutation, paragraphs: draft.paragraphs.map(p => p.text), signoff: draft.signoff, signName: ctx.cand.name || "" };
+  return { name: ctx.cand.name || "Your name", contact, date: todayAU(), recipient, re: LR.reLine(ctx.title, { location: LR.adLocation(ctx.jd, ctx.title), ref: lrAdRef(ctx.jd), expressionOfInterest: ctx.sit && ctx.sit.value === "expression_of_interest", targetRole: ctx.plan && ctx.plan.target }), salutation: draft.salutation, paragraphs: draft.paragraphs.map(p => p.text), signoff: draft.signoff, signName: ctx.cand.name || "" };
 }
 // The letter: laid out like the Cover letter tab of Create or edit cover letter. The paragraphs to edit (each with its guide, and the ad's key
 // skills highlighted in them), the sign-off, then what to check before sending, all on the left; the breakdown above the preview on the right.
 function renderCover() {
-  const out = $("clOut"), d = cover.draft, ctx = cover.ctx;
+  const out = $("clOut"), d = cover.draft;
   if (!out || !d) return;
   out.innerHTML = `
   <div id="clFinish"></div>
@@ -570,6 +481,7 @@ function renderCover() {
       <p class="q-hint">${esc(partOf(p.part).purpose)}</p>
       <div id="clg-${i}">${clGuideHtml(p.part, letterStage())}</div>
       <div class="hl-wrap"><div class="hl-back" id="clb-${i}" aria-hidden="true"></div><textarea id="clp-${i}" data-clp="${i}" rows="8" spellcheck="true" placeholder="Write this paragraph."></textarea></div>
+      <div class="lt-part-acts cl-part-acts" id="cla-${i}"></div><div class="lt-alts bl-alts" id="clx-${i}"></div>
       <div class="cl-flags" id="clf-${i}"></div>
     </div>`).join("")}</div>
     <div class="lt-signoff"><label class="field" for="clSign">Sign-off<input type="text" id="clSign" autocomplete="off"></label></div>
@@ -577,13 +489,18 @@ function renderCover() {
   </section>`;
   $("clGenRow").hidden = true;
   $("clSal").value = d.salutation; $("clSign").value = d.signoff;
-  d.paragraphs.forEach((p, i) => { const ta = $("clp-" + i); ta.value = p.text; clBack(i); growBox(ta); });
+  d.paragraphs.forEach((p, i) => { const ta = $("clp-" + i); ta.value = p.text; clBack(i); growBox(ta); clPartActs(i); });
   let t;
   const later = () => { clearTimeout(t); t = setTimeout(() => { renderBreakdown(); renderFinish(); clPreview(); }, 250); };
   out.querySelector("#clParts").addEventListener("input", e => {
     const ta = e.target.closest("[data-clp]"); if (!ta) return;
     const i = +ta.dataset.clp; d.paragraphs[i].text = ta.value.replace(/\s+/g, " ").trim();
     clBack(i); growBox(ta); later();
+  });
+  out.querySelector("#clParts").addEventListener("click", e => {
+    const dt = e.target.closest("[data-cl-detail]"), go = e.target.closest("[data-cl-detail-go]");
+    if (dt) { clDetailBox(+dt.dataset.clDetail); return; }
+    if (go) clDetailGo(+go.dataset.clDetailGo);
   });
   $("clSal").addEventListener("input", e => { d.salutation = e.target.value; later(); });
   $("clSign").addEventListener("input", e => { d.signoff = e.target.value; later(); });
@@ -710,7 +627,7 @@ function renderBreakdown() {
   const covered = keySkills.filter(x => inLetter.has(x.name));
   const notYet = keySkills.filter(x => !inLetter.has(x.name));
   // the craft rules: clichés, AI-sounding habits, sentence openings, long sentences, figures that aren't yours
-  const quality = coverQuality(d.paragraphs.map(p => p.text), [ctx.resume, ...ctx.letters, ctx.why, ctx.avail, ctx.title, ctx.company, ctx.jd].join("\n"));
+  const quality = coverQuality(d.paragraphs.map(p => p.text), [ctx.resume, ...ctx.letters, ctx.why, ctx.avail, ctx.title, ctx.company, ctx.jd, ctx.plan && ctx.plan.salary].join("\n"), { allowSalary: !!(ctx.plan && ctx.plan.salary) });
   const flagCount = checks.reduce((a, c) => a + c.flags.length, 0) + quality.length;
   document.querySelectorAll("#clParts .lt-part").forEach((p, i) => p.classList.toggle("flagged", !!(checks[i] && checks[i].flags.length)));
   d.paragraphs.forEach((p, i) => { const w = $("clw-" + i); if (w) { const n = wordCount(p.text), min = partMin(p.part, r); w.textContent = `${n} words · aim for about ${partTarget(p.part, r)}${n < min ? " (a little short)" : ""}`; } });
@@ -744,6 +661,13 @@ function renderBreakdown() {
     </ul>`;
   }
 }
+// The letter as an email: a subject line, no letter head or date, and the resume attached in the close
+function coverEmailText() {
+  const L = letterParts(cover.draft, cover.ctx), paras = L.paragraphs.slice();
+  if (paras.length) paras[paras.length - 1] = "My resume is attached. " + paras[paras.length - 1];
+  const subject = LR.emailSubject(cover.ctx.title, L.name, lrAdRef(cover.ctx.jd));
+  return [`Subject: ${subject}`, "", L.salutation, "", ...paras.flatMap(p => [p, ""]), L.signoff, L.name, cover.ctx.cand.phone || ""].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
 function coverPlainText() {
   const L = letterParts(cover.draft, cover.ctx);
   return [L.name, L.contact.join(" | "), "", L.date, "", ...L.recipient, "", L.re, "", L.salutation, "", ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, "", L.signName].join("\n");
@@ -773,9 +697,10 @@ async function buildCoverDocx(L, st = DEFAULT_LETTER_STYLE) {
     body.push(para(run(L.contact.join("   |   "), { sz: 19, color: "5B6474" }), { after: 360, jc, pbdr: `<w:pBdr>${st.look === "side" ? `<w:left w:val="single" w:sz="36" w:space="10" w:color="${A}"/>` : ""}<w:bottom w:val="single" w:sz="8" w:space="6" w:color="${A}"/></w:pBdr>` }));
   }
   body.push(para(run(L.date), { after: 240 }));
-  L.recipient.forEach((r, i) => body.push(para(run(r), { after: i === L.recipient.length - 1 ? 240 : 0 })));
-  if (L.re) body.push(para(run(L.re, { b: true }), { after: 240 }));
-  body.push(para(run(L.salutation), { after: 200 }));
+  (L.recipient || []).forEach((r, i) => body.push(para(run(r), { after: i === L.recipient.length - 1 ? 240 : 0 })));
+  // (a letter written on the Create or edit cover letter page has no inside address, and the greeting comes before the Re: line)
+  if (L.greetFirst) { body.push(para(run(L.salutation), { after: 200 })); if (L.re) body.push(para(run(L.re, { b: true }), { after: 200 })); }
+  else { if (L.re) body.push(para(run(L.re, { b: true }), { after: 240 })); body.push(para(run(L.salutation), { after: 200 })); }
   for (const p of L.paragraphs) body.push(para(run(p), { after: 200, jc: "both" }));
   body.push(para(run(L.signoff), { before: 80, after: 600 }));
   body.push(para(run(L.signName, { b: true })));
@@ -818,10 +743,11 @@ async function buildCoverPdf(L, st = DEFAULT_LETTER_STYLE) {
   else { y += 1.5; doc.setDrawColor(ar, ag, ab); doc.setLineWidth(0.5); doc.line(M, y, M + W, y); y += 9; }
   doc.setFontSize(10.5); doc.setTextColor(30, 37, 51); doc.setFont(st.pdf, "normal");
   doc.text(safe(L.date), M, y); y += LH * 2;
-  for (const r of L.recipient) { doc.text(safe(r), M, y); y += LH; }
-  y += LH;
-  if (L.re) { doc.setFont(st.pdf, "bold"); doc.text(safe(L.re), M, y); y += LH * 2; doc.setFont(st.pdf, "normal"); }
-  doc.text(safe(L.salutation), M, y); y += LH * 1.8;
+  for (const r of L.recipient || []) { doc.text(safe(r), M, y); y += LH; }
+  if (L.recipient && L.recipient.length) y += LH;
+  const reLine = () => { if (L.re) { doc.setFont(st.pdf, "bold"); doc.text(safe(L.re), M, y); y += LH * 2; doc.setFont(st.pdf, "normal"); } };
+  if (L.greetFirst) { doc.text(safe(L.salutation), M, y); y += LH * 1.8; reLine(); }
+  else { reLine(); doc.text(safe(L.salutation), M, y); y += LH * 1.8; }
   for (const p of L.paragraphs) {
     const lines = doc.splitTextToSize(safe(p), W);
     ensure(lines.length * LH);
@@ -859,6 +785,12 @@ async function generateCover(opts) {
   const out = $("clOut"), btn = $("clGenerate"), auto = !!(opts && opts.auto === true);
   if (!lastResult || cover.writing) return;
   if (!$("clName").value.trim()) { readyEdit = "clName"; renderReady(); $("clEngine").textContent = "Add your name first."; return; }
+  const notice = lrAdNotice(LR.adInstructions(lastScan.jd));
+  if (notice && cover.adOkFor !== coverJobKey()) {
+    out.innerHTML = `<div class="panel lr-notice" role="status"><p>${esc(notice)}</p><div class="b-actions"><button class="btn" type="button" id="clAdGo">Write a letter anyway</button></div></div>`;
+    $("clAdGo").addEventListener("click", () => { cover.adOkFor = coverJobKey(); generateCover(); }, { once: true });
+    return;
+  }
   cover.writing = true;
   if ($("clPaste").value.trim() && wordCount($("clPaste").value) >= 40) {
     const pasted = $("clPaste").value.trim();
@@ -885,7 +817,7 @@ async function describeCoverEngine() {
   $("clEngine").textContent = smallEngine() ? `Written by ${SMALL()}, ${smallWhere()}, one short step at a time.${smallEngine() === "key" ? "" : " The corner shows roughly how long is left."}`
     : st === "available" ? `Written by ${BROWSER_AI()}, on this device.`
     : (st === "downloadable" || st === "downloading") ? BROWSER_AI() + " is tried first, then " + (sample ? AI_NAME() : "the template") + "."
-    : sample ? "Written by " + AI_LONG() + ". Takes about a minute."
+    : sample ? "Written by " + AI_NAME() + ". Takes about a minute."
     : "No AI on this page, so the letter is assembled from your resume and the ad. You can edit every paragraph.";
 }
 

@@ -48,15 +48,6 @@ const jobTypeForTitle = t => { const k = jobTitleIndex().get(String(t || "").tri
 
 /* --- Employers: the Company guides' employers, plus big casual and part-time employers --- */
 const MORE_EMPLOYERS = "Woolworths;Coles;Aldi;IGA;Kmart;Target;Big W;Myer;David Jones;Bunnings Warehouse;Officeworks;JB Hi-Fi;Harvey Norman;The Good Guys;Dan Murphy's;BWS;Liquorland;Chemist Warehouse;Priceline Pharmacy;TerryWhite Chemmart;Rebel;Best & Less;Cotton On;Uniqlo;Zara;H&M;Country Road;Sephora;Mecca;Lush;Spotlight;Supercheap Auto;Repco;Autobarn;BCF;Anaconda;McDonald's;KFC;Hungry Jack's;Domino's;Pizza Hut;Subway;Red Rooster;Grill'd;Guzman y Gomez;Nando's;Oporto;Zambrero;Boost Juice;Starbucks;Gloria Jean's;Muffin Break;Event Cinemas;Hoyts;Village Cinemas;Timezone;Merlin Entertainments;Australia Post;StarTrack;Toll Group;Linfox;DHL;Amazon;Uber;DoorDash;Menulog;Telstra;Optus;Vodafone (TPG Telecom);Bupa;Ramsay Health Care;Healthscope;St Vincent's Health Australia;Medibank;NIB;HCF;Anglicare;Uniting;Mission Australia;The Salvation Army;Red Cross;St John Ambulance;Surf Life Saving Australia;Royal Life Saving Society;YMCA;Goodstart Early Learning;G8 Education;Guardian Childcare;Camp Australia;Ventia;Downer;Programmed;Hays;Randstad;Adecco;Chandler Macleod;Self-employed;Family business";
-let empNames = null;
-function employerNames() {
-  if (empNames) return empNames;
-  const seen = new Set(), out = [];
-  const add = n => { const k = String(n || "").trim(); if (k && !seen.has(k.toLowerCase())) { seen.add(k.toLowerCase()); out.push(k); } };
-  try { for (const e of employers()) add(e.name.replace(/\s*\((?:[^)]*)\)\s*$/, "")); } catch { /* the company list isn't ready yet */ }
-  MORE_EMPLOYERS.split(";").forEach(add);
-  return (empNames = out);
-}
 
 /* --- Places of study: universities, TAFEs and other colleges (schools come from 21b if it has been built) --- */
 const UNIVERSITIES = "Adelaide University;Australian Catholic University;Australian National University;Avondale University;Batchelor Institute of Indigenous Tertiary Education;Bond University;Charles Darwin University;Charles Sturt University;CQUniversity;Curtin University;Deakin University;Edith Cowan University;Federation University Australia;Flinders University;Griffith University;James Cook University;La Trobe University;Macquarie University;Monash University;Murdoch University;Queensland University of Technology;RMIT University;Southern Cross University;Swinburne University of Technology;Torrens University Australia;UNSW Sydney;University of Adelaide;University of Canberra;University of Divinity;University of Melbourne;University of New England;University of Newcastle;University of Notre Dame Australia;University of Queensland;University of South Australia;University of Southern Queensland;University of the Sunshine Coast;University of Sydney;University of Tasmania;University of Technology Sydney;University of Western Australia;University of Wollongong;Victoria University;Western Sydney University;Open Universities Australia;Australian Maritime College;National Institute of Dramatic Art (NIDA);Australian Film Television and Radio School;Kaplan Business School;SAE University College;JMC Academy;Excelsia University College;Alphacrucis University College;Australian College of Applied Professions;Engineering Institute of Technology;Le Cordon Bleu Australia";
@@ -70,6 +61,17 @@ function institutionNames() {
   return (instList = [...new Set(names)]);
 }
 const SCHOOLS_LOADED = () => typeof AU_SCHOOLS === "string" && AU_SCHOOLS.length > 0;
+
+/* --- Specific relevant subjects: school subjects (Year 10 and Year 12), and ideas for scholarships and awards --- */
+const HS_SUBJECTS = ("English;English Standard;English Advanced;English Extension 1;English Extension 2;English as an Additional Language or Dialect;Essential English;General English;English Literature;Literature;"
+  + "Mathematics;Mathematics Standard;Mathematics Advanced;Mathematics Extension 1;Mathematics Extension 2;Mathematical Methods;Specialist Mathematics;General Mathematics;Essential Mathematics;Further Mathematics;Foundation Mathematics;"
+  + "Biology;Chemistry;Physics;Earth and Environmental Science;Human Biology;Psychology;Science;Integrated Science;Agricultural Science;Marine Studies;"
+  + "Geography;Modern History;Ancient History;History;Legal Studies;Business Studies;Business Management;Economics;Accounting;Politics and Law;Society and Culture;Studies of Religion;Philosophy;Sociology;Civics and Citizenship;"
+  + "Food Technology;Hospitality;Food and Nutrition;Design and Technology;Engineering Studies;Industrial Technology;Information and Software Technology;Software Development;Digital Technologies;Computer Science;Information Processing and Technology;Systems Engineering;Applied Information Technology;Furnishing;Building and Construction;Metal and Engineering;Automotive;"
+  + "Physical Education;Health and Human Development;Health and Physical Education;Sport and Recreation;Outdoor Education;Community Services;Early Childhood Studies;"
+  + "Visual Arts;Visual Art;Art;Drama;Music;Music Extension;Media Arts;Media Studies;Dance;Textiles and Design;Photography;Visual Communication Design;"
+  + "French;German;Italian;Japanese;Chinese;Indonesian;Spanish;Korean;Vietnamese;Greek;Latin;Auslan;Languages").split(";");
+const AWARD_IDEAS = ["Dean's List", "Dean's Merit List", "Vice-Chancellor's Scholarship", "Academic Excellence Scholarship", "Merit Scholarship", "Equity Scholarship", "Equal Opportunity Scholarship", "Commonwealth Supported Scholarship", "Prize for Highest Mark in the Course", "Faculty Prize for Academic Excellence", "High Distinction Award", "Principal's Award", "Dux of the School", "Academic Excellence Award", "Citizenship Award", "Leadership Award", "Sports Award", "Music Award", "Student of the Year", "School Captain", "House Captain", "Duke of Edinburgh's Award (Bronze)", "Duke of Edinburgh's Award (Silver)", "Duke of Edinburgh's Award (Gold)", "Australian Mathematics Competition (High Distinction)", "Certificate of Merit", "Employee of the Month", "Volunteer of the Year"];
 
 /* --- Subjects for each kind of qualification --- */
 const SUBJECTS_SCHOOL = "HSC;VCE;VCE Vocational Major;QCE;WACE;SACE;TCE;NTCET;ACT Senior Secondary Certificate;International Baccalaureate (IB) Diploma";

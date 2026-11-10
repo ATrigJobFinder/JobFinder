@@ -1,11 +1,16 @@
 /* ===================== Choose your AI: the page, and the landing page on Home ===================== */
-// Three ways, from free and private to the strongest writing. With nothing connected, built-in rules still fill in.
+// Two ways, from free and private to the strongest writing. With nothing connected, built-in rules still fill in.
 const AIC_TIERS = [
   { id: "browser", engine: "webllm", title: "AI in your browser", short: "In your browser", q: 3, cost: "Free", privacy: "Stays on this computer", setup: "One-time download (0.5 to 4.5 GB), or none if your browser has AI built in", rec: "Best free and private", meta: "Free · private" },
-  { id: "key", engine: "key", title: "Bring your own key", short: "Your own key", q: 4, cost: "Free (Gemini, Mistral, Groq and more) or pay per use", privacy: "Sent to the company you choose", setup: "About 2 minutes", rec: "Best results for most people", meta: "Free or pay per use" },
-  { id: "site", engine: "claude", title: "Job Finder AI", short: "Job Finder AI", q: 5, cost: "Paid plan (coming soon)", privacy: "Sent to Job Finder's AI provider", setup: "None", meta: "Paid, coming soon" }
+  { id: "key", engine: "key", title: "Bring your own key", short: "Your own key", q: 4, cost: "Free (Gemini, Mistral, Groq and more) or pay per use", privacy: "Sent to the company you choose", setup: "About 2 minutes", rec: "Best results for most people", meta: "Free or pay per use" }
 ];
-const aicTierOf = e => e === "webllm" || e === "tfjs" || e === "chrome" ? "browser" : e === "claude" ? "site" : e;
+// For now Google Gemini is the only AI that can be connected. The others are greyed out, not removed:
+// set AIC_ONLY to "" to open them all up again.
+const AIC_ONLY = "gemini";
+const aicAllowedProv = k => !AIC_ONLY || k === AIC_ONLY;
+const aicAllowedTier = id => !AIC_ONLY || id === "key";
+const AIC_OFF_WORDS = "Not available yet";
+const aicTierOf = e => e === "webllm" || e === "tfjs" || e === "chrome" ? "browser" : e;
 const aicMeter = (q, label) => `<span class="aic-meter" role="img" aria-label="${label || `Writing quality ${q} out of 5`}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= q ? "on" : ""}"></i>`).join("")}</span>`;
 let aicRendered = false;
 const aicBusy = { now: null };
@@ -32,10 +37,8 @@ function aicSpeedText(kind, m) {
 }
 const aicModelOpt = (kind, m) => `<label class="aic-opt"><input type="radio" name="${kind === "tfjs" ? "aicTfjs" : "aicWebllm"}" value="${esc(m.id)}"><span><b>${esc(m.name)}${m.pick ? ' <em class="aic-pick">Suggested</em>' : ""}</b><small>${esc(m.size)}, one-time download (about ${esc(dlTime(m))}). ${esc(m.note)}</small></span></label>`;
 
-const aicProvOpt = ([k, p]) => `<label class="aic-prov"><input type="radio" name="aicProv" value="${k}"><span><b>${esc(p.name)}</b><small>${k === "custom" ? "Any compatible service" : p.free ? "Free tier, no card" : "Pay per use"}</small></span></label>`;
+const aicProvOpt = ([k, p]) => { const off = !aicAllowedProv(k); return `<label class="aic-prov${off ? " aic-prov--off" : ""}"><input type="radio" name="aicProv" value="${k}"${off ? " disabled" : ""}><span><b>${esc(p.name)}</b><small>${off ? AIC_OFF_WORDS : k === "custom" ? "Any compatible service" : p.free ? "Free tier, no card" : "Pay per use"}</small></span></label>`; };
 function aicSetupHtml(t) {
-  const inC = aiInClaude();
-  const claudeNote = inC ? `<p class="aic-note">Inside Claude's preview this page can't download models, so WebLLM and Transformers.js work once Job Finder is opened as its own website. Claude is used meanwhile.</p>` : "";
   if (t.id === "browser") return `<fieldset class="aic-libs"><legend>Choose how</legend>
       <label class="aic-opt"><input type="radio" name="aicLib" value="chrome" id="aicLibChrome"><span><b id="aicBuiltInName">${esc(BROWSER_AI())}</b><small>Nothing to download if your browser already has one. Quick, but weaker at long writing like cover letters.</small><small class="aic-env" id="aicChromeState">Checking your browser…</small></span></label>
       <label class="aic-opt"><input type="radio" name="aicLib" value="webllm" id="aicLibWebllm"><span><b>WebLLM <em class="aic-pick">Best writing</em></b><small>One-time download of a stronger model. Needs WebGPU (Chrome or Edge on a computer, or Safari 26).</small></span></label>
@@ -43,11 +46,11 @@ function aicSetupHtml(t) {
     </fieldset>
     <div class="aic-way" id="aicWayChrome" hidden>
       <p class="aic-env" id="aicBuiltInNote"></p>
-      <details class="aic-more"><summary>What it needs</summary><ul><li>A recent Chrome or Edge on Windows, macOS, Linux or a Chromebook Plus (not phones)</li><li>About 22 GB of free disk space, and a graphics card with more than 4 GB of memory or 16 GB of RAM</li><li>Job Finder opened as its own website (the browser blocks it inside Claude's preview)</li></ul></details>
+      <details class="aic-more"><summary>What it needs</summary><ul><li>A recent Chrome or Edge on Windows, macOS, Linux or a Chromebook Plus (not phones)</li><li>About 22 GB of free disk space, and a graphics card with more than 4 GB of memory or 16 GB of RAM</li><li>Job Finder opened as its own website</li></ul></details>
       <div class="aic-act"><button class="btn primary" type="button" id="aicChromeGo">Test and use ${esc(BROWSER_AI())}</button><p class="aic-msg small" id="aicChromeOut" role="status"></p></div>
     </div>
     <div class="aic-way" id="aicWayDownload">
-      ${claudeNote}<p class="aic-env" id="aicGpu"></p>
+      <p class="aic-env" id="aicGpu"></p>
       <fieldset class="aic-models" id="aicModelsWebllm"><legend>WebLLM model</legend>${WEBLLM_MODELS.map(m => aicModelOpt("webllm", m)).join("")}</fieldset>
       <fieldset class="aic-models" id="aicModelsTfjs" hidden><legend>Transformers.js model</legend>${TFJS_MODELS.map(m => aicModelOpt("tfjs", m)).join("")}</fieldset>
       <p class="aic-eta" id="aicEta"></p>
@@ -55,20 +58,30 @@ function aicSetupHtml(t) {
       <div class="aic-act"><button class="btn primary" type="button" id="aicBrowserGo">Download, test and use</button><p class="aic-msg small" id="aicBrowserOut" role="status"></p></div>
       <p class="small muted">One-time download: your browser keeps it, and you can keep using Job Finder while it downloads. The model only changes once the test passes.</p>
     </div>`;
-  if (t.id === "key") return `${inC ? `<p class="aic-note">Inside Claude's preview this page can't reach other sites, so your own key works once Job Finder is opened as its own website. Claude is used meanwhile.</p>` : ""}<div class="aic-provgroups">
+  if (t.id === "key") return `${AIC_ONLY && AI_PROVIDERS[AIC_ONLY] ? `<p class="aic-note aic-onlynote">For now, ${esc(AI_PROVIDERS[AIC_ONLY].name)} is the only AI you can connect. The others are coming back soon.</p>` : ""}<div class="aic-provgroups">
     <fieldset class="aic-provs"><legend>Free</legend>${Object.entries(AI_PROVIDERS).filter(([, p]) => p.free).map(aicProvOpt).join("")}</fieldset>
     <fieldset class="aic-provs"><legend>Pay per use</legend>${Object.entries(AI_PROVIDERS).filter(([, p]) => !p.free).map(aicProvOpt).join("")}</fieldset></div>
     <p class="aic-note aic-provnote" id="aicProvNote"></p>
     <ol class="aic-steps" id="aicKeySteps"></ol>
+    <div id="aicGeminiGuide" hidden></div>
     <div class="aic-grid">
       <label class="field" id="aicBaseWrap" hidden>Address (ends in /v1)<input type="text" id="aicKeyBase" spellcheck="false" autocomplete="off" placeholder="https://api.example.com/v1"></label>
       <label class="field">API key<span class="aic-inline"><input type="text" id="aicKey" class="secret-mask" name="ai-service-token" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" data-lpignore="true" data-1p-ignore data-bwignore="true" data-form-type="other" placeholder="Paste your key"><button class="btn" type="button" id="aicKeyShow" aria-pressed="false">Show</button></span></label>
-      <label class="field">Model<span class="aic-inline"><input type="text" id="aicKeyModel" list="aicKeyList" spellcheck="false" autocomplete="off"><button class="btn" type="button" id="aicKeyLoad">Load models</button></span><datalist id="aicKeyList"></datalist></label>
+      <label class="field" id="aicModelWrap">Model<span class="aic-inline"><input type="text" id="aicKeyModel" list="aicKeyList" spellcheck="false" autocomplete="off"><button class="btn" type="button" id="aicKeyLoad">Load models</button></span><datalist id="aicKeyList"></datalist></label>
+      <p class="aic-note" id="aicTierNote" hidden>You don't pick a Gemini model: Job Finder chooses for each job. <b>Gemini 3.5 Flash-Lite</b> does the quick work (bullet points and fixing one sentence). A stronger Gemini model writes full letters and rewords whole paragraphs, and checks the whole letter. If a model is busy or over its limit, the next version down is tried automatically.</p>
     </div>
     <label class="aic-check"><input type="checkbox" id="aicRemember"> Remember my key on this device (otherwise it's forgotten when you close the tab)</label>
     <div class="aic-act"><button class="btn primary" type="button" id="aicKeyGo">Test and use</button><button class="btn ghost" type="button" id="aicKeyForget">Remove key</button><p class="aic-msg small" id="aicKeyOut" role="status"></p></div>
-    <p class="small muted">Your key is kept in this browser only and sent straight to the company you chose. Job Finder never stores it. The model only changes once the test passes.</p>`;
-  if (t.id === "site") return `<p class="aic-env">Coming soon on the Job Finder website. Until then, a free key (step 2) gets you close.</p><div class="aic-act"><button class="btn" type="button" disabled>Coming soon</button></div>`;
+    <p class="small muted">Your key is kept in this browser only and sent straight to the company you chose. Job Finder never stores it. The model only changes once the test passes.</p>
+    <details class="aic-priv" id="aicPriv"><summary><b>Privacy safeguard</b>: your contact details are never sent to the AI (always on)</summary>
+      <p class="small">Before anything goes to the company you chose, Job Finder takes out your <b>email address, phone number, street address, LinkedIn and website links, name, ID numbers (TFN, Medicare, passport) and date of birth</b>, and swaps each for a label such as <code>[EMAIL_1]</code>. The labels are put back into the answer on this computer, so your letter still has your real details and the company never sees them.</p>
+      <p class="small">A second, separate check then looks for the details saved in your profile in what is about to be sent. If one is still there, the request is stopped and nothing is sent.</p>
+      <p class="small muted"><b>Still sent:</b> your work history, study and skills, the job ad, and what you type into the writing boxes, because the AI needs them to write. Details you type in those boxes are cleaned the same way, but only the kinds listed above. A name you haven't saved in your profile can't be spotted.</p>
+      <p class="small muted">The AI in your browser (WebLLM, Transformers.js) and your browser's built-in AI run on this computer and send nothing at all.</p>
+      <p class="small aic-priv-stats" id="aicPrivStats" role="status"></p>
+      <div class="aic-act"><button class="btn" type="button" id="aicPrivShow">See exactly what would be sent</button></div>
+      <div id="aicPrivOut" hidden></div>
+    </details>`;
   return "";
 }
 
@@ -76,7 +89,7 @@ function renderConnect() {
   const list = $("aicLadder");
   if (!list) return;
   if (!aicRendered) {
-    list.innerHTML = AIC_TIERS.map((t, i) => `<li class="aic-tier${t.rec ? " rec" : ""}" id="tier-${t.id}" data-tier="${t.id}">
+    list.innerHTML = AIC_TIERS.map((t, i) => `<li class="aic-tier${t.rec ? " rec" : ""}${aicAllowedTier(t.id) ? "" : " aic-tier--off"}" id="tier-${t.id}" data-tier="${t.id}">
       <div class="aic-rung" aria-hidden="true"><span class="aic-n">${i + 1}</span></div>
       <article class="aic-card" aria-labelledby="aicT-${t.id}">
         <header class="aic-th"><div class="aic-tt"><h2 id="aicT-${t.id}">${esc(t.title)}</h2>${t.rec ? `<span class="aic-rec">${esc(t.rec)}</span>` : ""}</div><span class="aic-state" data-state></span></header>
@@ -86,7 +99,7 @@ function renderConnect() {
           <div><dt>Privacy</dt><dd>${esc(t.privacy)}</dd></div>
           <div><dt>Setup</dt><dd>${esc(t.setup)}</dd></div>
         </dl>
-        <div class="aic-setup" data-setup="${t.id}">${aicSetupHtml(t)}</div>
+        <div class="aic-setup" data-setup="${t.id}"${aicAllowedTier(t.id) ? "" : " inert"}>${aicSetupHtml(t)}</div>
       </article>
     </li>`).join("");
     aicRendered = true;
@@ -94,11 +107,12 @@ function renderConnect() {
   }
   aicFill();
   aicSync();
+  aiPrivRefresh();
 }
 const aicLibNow = () => (document.querySelector('input[name="aicLib"]:checked') || {}).value || "webllm";
 // What is picked in the form but not tested yet. None of it changes the saved choice until its test passes.
 const aicModelNow = lib => (document.querySelector(`input[name="${lib === "tfjs" ? "aicTfjs" : "aicWebllm"}"]:checked`) || {}).value || (lib === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel);
-const aicProvNow = () => (document.querySelector('input[name="aicProv"]:checked') || {}).value || aiCfg.key.provider;
+const aicProvNow = () => { const k = (document.querySelector('input[name="aicProv"]:checked') || {}).value || aiCfg.key.provider; return aicAllowedProv(k) ? k : AIC_ONLY; };
 const aicSecretStored = () => { try { return !!localStorage.getItem(AI_SECRET_KEY); } catch { return false; } };
 // Show the part for the chosen way: the browser's own AI, or a model to download
 function aicShowWay() {
@@ -123,8 +137,10 @@ function aicFill() {
   const r = $("aicLib" + lib[0].toUpperCase() + lib.slice(1)); if (r) r.checked = true;
   document.querySelectorAll('input[name="aicWebllm"]').forEach(i => { i.checked = i.value === aiCfg.webllmModel; });
   document.querySelectorAll('input[name="aicTfjs"]').forEach(i => { i.checked = i.value === aiCfg.tfjsModel; });
-  document.querySelectorAll('input[name="aicProv"]').forEach(i => { i.checked = i.value === aiCfg.key.provider; });
-  $("aicKey").value = aiSecret(); $("aicKeyModel").value = aiCfg.key.model; $("aicKeyBase").value = aiCfg.key.base || "";
+  // (a key saved for an AI that is switched off isn't shown here: the form starts on the allowed one)
+  const prov = aicAllowedProv(aiCfg.key.provider) ? aiCfg.key.provider : AIC_ONLY, same = prov === aiCfg.key.provider;
+  document.querySelectorAll('input[name="aicProv"]').forEach(i => { i.checked = i.value === prov; });
+  $("aicKey").value = same ? aiSecret() : ""; $("aicKeyModel").value = same ? aiCfg.key.model : (AI_PROVIDERS[prov].model || ""); $("aicKeyBase").value = same ? aiCfg.key.base || "" : "";
   $("aicRemember").checked = aiCfg.key.remember !== false;
   aicShowWay();
   aicProvInfo();
@@ -132,21 +148,31 @@ function aicFill() {
 function aicProvInfo(k = aicProvNow()) {
   const p = AI_PROVIDERS[k] || AI_PROVIDERS.custom;
   $("aicBaseWrap").hidden = k !== "custom";
+  // Gemini: the model is chosen by the job, not by the person (and the test always starts from the best one)
+  const auto = k === "gemini";
+  // Gemini: a picture guide to getting the key replaces the three short steps
+  const gg = $("aicGeminiGuide"); if (gg) { if (auto && !gg.dataset.built) { gg.innerHTML = geminiGuideHtml(); gg.dataset.built = "1"; } gg.hidden = !auto; }
+  $("aicKeySteps").hidden = auto;
+  $("aicModelWrap").hidden = auto; $("aicTierNote").hidden = !auto;
   $("aicProvNote").textContent = p.note || "";
   $("aicKeySteps").innerHTML = k === "custom" ? `<li>Copy the service's API address and a key from its website.</li><li>Paste both below, then load or type a model name.</li><li>Select Test and use.</li>`
     : `<li>Get a key at <a href="${esc(p.keyUrl)}" target="_blank" rel="noopener">${esc(p.keyWhere)}</a>${p.free ? " (free, sign in with your account)" : ""}.</li><li>Paste it below.${p.model ? ` The model is filled in for you.` : ` Then select Load models and pick one${k === "openrouter" ? " ending in :free" : ""}.`}</li><li>Select Test and use.</li>`;
 }
 function aicMsg(id, text, kind) { const el = $(id); if (!el) return; el.textContent = text || ""; el.className = "aic-msg small" + (kind ? " " + kind : ""); }
+// Several short lines in one message: the first is the main point, the rest are smaller
+function aicMsgLines(id, lines, kind) {
+  const el = $(id); if (!el) return;
+  el.className = "aic-msg small" + (kind ? " " + kind : ""); el.textContent = "";
+  for (const l of lines) { const sp = document.createElement("span"); sp.className = "aic-line" + (l.main ? " main" : ""); sp.textContent = l.text; el.appendChild(sp); }
+}
 async function aicSync() {
   if (!aicRendered) return;
   const cur = aicTierOf(aiCfg.engine);
   document.querySelectorAll(".aic-tier").forEach(li => {
     const on = li.dataset.tier === cur;
     li.classList.toggle("on", on);
-    li.querySelector("[data-state]").textContent = on ? (USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Chosen, not set up yet" : "In use") : "";
+    li.querySelector("[data-state]").textContent = on ? (USER_ENGINES.has(aiCfg.engine) && !aiUsable() ? "Chosen, not set up yet" : "In use") : aicAllowedTier(li.dataset.tier) ? "" : AIC_OFF_WORDS;
   });
-  const site = document.querySelector('[data-setup="site"]');
-  if (site) site.innerHTML = aicSetupHtml(AIC_TIERS.find(t => t.id === "site"));
   const d = aicDescribe();
   $("aicNowName").textContent = d.name; $("aicNowWhy").textContent = d.why;
   const gpu = $("aicGpu");
@@ -170,19 +196,30 @@ async function aicSync() {
 // Apply the key form to the settings for a test. Returns the function that puts the saved settings back.
 function aicTrialKey() {
   const prev = { key: { ...aiCfg.key }, secret: aiSecret(), stored: aicSecretStored() }, k = aiCfg.key;
-  k.provider = aicProvNow(); k.model = $("aicKeyModel").value.trim(); k.base = $("aicKeyBase").value.trim(); k.remember = $("aicRemember").checked;
+  k.provider = aicProvNow(); k.model = k.provider === "gemini" ? AI_PROVIDERS.gemini.model : $("aicKeyModel").value.trim(); k.base = $("aicKeyBase").value.trim(); k.remember = $("aicRemember").checked;
   setAiSecret($("aicKey").value, k.remember);
   return () => { aiCfg.key = prev.key; setAiSecret(prev.secret, prev.stored); };
 }
 async function aicTestKey() {
+  if (!aicAllowedProv(aicProvNow())) { aicMsg("aicKeyOut", `${AIC_OFF_WORDS}. Choose ${AI_PROVIDERS[AIC_ONLY].name} for now.`, "err"); return; }
   const btn = $("aicKeyGo"), undo = aicTrialKey();
   if (!aiUsable("key")) { aicMsg("aicKeyOut", !aiSecret() ? "Paste your key first." : "Choose a model first.", "err"); undo(); return; }
   btn.disabled = true; aicMsg("aicKeyOut", "Testing…");
   try {
-    const r = await testAi("key");
-    saveAiCfg(); setAiEngine("key");
-    aicMsg("aicKeyOut", `Working. It replied "${r.text}" in ${(r.ms / 1000).toFixed(1)} seconds, and is now doing your writing.`, "ok");
-  } catch (e) { undo(); aicMsg("aicKeyOut", `${aiErrWords(e)} Nothing was changed.`, "err"); }
+    const f = await testKeyWithFallback(m => aicMsg("aicKeyOut", `Testing ${m}…`)), r = f.r;
+    saveAiCfg(); setAiEngine("key"); $("aicKeyModel").value = f.model;
+    aicMsgLines("aicKeyOut", aiFallbackLines(f), "ok");
+    // the small model that does the quick jobs is tested too (the first lines stay on screen while it is)
+    aicMsg("aicKeyOut", `${f.model} is working. Now testing ${aiProvider().small || "the small model"}…`);
+    const sm = await testSmallModel();
+    aicMsgLines("aicKeyOut", aiFallbackLines(f, sm), "ok");
+  } catch (e) {
+    undo();
+    if (e && Array.isArray(e.skipped) && e.skipped.length > 1) {
+      // every model was tried, one after another: say which, why, and what to do
+      aicMsgLines("aicKeyOut", [{ text: `None of the ${e.skipped.length} models answered, so nothing was changed.`, main: true }, { text: `Tried, newest first: ${e.skipped.map(x => `${x.model} (${aiSkipWord(x.code)})`).join(", ")}.` }, { text: aiErrWords(e.first || e) }], "err");
+    } else aicMsg("aicKeyOut", `${aiErrWords(e)} Nothing was changed.`, "err");
+  }
   finally { btn.disabled = false; aicSync(); }
 }
 // A short test of the browser's own AI (this also starts its one-time download if it hasn't happened)
@@ -208,6 +245,7 @@ function aicWire() {
   document.querySelectorAll('input[name="aicLib"]').forEach(i => i.addEventListener("change", aicShowWay));
   document.querySelectorAll('input[name="aicWebllm"], input[name="aicTfjs"]').forEach(i => i.addEventListener("change", aicEta));
   $("aicChromeGo").addEventListener("click", async () => {
+    if (!aicAllowedTier("browser")) { aicMsg("aicChromeOut", `${AIC_OFF_WORDS}.`, "err"); return; }
     const btn = $("aicChromeGo"); btn.disabled = true; aicMsg("aicChromeOut", "Testing…");
     try {
       const r = await aicTestBuiltIn();
@@ -217,6 +255,7 @@ function aicWire() {
     finally { btn.disabled = false; aicSync(); }
   });
   $("aicBrowserGo").addEventListener("click", async () => {
+    if (!aicAllowedTier("browser")) { aicMsg("aicBrowserOut", `${AIC_OFF_WORDS}.`, "err"); return; }
     const lib = aicLibNow() === "tfjs" ? "tfjs" : "webllm", field = lib === "tfjs" ? "tfjsModel" : "webllmModel", model = aicModelNow(lib), prev = aiCfg[field];
     const btn = $("aicBrowserGo"); btn.disabled = true; aicBusy.now = lib;
     $("aicEta").textContent = "";
@@ -255,6 +294,12 @@ function aicWire() {
     finally { undo(); }
   });
   $("aicKeyGo").addEventListener("click", aicTestKey);
+  // The safeguard, shown: your own resume text as the AI would receive it, with the details swapped for labels
+  $("aicPrivShow").addEventListener("click", () => {
+    const out = $("aicPrivOut"), r = aiPrivacyPreview();
+    out.hidden = false;
+    out.innerHTML = `<p class="small">${r.own ? "This is your resume text as it would be sent." : "You haven't filled in your profile yet, so this is a made-up example."} <b>${r.removed}</b> detail${r.removed === 1 ? " was" : "s were"} taken out${r.removed ? ` (${esc(privKindsText(r.kinds))})` : ""}. Your real details stay here.</p><pre class="aic-priv-pre">${esc(r.text)}</pre>`;
+  });
   $("aicKeyForget").addEventListener("click", () => {
     setAiSecret("", false); $("aicKey").value = "";
     if (aiCfg.engine === "key") setAiEngine("auto"); else refreshSample();
@@ -265,7 +310,12 @@ function aicWire() {
     const btn = $("aicTestNow"), e = aiCfg.engine;
     btn.disabled = true; aicMsg("aicTestNowOut", "Testing…");
     try {
-      if (USER_ENGINES.has(e) && aiUsable(e)) { const r = await testAi(e); aicMsg("aicTestNowOut", `Working: "${r.text}" (${(r.ms / 1000).toFixed(1)} s).`, "ok"); }
+      if (e === "key" && aiUsable(e)) {
+        const was = aiCfg.key.model;
+        try { const f = await testKeyWithFallback(m => aicMsg("aicTestNowOut", `Testing ${m}…`)); if (f.model !== was) { saveAiCfg(); const el = $("aicKeyModel"); if (el) el.value = f.model; } aicMsgLines("aicTestNowOut", aiFallbackLines(f), "ok"); }
+        catch (err) { aiCfg.key.model = was; throw err; }
+      }
+      else if (USER_ENGINES.has(e) && aiUsable(e)) { const r = await testAi(e); aicMsg("aicTestNowOut", `Working: "${r.text}" (${(r.ms / 1000).toFixed(1)} s).`, "ok"); }
       else if ((e === "auto" || e === "chrome") && (await chromeAIRaw()) === "available") { aicMsg("aicTestNowOut", `${BROWSER_AI()} is ready on this computer.`, "ok"); }
       else aicMsg("aicTestNowOut", "No AI is reachable here yet, so built-in templates fill in. Choose one below.", "err");
     } catch (err) { aicMsg("aicTestNowOut", aiErrWords(err), "err"); }
@@ -325,7 +375,7 @@ async function renderAiChip() {
   // the same words in the top bar
   const ab = $("abAi"), at = $("abAiText");
   if (ab && at) { ab.dataset.ai = mode; at.textContent = txt.textContent; }
-  const x = $("abAiX"); if (x) x.hidden = mode === "none" || (aiInClaude() && mode !== "byo");   // the small red cross, only while an AI is connected
+  const x = $("abAiX"); if (x) x.hidden = mode === "none";   // the small red cross, only while an AI is connected
 }
 // The small red cross on the top bar's AI bubble: asks first, then disconnects (the key is removed from this browser)
 function aiDisconnectAsk() {

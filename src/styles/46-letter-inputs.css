@@ -13,3 +13,7 @@
 .lt-src textarea { width: 100%; min-height: 6.5em; resize: vertical; }
 .lt-src .q-grid { margin-top: 6px; }
 @media (max-width: 600px) { .lt-src { padding: 14px; } }
+
+/* --- A sentence a "Before you send it" warning is about: soft yellow behind the words (softer than a [gap], which is solid yellow) --- */
+.lt-part .hl-back .ck-flag { color: transparent; background: rgba(255, 224, 80, 0.38); padding: 0; margin: 0; border: 0; border-radius: 0; box-shadow: none; font: inherit; }
+mark.ck-flag-key { background: rgba(255, 224, 80, 0.38); color: inherit; padding: 0 3px; border-radius: 3px; }

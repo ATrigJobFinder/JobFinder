@@ -1,0 +1,74 @@
+/* ===================== Choose your AI: Gemini only for now; the resume upload page ===================== */
+
+/* --- Every AI except Google Gemini is greyed out (see AIC_ONLY in 36-connect-ai-page.js) --- */
+.aic-prov--off { background: var(--surface-2); color: var(--muted); border-style: dashed; cursor: not-allowed; opacity: .6; }
+.aic-prov--off input { cursor: not-allowed; }
+.aic-prov--off b { color: var(--muted); }
+.aic-tier--off .aic-card { background: var(--surface-2); opacity: .6; }
+.aic-tier--off .aic-setup { pointer-events: none; user-select: none; filter: grayscale(1); }
+.aic-tier--off .aic-state { font-weight: 600; color: var(--muted); }
+.aic-onlynote { margin: 0 0 4px; }
+
+/* --- The result of "Test and use", as short lines: the main point first, the rest smaller --- */
+.aic-msg .aic-line { display: block; }
+.aic-msg .aic-line.main { font-weight: 600; }
+.aic-msg .aic-line:not(.main) { font-size: 0.92em; margin-top: 2px; }
+
+/* --- Create or edit resume, upload page --- */
+/* the file that was brought in: its type's icon, then the name */
+.b-file { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; min-height: 12rem; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.b-file[hidden] { display: none; }
+.b-file-ico { width: 52px; height: auto; flex: none; }
+.b-file-name { font-weight: 600; overflow-wrap: anywhere; max-width: 100%; }
+/* what was read: a short list */
+.b-import-status b { color: var(--ink); }
+.b-import-status .imp-list { margin: 6px 0 4px; padding-left: 1.2em; display: grid; gap: 3px; }
+.b-import-status .imp-list li { color: var(--muted); }
+/* Next, in the right-hand corner */
+.b-import-next { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* the resume and LinkedIn are one box that takes one file */
+.b-import-grid.b-import-one { grid-template-columns: minmax(0, 1fr); }
+.b-import-one .b-import-col.b-import-resume { grid-template-rows: none; max-width: 44rem; margin-inline: auto; width: 100%; }
+.b-import-one .b-import-col.b-import-resume > .drop { height: auto; }
+
+/* the cover letter's opening page: the same one-file box as the resume's */
+#ltwUpload .b-import-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container main (max-width: 760px) { #ltwUpload .b-import-grid { grid-template-columns: minmax(0, 1fr); } }
+#ltwUpload .b-import-col > .drop { min-height: 12rem; }
+#ltwUpload .b-file { min-height: 12rem; }
+#ltwLetterStatus:empty, #ltwStatus:empty { display: none; }
+
+/* Extras: the small triangle that folds a section away, in the section's top right corner */
+.b-extra-tog { margin-left: auto; flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.b-extra-tog svg { width: 12px; height: 12px; transition: transform .15s ease; }
+.b-extra-tog.is-folded svg { transform: rotate(-90deg); }
+.b-extra-tog:hover { background: var(--surface-2); color: var(--ink); }
+.b-extra-tog:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .b-extra-tog svg { transition: none; } }
+.b-extra-inner { display: contents; }
+.b-extra-inner[hidden] { display: none; }
+
+/* the line above Write all */
+.lt-writeall-head { display: grid; gap: 2px; margin-top: 6px; }
+.lt-writeall-head p { margin: 0; max-width: 60ch; }
+
+/* Gemini key guide: numbered steps, each with the screenshot (the button to press is circled in red) */
+.aic-guide { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 12px 14px; }
+.aic-guide-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.aic-guide-body { position: relative; margin-top: 4px; }
+/* folded: just the top of the first step, fading out */
+.aic-guide.is-folded { cursor: pointer; }
+.aic-guide.is-folded .aic-guide-body { max-height: 6.5rem; overflow: hidden; -webkit-mask-image: linear-gradient(#000 35%, transparent); mask-image: linear-gradient(#000 35%, transparent); }
+.aic-gsteps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 18px; }
+.aic-gsteps > li { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 12px; align-items: start; }
+.aic-gn { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.aic-gbody { display: grid; gap: 6px; min-width: 0; }
+.aic-gbody p { margin: 0; }
+.aic-gmore { margin-top: 6px !important; color: var(--muted); }
+.aic-gfig { margin: 4px 0 0; }
+.aic-gfig img { display: block; max-width: min(100%, 640px); height: auto; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 6px rgba(0, 0, 0, .08); }
+.aic-gtip { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.aic-gtip > summary { cursor: pointer; color: var(--accent); }
+.aic-gtip p { margin: 8px 0; }
+

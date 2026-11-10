@@ -197,7 +197,7 @@ async function describeIvEngine() {
   $("ivEngine").textContent = smallEngine() ? `Answers are rated by ${SMALL()}, ${smallWhere()}, in short steps.`
     : st === "available" ? `Answers are rated by ${BROWSER_AI()}, on this device.`
     : (st === "downloadable" || st === "downloading") ? "Answers are rated by " + BROWSER_AI() + " if it's ready, otherwise by " + (sample ? AI_NAME() : "the built-in checks") + "."
-    : sample ? "Answers are rated by " + AI_LONG() + "."
+    : sample ? "Answers are rated by " + AI_NAME() + "."
     : "No AI on this page, so answers are rated with built-in checks for structure, evidence and length.";
 }
 

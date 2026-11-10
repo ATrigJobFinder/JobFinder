@@ -1,0 +1,29 @@
+/* ===================== Cover letters: the plan, the quick questions and Add a detail ===================== */
+
+/* --- The panel (Create or edit cover letter, and Tailor to a job) --- */
+.lr-plan { margin-top: 14px; }
+.lr-plan[hidden] { display: none; }
+.lr-plan-in { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
+.lr-plan-row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; }
+.lr-plan-row .field { min-width: min(100%, 17rem); }
+.lr-plan-row .seg button { white-space: nowrap; }
+.lr-why { margin: 0; }
+.lr-asks { display: grid; gap: 10px; }
+.lr-asks .b-sub { margin: 0; }
+.lr-q { display: grid; gap: 4px; margin: 0; font-size: var(--step--1); }
+.lr-q > span:first-child { font-weight: 600; }
+.lr-note { padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface); }
+.lr-note.warn { border-color: var(--warn); background: var(--warn-bg); }
+.lr-jog { display: block; margin-top: 4px; }
+.lr-more > summary { cursor: pointer; font-weight: 600; font-size: var(--step--1); color: var(--accent); }
+.lr-more[open] > summary { margin-bottom: 10px; }
+.lr-check { align-self: end; }
+.lr-notice { margin: 8px 0; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--warn); background: var(--warn-bg); color: var(--ink); }
+.lr-notice p { margin: 0 0 8px; }
+.lr-notice p:last-child { margin: 0; }
+#ltSrcNote.warn { padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--warn); background: var(--warn-bg); color: var(--ink); }
+
+/* --- "Add a detail" under a paragraph --- */
+.lr-detail { display: grid; gap: 8px; width: 100%; }
+.lr-detail textarea { width: 100%; }
+.lt-part-acts .btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }

@@ -14,8 +14,11 @@ window.__jfSaveProfile = () => saveProfileSoon();
 window.__jfRate = (type, text, ans) => { const r = ruleRate({ type, text }, ans); return { overall: r.overall, scores: r.scores.map(s => s.criterion[0] + s.criterion.slice(1, 4) + ":" + s.score).join(" "), fix: r.improvements[0] || "" }; };
 window.__jfTrk = () => trk.data;
 window.__jfGeo = reset => { if (reset) geoCache.sig = ""; const g = pageGeometry(); return { cap: g.cap, chars: g.chars, sideChars: g.sideChars, head: g.head, entry: g.entry, sec: g.sec, measured: g.measured, sidebar: g.sidebar }; };
+window.__jfLetter = { gate: ltGate, validate: ltValidate, terms: () => lwKeyTerms(P()), situation: () => ltInfo().sit, advice: advicePrompt };
 window.__jfSample = () => replaceProfile(JSON.parse(JSON.stringify(SAMPLE_PROFILE)), "test");
 
+window.__jfLi = { parseColumns: parseLinkedInColumns, toProfile: profileFromLinkedIn };
+window.__jfCv = { model: cvModel, html: cvHtml, docx: cvDocx, pdf: cvPdf, tpl: tplByKey };
 window.__jfAcct = { oauthUrl: acctOAuthUrl, providers: acctProviders };
 window.__jfV22 = { buildDataZip, deleteDialog: () => { account.user = { id: "x", email: "a@b.c", provider: "email" }; deleteDialog(false); }, undo: undoStep };
 window.__jfAi = { tier: aiTier, small: keyIsSmall, smallEngine };

@@ -311,9 +311,21 @@ function orderedSections(tpl, p) {
   const base = sectionOrder(tpl, p), custom = ((p.cv && p.cv.order) || []).filter(k => base.includes(k));
   return custom.length ? [...custom, ...base.filter(k => !custom.includes(k))] : base;
 }
+// A referee on separate lines, one detail each (applicant tracking systems read this better than one joined line):
+// Name / Role / Organisation / Phone: … / Email: …
+const refLines = r => [[r.role, "role"], [r.org, "org"], [r.phone && "Phone: " + r.phone, "contact"], [r.email && "Email: " + r.email, "contact"]].filter(x => x[0]).map(([t, kind]) => ({ t, kind }));
 const SIDE_KEYS = new Set(["contact", "skills", "certs", "interests", "availability", "referees"]);
 // The profile as the sections a template lays out
 // opts.all: leave out nothing the person chose to hide (the "Choose what goes on this resume" list needs every line)
+// The driver's licence goes in the details at the top of the resume only for work where employers ask for it (driving, deliveries, site work, shifts that start early or finish late).
+// For anything else it stays in the Licences list lower down. Ticking or unticking it in "Choose what goes on this resume" overrides this.
+const LICENCE_WORK = new Set(["retail", "hospitality", "trades", "construction", "logistics", "agriculture", "mining", "community", "sales", "property", "sport"]);
+function licenceShown(p) {
+  const cv = p.cv || {};
+  if (cv.hideLicence) return false;
+  if (cv.licenceShow) return true;
+  return LICENCE_WORK.has(cv.jobType || (p.target || {}).jobType || "");
+}
 function cvModel(p, tpl, opts = {}) {
   const T = TITLE_SETS[tpl.titles] || TITLE_SETS.standard;
   const c = p.contact, cvp = p.cv || {};
@@ -323,7 +335,7 @@ function cvModel(p, tpl, opts = {}) {
   const clean = a => keep(a.map(s => val(s)).filter(Boolean));
   if (p.summary.trim()) sec.summary = { kind: "text", text: p.summary.trim() };
   else if (opts.ghostSummary) sec.summary = { kind: "text", text: "Your profile goes here: two or three sentences on who you are and what you're after. You write it in the Summary step.", ghost: true };
-  const exp = stackRoles(shown(p.experience).filter(e => e.title || e.org), e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }));
+  const exp = stackRoles(shown(p.experience).filter(e => e.title || e.org), e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }), tpl.dates === "gutter" || tpl.dates === "timeline");
   if (exp.length) sec.experience = { kind: "entries", items: exp };
   const edu = shown(p.education).filter(e => e.degree || e.inst).map(e => ({ title: e.degree, org: e.inst, loc: val(e.location), dates: rangeOf(e, true), bullets: keep(eduLines(e, p)) }));
   if (edu.length) sec.education = { kind: "entries", items: edu };
@@ -339,10 +351,10 @@ function cvModel(p, tpl, opts = {}) {
   if (p.extras.availability && availabilityText(p)) sec.availability = { kind: "text", text: availabilityText(p) };
   if (p.extras.referees) {
     const list = p.referees.mode === "list" ? finished(p.referees.list).filter(r => r.name.trim()) : [];
-    sec.referees = list.length ? { kind: "referees", items: list.map(r => ({ name: r.name, line: [r.role, r.org].filter(Boolean).join(", "), contact: [r.phone, r.email].filter(Boolean).join("  |  ") })) } : { kind: "text", text: "Available on request" };
+    sec.referees = list.length ? { kind: "referees", items: list.map(r => ({ name: r.name, role: val(r.role), org: val(r.org), phone: val(r.phone), email: val(r.email) })) } : { kind: "text", text: "Available on request" };
   }
   const contact = [c.location, c.phone, c.email, shortUrl(c.linkedin), shortUrl(c.website)].map(s => val(s)).filter(Boolean);
-  const details = [c.workRights, !opts.all && cvp.hideLicence ? "" : c.licence].map(s => String(s || "").trim()).filter(Boolean);
+  const details = [c.workRights, !opts.all && !licenceShown(p) ? "" : c.licence].map(s => String(s || "").trim()).filter(Boolean);
   if (!opts.all) for (const k of cvp.hideSections || []) delete sec[k];
   const order = orderedSections(tpl, p).filter(k => sec[k]);
   const mk = k => ({ key: k, title: T[k], ...sec[k] });
@@ -392,9 +404,13 @@ function cvHtml(model, tpl, opts = {}) {
   const ul = items => items.length ? `<ul class="cv-ul">${items.map(b => `<li>${e(b)}</li>`).join("")}</ul>` : "";
   const entry = it => {
     // Several roles at one employer (a promotion), in the plain order applicant tracking systems read:
-    //   Company — City, State / Overall Tenure: … / Higher title | dates / bullets / Lower title | dates / bullets
-    if (it.stack === "company") return `<div class="cv-entry cv-co"><div class="cv-et">${e(it.title)}${it.loc ? ` — ${e(it.loc)}` : ""}</div>${it.dates ? `<div class="cv-muted">Overall Tenure: ${e(it.dates)}</div>` : ""}</div>`;
-    if (it.stack === "role") return `<div class="cv-entry cv-role"><div class="cv-rl"><span class="cv-et">${e(it.title)}</span>${it.dates ? ` | <span class="cv-muted">${e(it.dates)}</span>` : ""}</div>${ul(it.bullets)}</div>`;
+    //   Company ........ overall dates / City, State / Higher title ........ dates / bullets / Lower title ........ dates / bullets
+    // (the dates stay on the right-hand side, and the place sits on the line below, as for any other entry)
+    if (it.stack === "company") return `<div class="cv-entry cv-co"><div class="cv-eh"><span class="cv-et">${e(it.title)}</span>${it.dates ? `<span class="cv-ed">${e(it.dates)}</span>` : ""}</div>${it.loc ? `<div class="cv-org">${e(it.loc)}</div>` : ""}</div>`;
+    if (it.stack === "role") return `<div class="cv-entry cv-role"><div class="cv-eh"><span class="cv-et">${e(it.title)}</span>${it.dates ? `<span class="cv-ed">${e(it.dates)}</span>` : ""}</div>${ul(it.bullets)}</div>`;
+    // roles at one employer, in a design with the dates in the left column: the company and its place at the top of that column,
+    // then each title as a job like any other, with its own dates on the left
+    if (it.roles) return [{ title: it.title, org: "", loc: it.loc, dates: "", bullets: [] }, ...it.roles.map(r => ({ title: r.title, org: "", loc: "", dates: r.dates, bullets: r.bullets }))].map(x => entry(x)).join("");
     const org = [it.org, it.loc].filter(Boolean).join(", ");
     if (tpl.dates === "gutter" || tpl.dates === "timeline") return `<div class="cv-entry g"><div class="cv-ed">${e(it.dates || "")}</div><div class="cv-eb"><div class="cv-et">${e(it.title || it.org)}</div>${it.title && org ? `<div class="cv-org">${e(org)}</div>` : ""}${ul(it.bullets)}</div></div>`;
     return `<div class="cv-entry"><div class="cv-eh"><span class="cv-et">${e(it.title || it.org)}</span>${it.dates ? `<span class="cv-ed">${e(it.dates)}</span>` : ""}</div>${it.title && org ? `<div class="cv-org">${e(org)}</div>` : ""}${ul(it.bullets)}</div>`;
@@ -412,7 +428,7 @@ function cvHtml(model, tpl, opts = {}) {
       case "contact": return `<ul class="cv-plain cv-clist">${s.items.map(i => `<li>${e(i)}</li>`).join("")}</ul>`;
       case "entries": return s.items.map(entry).join("");
       case "groups": return groups(s, side);
-      case "referees": return s.items.map(r => `<div class="cv-ref"><div class="cv-et">${e(r.name)}</div>${r.line ? `<div>${e(r.line)}</div>` : ""}${r.contact ? `<div class="cv-muted">${e(r.contact)}</div>` : ""}</div>`).join("");
+      case "referees": return s.items.map(r => `<div class="cv-ref"><div class="cv-et">${e(r.name)}</div>${refLines(r).map(l => `<div${l.kind === "contact" ? ' class="cv-muted"' : ""}>${e(l.t)}</div>`).join("")}</div>`).join("");
       default: return "";
     }
   };
@@ -550,9 +566,12 @@ async function cvDocx(model, tpl, opts = {}) {
   const G = 1700;
   const bulletParas = (items, left) => items.map(b => para(run(b), { num: true, ind: { left: left + 300, hanging: 220 }, after: 30 })).join("");
   const entry = (it, ctx) => {
-    // roles stacked under one employer (a promotion): Company — City, State / Overall Tenure / Title | dates / bullets
-    if (it.stack === "company") return para(run(it.title + (it.loc ? " — " + it.loc : ""), { b: true }), { keep: true, before: 100 }) + (it.dates ? para(run("Overall Tenure: " + it.dates, { sz: SZ - 1, color: muted }), { keep: true }) : "");
-    if (it.stack === "role") return para(run(it.title, { b: true }) + (it.dates ? run(" | " + it.dates, { color: muted }) : ""), { keep: !!it.bullets.length, before: 60 }) + bulletParas(it.bullets, 0);
+    // roles stacked under one employer (a promotion): the Company with the dates on the right, the City, State on the next line, then each Title
+    if (it.stack === "company") return para(run(it.title, { b: true }) + (it.dates ? run("\t" + it.dates, { sz: SZ - 1, color: muted }) : ""), { keep: true, before: 100, tabs: [{ val: "right", pos: ctx.w }] })
+      + (it.loc ? para(run(it.loc, { color: ["classic", "academic", "executive", "minimal"].includes(tpl.family || tpl.key) ? "#3A4252" : C.accent, i: ["classic", "academic", "executive"].includes(tpl.family || tpl.key) }), { keep: true }) : "");
+    if (it.stack === "role") return para(run(it.title, { b: true }) + (it.dates ? run("\t" + it.dates, { sz: SZ - 1, color: muted }) : ""), { keep: !!it.bullets.length, before: 60, tabs: [{ val: "right", pos: ctx.w }] }) + bulletParas(it.bullets, 0);
+    // roles at one employer in a design with dates on the left: the company and its place at the top of that column, then each title as a job of its own
+    if (it.roles) return [{ title: it.title, org: "", loc: it.loc, dates: "", bullets: [] }, ...it.roles.map(r => ({ title: r.title, org: "", loc: "", dates: r.dates, bullets: r.bullets }))].map(x => entry(x, ctx)).join("");
     const org = [it.org, it.loc].filter(Boolean).join(", ");
     const orgRun = run(org, { color: ["classic", "academic", "executive", "minimal"].includes(tpl.family || tpl.key) ? "#3A4252" : C.accent, i: ["classic", "academic", "executive"].includes(tpl.family || tpl.key) });
     if (tpl.dates === "gutter" || tpl.dates === "timeline") {
@@ -572,7 +591,7 @@ async function cvDocx(model, tpl, opts = {}) {
       case "contact": return s.items.map(i => para(run(i, { sz: SZ - 1, color: sideInk }), { after: 50 })).join("");
       case "list": return ctx.side ? s.items.map(i => para(run(i, { sz: SZ - 1, color: sideInk }), { after: 50 })).join("") : bulletParas(s.items, 0);
       case "entries": return s.items.map(it => entry(it, ctx)).join("");
-      case "referees": return s.items.map(r => para(run(r.name, { b: true, color: sideInk }), { keep: true, before: 60 }) + (r.line ? para(run(r.line, { color: sideInk }), { keep: !!r.contact }) : "") + (r.contact ? para(run(r.contact, { sz: SZ - 1, color: sideMuted })) : "")).join("");
+      case "referees": return s.items.map(r => { const ls = refLines(r); return para(run(r.name, { b: true, color: sideInk }), { keep: true, before: 60 }) + ls.map((l, k) => para(run(l.t, l.kind === "contact" ? { sz: SZ - 1, color: sideMuted } : { color: sideInk }), { keep: k < ls.length - 1 })).join(""); }).join("");
       case "groups": {
         const as = ctx.side ? (tpl.skillsAs === "chips" ? "chips" : "list") : tpl.skillsAs === "chips" ? "chips" : "groups";
         if (as === "groups") return s.groups.map(g => para(run(g.label + ": ", { b: true }) + run(g.items.join(", ")), { after: 50 })).join("");
@@ -749,19 +768,22 @@ async function cvPdf(model, tpl, opts = {}) {
   const fam = tpl.family || tpl.key;
   const orgStyle = ["classic", "academic", "executive"].includes(fam) ? { style: "italic", color: "#3A4252" } : fam === "minimal" ? { color: "#3A4252" } : { color: C.accent };
   const entry = (col, it) => {
-    // roles stacked under one employer (a promotion): Company — City, State / Overall Tenure / Title | dates / bullets
-    if (it.stack === "company") {
-      ensure(col, LH(S) * 3);
-      rich(col, [{ t: it.title + (it.loc ? " — " + it.loc : ""), style: "bold" }]);
-      if (it.dates) rich(col, [{ t: "Overall Tenure: " + it.dates, color: col.side ? C.sideMuted : C.muted }], { size: S - 0.5 });
-      col.y += 0.8 * GP;
+    // roles stacked under one employer (a promotion): the Company with the dates on the right, the City, State on the next line, then each Title
+    if (it.stack === "company" || it.stack === "role") {
+      const company = it.stack === "company", title = it.title;
+      setF(fB, "normal", S - 0.5, C.muted);
+      const dW = it.dates ? textW(safe(it.dates)) + 3 : 0;
+      ensure(col, LH(S) * (company ? 3 : 2));
+      const tcol = { ...col, w: col.w - dW };
+      rich(tcol, [{ t: title, style: "bold" }], { onLine: (base, first) => { if (first && it.dates) { setF(fB, "normal", S - 0.5, col.side ? C.sideMuted : C.muted); doc.text(safe(it.dates), col.x + col.w, base, { align: "right" }); } } });
+      col.page = tcol.page; col.y = tcol.y;
+      if (company) { if (it.loc) rich(col, [{ t: it.loc, ...orgStyle }]); col.y += 0.8 * GP; }
+      else { bullets(col, it.bullets); col.y += 1.5 * GP; }
       return;
     }
-    if (it.stack === "role") {
-      ensure(col, LH(S) * 2);
-      rich(col, [{ t: it.title, style: "bold" }, ...(it.dates ? [{ t: " | " + it.dates, color: col.side ? C.sideMuted : C.muted }] : [])]);
-      bullets(col, it.bullets);
-      col.y += 1.5 * GP;
+    // roles at one employer in a design with dates on the left: the company and its place at the top of that column, then each title as a job of its own
+    if (it.roles) {
+      for (const x of [{ title: it.title, org: "", loc: it.loc, dates: "", bullets: [] }, ...it.roles.map(r => ({ title: r.title, org: "", loc: "", dates: r.dates, bullets: r.bullets }))]) entry(col, x);
       return;
     }
     const org = [it.org, it.loc].filter(Boolean).join(", ");
@@ -833,7 +855,7 @@ async function cvPdf(model, tpl, opts = {}) {
       case "list": if (col.side) { for (const i of s.items) { rich(col, [{ t: i, color: ink }], { size: S - 0.5 }); col.y += 0.8; } } else bullets(col, s.items); break;
       case "entries": for (const it of s.items) entry(col, it); break;
       case "groups": groups(col, s); break;
-      case "referees": for (const r of s.items) { rich(col, [{ t: r.name, style: "bold", color: ink }]); if (r.line) rich(col, [{ t: r.line, color: ink }]); if (r.contact) rich(col, [{ t: r.contact, color: col.side ? C.sideMuted : C.muted }], { size: S - 1 }); col.y += 2; } break;
+      case "referees": for (const r of s.items) { rich(col, [{ t: r.name, style: "bold", color: ink }]); for (const l of refLines(r)) { if (l.kind === "contact") rich(col, [{ t: l.t, color: col.side ? C.sideMuted : C.muted }], { size: S - 1 }); else rich(col, [{ t: l.t, color: ink }]); } col.y += 2; } break;
     }
   };
   const center = tpl.nm.align === "center";

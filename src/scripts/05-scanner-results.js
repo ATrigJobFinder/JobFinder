@@ -262,6 +262,7 @@ function loadExample() {
   els.fileStatus.textContent = "";
   els.fileStatus.classList.remove("err");
   setExample(true);
+  tlLeave();
   updateCounts();
   hideResults();
   showInputs(true);
@@ -273,11 +274,12 @@ function clearAll() {
   els.resume.value = ""; els.jd.value = ""; els.title.value = "";
   fileInfo = null;
   els.fileStatus.textContent = ""; els.err.textContent = "";
+  if (tl) tl.src = null;
   setExample(false);
   updateCounts();
   hideResults();
   showInputs(true);
+  tlGoStart();
   updateFlow();
-  els.resume.focus();
 }
 

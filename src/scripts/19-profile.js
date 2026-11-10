@@ -51,13 +51,10 @@ const STAGES = [
   { key: "returning", label: "Returning to work" }
 ];
 const WORK_RIGHTS = ["", "Australian citizen", "Permanent resident", "Full working rights", "Student visa (limited hours)", "Graduate visa (full working rights)", "Working holiday visa"];
-const EXTRA_KEYS = [
-  ["projects", "Projects"], ["volunteering", "Volunteering"], ["awards", "Awards and achievements"],
-  ["publications", "Publications"], ["interests", "Interests"], ["availability", "Availability"], ["referees", "Referees"]
-];
+
 // hidden: kept in your profile but left off this resume. polished: the bullets as they were last polished.
 const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], toolsSeen: "", done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyEdu = () => ({ degree: "", level: "", subject: "", detail: "", detailFor: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyEdu = () => ({ degree: "", level: "", subject: "", detail: "", detailFor: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, projectsMore: [], degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyRef = () => ({ name: "", role: "", org: "", phone: "", phoneIso: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
@@ -77,7 +74,7 @@ const emptyProfile = () => ({
   extrasDone: { awards: false, publications: false, interests: false },
   // order: the sections in the order the person arranged them. hideSections / hideLines: left off this version of the resume (kept in the profile).
   // hideWhy: "key||reason" lines saying why Job Finder hid something to fit the page.
-  cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false },
+  cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false, licenceShow: false },
   prefs: { dateStyle: "words", font: "", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
   updated: ""
 });
@@ -102,8 +99,8 @@ function syncName(c) {
 // Honours goes before any specialisation in brackets: Bachelor of Engineering (Honours) (Mechanical)
 const honoursName = s => { const t = val(s); if (!t) return "Bachelor (Honours)"; const i = t.indexOf(" ("); return i > 0 ? `Bachelor of ${t.slice(0, i)} (Honours)${t.slice(i)}` : `Bachelor of ${t} (Honours)`; };
 const QUAL_LEVELS = [
-  { k: "y10", label: "Year 10", join: s => s ? `Year 10 (${s})` : "Year 10", re: /^Year\s*10\b\s*(?:\((.*)\))?\s*$/i, ph: "Optional, e.g. the school certificate's name", school: true },
-  { k: "y12", label: "Year 12", join: s => s ? `Year 12 (${s})` : "Year 12", re: /^Year\s*12\b\s*(?:\((.*)\))?\s*$/i, ph: "e.g. HSC, VCE, QCE, WACE or SACE", school: true },
+  { k: "y10", label: "Incomplete or Junior Secondary (Year 10)", join: s => s ? `Year 10 (${s})` : "Year 10", re: /^Year\s*10\b\s*(?:\((.*)\))?\s*$/i, ph: "Optional, e.g. the school certificate's name", school: true },
+  { k: "y12", label: "Completed Senior Secondary (Year 12)", join: s => s ? `Year 12 (${s})` : "Year 12", re: /^Year\s*12\b\s*(?:\((.*)\))?\s*$/i, ph: "e.g. HSC, VCE, QCE, WACE or SACE", school: true },
   { k: "c1", label: "Certificate I", join: s => `Certificate I in ${s}`, re: /^Certificate I\s+in\s+(.+)$/i, vet: true },
   { k: "c2", label: "Certificate II", join: s => `Certificate II in ${s}`, re: /^Certificate II\s+in\s+(.+)$/i, vet: true },
   { k: "c3", label: "Certificate III", join: s => `Certificate III in ${s}`, re: /^Certificate III\s+in\s+(.+)$/i, vet: true },
@@ -150,10 +147,11 @@ function syncProject(e) {
   }
   if (e.projectSplit || val(e.projectTitle)) { e.projectSplit = true; e.project = val(e.projectTitle) ? `${e.projectKind || "Thesis"}: ${val(e.projectTitle)}` : ""; }
 }
-// A broad subject like "Professional Engineering" gets the follow-up the person gave ("Mechanical") in brackets
+// A broad subject like "Professional Engineering" gets the follow-up the person gave ("Mechanical") after a comma:
+// "Bachelor of Professional Engineering, Mechanical". Brackets are avoided because applicant tracking systems can drop or misread them.
 function subjectWithDetail(e) {
   const s = val(e.subject), d = val(e.detail);
-  return s && d && typeof vagueSubject === "function" && vagueSubject(s) ? `${s} (${d})` : s;
+  return s && d && typeof vagueSubject === "function" && vagueSubject(s) ? `${s}, ${d}` : s;
 }
 function syncQual(e) {
   syncProject(e);
@@ -397,10 +395,12 @@ function eduLines(e, p, jobText, all) {
   const out = [];
   const g = gradeText(e);
   if (g) out.push(g);
-  if (val(e.awards)) out.push(val(e.awards));
+  { const aw = String(e.awards || "").split(/\n|;/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean); if (aw.length) out.push(aw.join("; ")); }
   const cw = all ? listOf(val(e.coursework)).filter(x => !isBlank(x)) : pickSubjects(e, p, jobText);
   if (cw.length) out.push("Relevant coursework: " + cw.join(", "));
   if (val(e.project)) out.push(thesisLine(e.project));
+  // more theses or projects, each "Kind: Title" (one with no title is left off)
+  for (const m of e.projectsMore || []) { const r = projRow(m); if (r.title) out.push(thesisLine(`${r.kind}: ${r.title}`)); }
   return out;
 }
 /* --- Grades: WAM, GPA (out of 7 or 4), ATAR, or words --- */
@@ -416,7 +416,6 @@ function guessGradeType(v, cur) {
 // A grade only goes on the resume when it helps: GPA above 3.5 out of 4 or 5.5 out of 7, WAM above 80%, ATAR above 90.
 // Words ("Distinction average") are left to the person.
 const GRADE_MIN = { GPA4: 3.5, GPA7: 5.5, WAM: 80, ATAR: 90 };
-const GRADE_MIN_WORDS = "GPA above 3.5 out of 4 or 5.5 out of 7, WAM above 80% or ATAR above 90";
 function gradeStrong(e) {
   const t = val(e.grade);
   if (!/^\d{1,3}(\.\d+)?%?$/.test(t)) return true;
@@ -584,4 +583,19 @@ const SAMPLE_PROFILE = mergeProfile({
   referees: { mode: "request", list: [] },
   extras: { projects: false, volunteering: false, awards: true, publications: false, interests: true, availability: false, referees: true }
 });
+// The same made-up person with every part of a design filled in, so each design can be judged in full while choosing a layout
+const EXAMPLE_PROFILE = (() => {
+  const r = JSON.parse(JSON.stringify(SAMPLE_PROFILE));
+  r.education[0].awards = "Dean's List (2020)\nGriffith Excellence Scholarship (2018)";
+  r.education[0].project = "Thesis: Pop-up events and local foot traffic";
+  r.awards = "Volunteer of the Year, Bright Path Foundation (2022)\nDean's List, Griffith University (2020)";
+  r.publications = "Taylor, S. (2022). Pop-up events and local foot traffic. Journal of Hospitality Marketing, 14(2), 21-30";
+  r.projects = [{ name: "Café Loyalty Program Launch", org: "Harbourside Hospitality Group", start: "Aug 2023", end: "Nov 2023", details: "Designed a digital stamp-card promotion across 4 venues, lifting repeat visits by 18%\nCoordinated the print, social and in-store rollout with a team of 5" }];
+  r.volunteering = [{ title: "Event Volunteer", org: "Brisbane Writers Festival", location: "Brisbane, QLD", start: "2019", end: "2022", bullets: ["Welcomed 200+ guests a day and guided them to the right sessions", "Trained 6 new volunteers on registration and ticketing"] }];
+  r.referees = { mode: "list", list: [
+    { name: "Priya Shah", role: "Operations Manager", org: "Harbourside Hospitality Group", phone: "0412 345 678", email: "priya.shah@example.com" },
+    { name: "Daniel Wu", role: "Events Director", org: "Bright Path Foundation", phone: "0498 765 432", email: "daniel.wu@example.com" }] };
+  r.extras = { projects: true, volunteering: true, awards: true, publications: true, interests: true, availability: true, referees: true };
+  return mergeProfile(r);
+})();
 

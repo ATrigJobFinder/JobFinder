@@ -10,9 +10,8 @@ function ltShowStep(n) {
   // the design thumbnails were sized while hidden (zero width), so size them again now they show
   if (n === 0 && typeof fitThumbs === "function") { fitThumbs(); requestAnimationFrame(fitThumbs); }
   const ol = $("ltSteps");
-  if (ol) ol.innerHTML = LT_STEPS.map(([t], i) => `<li class="${i === n ? "current" : i < n ? "done" : ""}"><button type="button" data-ltgo="${i}" aria-current="${i === n ? "step" : "false"}"><span class="n">${i + 1}</span><span class="t">${esc(t)}</span></button></li>`).join("");
+  if (ol) ol.innerHTML = `<li class="${ltWelcomeOn ? "current" : "done"}"><button type="button" data-ltup="1"${ltWelcomeOn ? ' aria-current="step"' : ""} title="${ltWelcomeOn ? "" : "Complete. "}Bring in your resume or LinkedIn, or start from scratch"><span class="n">0</span><span class="t">Upload</span>${ltWelcomeOn ? "" : '<span class="visually-hidden"> (complete)</span>'}</button></li>` + LT_STEPS.map(([t], i) => `<li class="${i === n ? "current" : i < n ? "done" : ""}"><button type="button" data-ltgo="${i}" aria-current="${i === n ? "step" : "false"}"><span class="n">${i + 1}</span><span class="t">${esc(t)}</span></button></li>`).join("");
 }
-const stageOfLetter = () => { try { return letterStage(); } catch { return ""; } };
 function ltV22Preview() { navDots(); }
 // The letter's strength out of 100, shown above the preview like the resume's: paragraphs written, each long enough, the whole letter's length,
 // no gaps left (a template is meant to have them), and no warnings from the checks under the letter
@@ -26,16 +25,29 @@ function letterScore(parts, r, wc, gaps, quality, forJob) {
   return Math.round(35 * filled / parts.length + 20 * met / parts.length + 20 * len + 10 * gapPart + 15 * clean);
 }
 
-// "What kind of work is this for?": the same choice as in the resume builder, shown first so the designs and the AI both know
-let ltKindOpen = false;
+// "Job title you are applying for?": typed in, shown first so the designs and the AI both know. The kind of work is worked out from the title.
 function renderLetterKind() {
   const box = $("ltJobType");
   if (!box) return;
-  const cur = P().target.jobType, folded = !!cur && !ltKindOpen;
-  const grid = folded
-    ? `<div class="job-picked"><button type="button" class="opt-tile" aria-pressed="true" data-lt-kind-open="1" aria-label="${esc(jobLabel(cur))} is chosen. Change it">${esc(jobLabel(cur))}</button><button class="linkish" type="button" data-lt-kind-open="1">Change</button></div>`
-    : `<div class="opt-grid" role="group" aria-labelledby="ltKindL">${JOB_TYPES.map(x => `<button type="button" class="opt-tile" data-lt-kind="${esc(x.key)}" aria-pressed="${cur === x.key}">${esc(x.label)}</button>`).join("")}</div>`;
-  box.innerHTML = `<div class="q"><div class="q-label" id="ltKindL">What kind of work is this for?</div>${folded ? "" : `<p class="q-hint">Pick the closest one. It's the same choice as in your resume: designs that suit it are shown first, and the AI writes with this kind of work in mind.</p>`}${grid}</div>`;
+  const cur = P().target.title || "", inp = $("ltJobTitle");
+  if (inp) { if (document.activeElement !== inp) inp.value = cur; return; }   // already drawn: don't disturb someone who is typing
+  const id = "ltJobTitle";
+  box.innerHTML = `<div class="q"><label class="q-label" for="${id}">Job title you are applying for?</label><div class="q-body"><div class="pick sugg"><input type="text" id="${id}" data-lt-title="1" data-suggest="titles" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" aria-describedby="${id}_h" autocomplete="off" autocapitalize="words" value="${esc(cur)}" placeholder="e.g. Graduate Civil Engineer"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="Job title suggestions" hidden></ul></div><p class="q-hint" id="${id}_h">Designs that suit this kind of job are shown first, and the AI writes with it in mind.</p></div></div>`;
+}
+// Typing a title keeps it in your profile; once it's entered the kind of work follows from it (and the designs are ranked again)
+function ltTitleCommit(v) {
+  const t = P().target, old = t.title || "", d = BL();
+  t.title = v;
+  const kind = titleKind(v);
+  if (kind) { if (kind !== t.jobType) t.jobSub = ""; t.jobType = kind; }
+  // the letter's own "Role you're applying for" follows, unless it was changed by hand to something else
+  if (!ltTemplate() && (!d.role || d.role === old)) {
+    d.role = v;
+    const r = $("lt-role"); if (r && document.activeElement !== r) { r.value = v; r.classList.toggle("gap-input", !v.trim()); }
+    letterEdited();
+  }
+  touchProfile("letter");
+  renderLetterDesigns();
 }
 function ltModeRender() {
   const t = ltTemplate();
@@ -71,7 +83,7 @@ function navDots() {
   const set = (view, todo, why) => document.querySelectorAll(`.sn-item[data-view="${view}"]`).forEach(a => { a.classList.toggle("has-todo", !!todo); if (todo) a.setAttribute("data-todo", why); else a.removeAttribute("data-todo"); });
   try {
     const p = P(), drafts = draftsIn(p).length, noneYet = !p.experience.some(e => e.done !== false && hasContent(e)) && !p.education.some(e => e.done !== false && hasContent(e));
-    const pending = !!val(p.summary) && !p.summaryOk;
+    const pending = false;   // (the summary has nothing to accept now)
     set("builder", drafts || pending || noneYet, drafts ? `${drafts} draft${drafts === 1 ? "" : "s"} not on your resume yet` : pending ? "Your summary isn't accepted yet" : "Nothing on your resume yet");
   } catch { /* profile not ready */ }
   try {
@@ -85,16 +97,16 @@ onInit(() => {
   const v = $("view-letter");
   if (!v) return;
   v.addEventListener("click", e => {
+    if (e.target.closest("[data-ltup]")) { ltGoStart(); return; }
     const go = e.target.closest("[data-ltgo]");
     if (go) { ltShowStep(+go.dataset.ltgo); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" }); return; }
-    const kd = e.target.closest("[data-lt-kind]");
-    if (kd) { P().target.jobType = kd.dataset.ltKind; ltKindOpen = false; touchProfile("letter"); renderLetterPage(); return; }
-    if (e.target.closest("[data-lt-kind-open]")) { ltKindOpen = true; renderLetterKind(); return; }
-    const m = e.target.closest("[data-lt-mode]");
+    const m =e.target.closest("[data-lt-mode]");
     if (m) { BL().mode = m.dataset.ltMode === "template" ? "template" : "job"; baseLetter.save(); ltModeRender(); letterEdited(); renderLetterPage(); return; }
     const nx = e.target.closest("[data-nx]");
     if (nx) openView(nx.dataset.nx);
   });
+  // the title box: kept as you type (the type-ahead sends an input and a change when a suggestion is picked)
+  v.addEventListener("change", e => { if (e.target.matches && e.target.matches("[data-lt-title]")) ltTitleCommit(e.target.value.trim()); });
   onProfile(() => navDots());
   setTimeout(navDots, 1200);   // the saved letter arrives a moment after the page loads
   setInterval(navDots, 5000);

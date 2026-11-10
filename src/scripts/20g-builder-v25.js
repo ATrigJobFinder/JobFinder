@@ -1,14 +1,14 @@
 /* ===================== Version 25: resume builder: AI that isn't connected, sorting, dragging, second colour ===================== */
 
 /* --- Things that need an AI: greyed out and crossed through when none is connected, with a link to connect one --- */
-// Is there any AI to ask? Yours (a key or a model), Claude on the site, or the browser's own.
+// Is there any AI to ask? Yours (a key or a model), or the browser's own.
 async function aiAbsent() {
   if (typeof sample !== "undefined" && sample) return false;
   const st = await chromeAIRaw();
   return !(st === "available" || st === "downloadable" || st === "downloading");
 }
 // (Turn into bullet points, Write my summary and Add a bullet point still work without an AI: built-in rules fill them in)
-const AI_ONLY = '[data-act="sum-reword"], [data-act="reword"], [data-act="redo-ask"], [data-act="x-reword"], [data-lt-rwmenu], [data-lt-expand], [data-lt-write]';
+const AI_ONLY = '[data-act="sum-reword"], [data-act="reword"], [data-act="redo-ask"], [data-act="x-reword"], [data-lt-rwmenu], [data-lt-write]';
 let aiGateOn = false, aiGateTimer = 0;
 function aiGateMark(root = document) {
   // a section that is only for the AI: greyed, crossed through and blurred, with a prompt to choose an AI
@@ -151,7 +151,7 @@ onInit(() => {
     const li = chTarget(e);
     if (!li) return;
     e.preventDefault();
-    const head = chDrag.type === "sec" ? li.querySelector(":scope > .ch-sec-head") || li : li, r = li.getBoundingClientRect();
+    const r = li.getBoundingClientRect();
     li.classList.add(e.clientY < r.top + Math.min(r.height / 2, 60) ? "ch-drop-above" : "ch-drop-below");
   });
   f.addEventListener("drop", e => {

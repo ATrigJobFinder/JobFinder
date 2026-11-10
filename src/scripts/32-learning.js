@@ -1,6 +1,5 @@
 /* ===================== Learning: courses and credentials that open more jobs ===================== */
 const learnStore = privateDoc("learning", "jobfinder.learning.v1", () => ({ plan: [], goal: "faster" }));
-const q_ = s => encodeURIComponent(s);
 // A fixed catalogue. The AI may only choose from it, so it can't invent courses or prices.
 const LEARN_CATALOGUE = [
   { id: "ms-excel", title: "Microsoft Excel skills, then a Microsoft Office Specialist exam", skills: ["Microsoft Excel", "Microsoft Office"], cost: "Free to learn; exam is paid", time: "2 to 6 weeks", kind: "Short course", links: [["Microsoft Learn", "https://learn.microsoft.com/training/"], ["LinkedIn Learning", "https://www.linkedin.com/learning/search?keywords=excel"]] },
