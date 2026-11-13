@@ -54,7 +54,7 @@ function ltProblemCount(texts) {
   try {
     texts.forEach((t, i) => { if (d.parts[i]) d.parts[i].text = t; });
     const r = letterRange(), src = profileToText(P()) + "\n" + (d.role || "") + " " + (d.company || "") + "\n" + String(ltPlan().salary || "");
-    const rows = coverQuality(texts, src, { allowSalary: !!ltPlan().salary }).concat(ltIssueRows()).length;
+    const rows = coverQuality(texts, src, { allowSalary: !!ltPlan().salary, jobWords: ltJobWords() }).concat(ltIssueRows()).length;
     const thin = d.parts.filter(p => p.text.trim() && wordCount(p.text) < partMin(p.part, r)).length, total = wordCount(texts.join(" "));
     return rows + thin + (total && (total < r[0] || total > r[1]) ? 1 : 0);
   } finally { was.forEach((t, i) => { if (d.parts[i]) d.parts[i].text = t; }); }

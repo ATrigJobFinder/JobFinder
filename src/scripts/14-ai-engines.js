@@ -11,18 +11,39 @@
 // (see withChromeAI and the *_NANO prompts). With no AI at all, built-in rules fill in.
 // The Stop button: every call to an AI counts as "working". A floating bar shows while any is running, and Stop cancels what's in flight
 // and every step that would have come after it (anything that loops checks aiRun.gen against the value it started with).
-const aiRun = { n: 0, gen: 0, ctl: new AbortController(), t: 0 };
+const aiRun = { n: 0, gen: 0, ctl: new AbortController(), t: 0, model: "" };
+const aiExtraCtls = new Set();   // the controllers of tests and other requests with their own time limit: Stop and Disconnect cancel those too
 function aiStopUI() {
   let el = document.getElementById("aiStopBar");
-  if (aiRun.n <= 0) { if (el) el.hidden = true; return; }
+  if (aiRun.n <= 0) { aiRun.model = ""; if (el) el.hidden = true; return; }
   if (!el) {
     el = document.createElement("div");
     el.id = "aiStopBar"; el.className = "ai-stopbar"; el.setAttribute("role", "status");
-    el.innerHTML = `<span class="ai-spin" aria-hidden="true"></span><span>The AI is working…</span><button class="btn" type="button" id="aiStopBtn">Stop</button>`;
+    el.innerHTML = `<span class="ai-spin" aria-hidden="true"></span><span id="aiStopText">The AI is working…</span><button class="btn" type="button" id="aiStopBtn">Stop</button>`;
     document.body.appendChild(el);
     el.querySelector("button").addEventListener("click", aiStopAll);
   }
+  const tx = el.querySelector("#aiStopText"); if (tx) tx.textContent = aiRun.model ? `${aiRun.model} is working…` : "The AI is working…";   // (which model is being used right now)
   el.hidden = false;
+}
+// The model a request is going to: shown in the bar at the bottom, the progress lines on the page and the corner card.
+// "gemini-3.8-flash" → "Gemini 3.8 Flash"; another company's model → "Claude claude-haiku-5-5"; a browser model → its name
+function aiModelLabel(model) {
+  if (aiCfg.engine === "key" && aiCfg.key.provider !== "gemini") return `${aiProvider().short} ${model}`.trim();
+  return typeof geminiName === "function" && /^gemini/i.test(String(model)) ? geminiName(model) : String(model || "");
+}
+// What is being used now, or what would be used first
+function aiNowLabel() {
+  if (aiRun.model) return aiRun.model;
+  if (aiCfg.engine === "key" && aiCfg.key.model) return aiModelLabel(aiCfg.key.model);
+  if (BROWSER_ENGINES.has(aiCfg.engine)) { const m = browserModel(aiCfg.engine, aiCfg.engine === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel); return m ? m.name : AI_NAME(); }
+  return BROWSER_AI();
+}
+// A request is about to go to this model (the first, or the next one after one that didn't answer): the bar says so, and so does the progress line (o.onModel)
+function aiSetModel(model, o) {
+  const label = aiModelLabel(model), prev = aiRun.model;
+  aiRun.model = label; aiStopUI();
+  if (o && typeof o.onModel === "function") { try { o.onModel(label, prev && prev !== label ? prev : ""); } catch { /* a page that is gone */ } }
 }
 function aiBegin() { aiRun.n++; clearTimeout(aiRun.t); aiStopUI(); return aiRun.gen; }
 function aiEnd(gen) { if (gen !== aiRun.gen) return; aiRun.n = Math.max(0, aiRun.n - 1); clearTimeout(aiRun.t); aiRun.t = setTimeout(aiStopUI, 800); }
@@ -30,6 +51,8 @@ function aiStopAll() {
   aiRun.gen++; aiRun.n = 0;
   try { aiRun.ctl.abort(); } catch { /* already stopped */ }
   aiRun.ctl = new AbortController();
+  for (const c of [...aiExtraCtls]) { try { c.abort(); } catch { /* already stopped */ } }
+  aiExtraCtls.clear(); aiRun.model = "";
   aiStopUI();
   if (typeof aiCorner === "function") aiCorner(null);
 }
@@ -58,6 +81,18 @@ const AI_PROVIDERS = {
   openai: { name: "OpenAI", short: "OpenAI", kind: "openai", base: "https://api.openai.com/v1", model: "", free: false, keyUrl: "https://platform.openai.com/api-keys", keyWhere: "platform.openai.com", note: "Paid per use. Set a monthly budget in your OpenAI settings." },
   custom: { name: "Other (OpenAI-compatible)", short: "your AI", kind: "openai", base: "", model: "", free: false, note: "Any service with an OpenAI-style /chat/completions address, such as Mistral, Together or DeepSeek." }
 };
+// A cover letter (the large writing sections) may only be written by Gemini 3.8 Flash, Gemini 3.6 Flash or Gemini 3 Flash, never by Flash-Lite or anything else.
+// aiChatInner tries them in that order (the one the key is set to first); aiTopGate gives the error when the key is set to a model that isn't one of them, or null.
+const GEMINI_WRITERS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3-flash"];
+const GEMINI_WRITER_RE = /^gemini-3(?:\.0|\.6|\.8)?-flash(?:-preview[\w.-]*|-\d{3}|-latest)?$/i;
+const geminiWriterOk = id => GEMINI_WRITER_RE.test(String(id || "")) && !/lite/i.test(String(id || ""));
+const GEMINI_WRITERS_SAY = () => GEMINI_WRITERS.map(geminiName).join(", ").replace(/, ([^,]*)$/, " or $1");
+function aiTopGate() {
+  if (aiCfg.engine !== "key" || aiCfg.key.provider !== "gemini" || !aiUsable("key")) return null;
+  return geminiWriterOk(aiCfg.key.model) ? null : aiError("top_only", `Cover letters are written only by ${GEMINI_WRITERS_SAY()}, and your key is set to ${geminiName(aiCfg.key.model)}. Nothing was written. Connect Gemini again in Choose your AI.`);
+}
+// "gemini-3.8-flash" → "Gemini 3.8 Flash"
+const geminiName = id => String(id || "").replace(/^gemini-/i, "Gemini ").replace(/-flash-lite/i, " Flash-Lite").replace(/-flash/i, " Flash").replace(/-pro/i, " Pro");
 const AI_ENGINES = ["auto", "chrome", "webllm", "tfjs", "key", "off"];   // "off": the person disconnected the AI, so built-in templates only
 const USER_ENGINES = new Set(["webllm", "tfjs", "key"]);
 const BROWSER_ENGINES = new Set(["webllm", "tfjs"]);
@@ -448,7 +483,7 @@ function aiWritingShow(est, t0, n) {
   if (est < 4 || typeof aiCorner !== "function") return;
   clearTimeout(aiWriting.hide);
   const secs = (performance.now() - t0) / 1000, left = est - secs;
-  aiCorner({ title: `Writing with ${AI_NAME()}`, sub: left > 1.5 ? `About ${fmtDur(left)} left${n ? "" : " (reading your details first)"}` : "Almost done…", frac: Math.min(0.96, secs / est) });
+  aiCorner({ title: `Writing with ${aiNowLabel()}`, sub: left > 1.5 ? `About ${fmtDur(left)} left${n ? "" : " (reading your details first)"}` : "Almost done…", frac: Math.min(0.96, secs / est) });
 }
 function aiWritingDone() { clearTimeout(aiWriting.hide); aiWriting.hide = setTimeout(() => { if (typeof aiCorner === "function") aiCorner(null); }, 900); }
 // o: { schema: a JSON schema to hold the answer to, expect: roughly how many characters to expect }
@@ -534,8 +569,23 @@ async function aiChatInner(engine, messages, signal, o = {}) {
     if (!aiCfg.key.model) throw aiError("no_model");
     // This is the only place a request leaves for a company's AI: contact details are taken out first and put back in the answer (14d-ai-privacy.js)
     const safe = aiScrubMessages(messages);
-    const send = model => aiProvider().kind === "anthropic" ? chatAnthropic(key, model, safe.messages, signal, o.max, o) : chatOpenAI(aiKeyBase(), key, model, safe.messages, signal, o.max, o);
+    const send = model => { aiSetModel(model, o); return send0(model); };
+    const send0 = model => aiProvider().kind === "anthropic" ? chatAnthropic(key, model, safe.messages, signal, o.max, o) : chatOpenAI(aiKeyBase(), key, model, safe.messages, signal, o.max, o);
     let text;
+    if (aiCfg.key.provider === "gemini" && o.topOnly) {
+      // A cover letter is written only by Gemini 3.8 Flash, 3.6 Flash or 3 Flash (the one the key is set to first, then the others). It is never handed to
+      // Flash-Lite or any other model: if none of them can write it, nothing is written and the person is told why.
+      const gate = aiTopGate(); if (gate) throw gate;
+      const order = [aiCfg.key.model, ...GEMINI_WRITERS.filter(m => m !== aiCfg.key.model)], tried = [];
+      let last = null;
+      for (const m of order) {
+        tried.push(m);
+        try { text = await send(m); if (m !== aiCfg.key.model) aiRun.fellBackTo = m; last = null; break; }
+        catch (e) { if (e.code === "cancelled" || e.code === "bad_key") throw e; last = e; if (!aiFallbackWorthy(e)) break; }
+      }
+      if (text == null || last) throw aiError("top_only", `${tried.map(geminiName).join(", ")} didn't answer (${aiErrWords(last || {})}), so the letter was not written. Job Finder will not hand a cover letter to a smaller model such as Gemini 3.5 Flash-Lite. Try again in a minute.`);
+      return safe.restore(text);
+    }
     if (aiCfg.key.provider === "gemini") {
       // Quick jobs (bullet points, one sentence) use the small model; full letters and paragraphs use the main model.
       // A model that is busy, over its limit or too slow hands the job to the next one: the main model, then older versions of it.
@@ -608,7 +658,9 @@ function refreshSample() {
   aiChangeListeners.forEach(fn => { try { fn(); } catch (err) { console.error(err); } });
 }
 function setAiEngine(e) {
-  aiCfg.engine = AI_ENGINES.includes(e) ? e : "auto";
+  const next = AI_ENGINES.includes(e) ? e : "auto";
+  if (next !== aiCfg.engine) aiStopAll();   // switching AI, or turning it off: whatever was running on the old one is stopped
+  aiCfg.engine = next;
   saveAiCfg();
   refreshSample();
 }
@@ -647,10 +699,11 @@ async function aiLowerCached(model) {
 // One test, stopped after a time limit
 async function testAiTimed(engine, seconds = AI_TEST_SECONDS, tier = "") {
   const ctl = new AbortController(); let late = false;
+  aiExtraCtls.add(ctl);
   const t = setTimeout(() => { late = true; ctl.abort(); }, seconds * 1000);
   try { return await testAi(engine, ctl.signal, tier); }
   catch (e) { if (late) throw aiError("timeout", `It didn't answer within ${seconds} seconds.`); throw e; }
-  finally { clearTimeout(t); }
+  finally { clearTimeout(t); aiExtraCtls.delete(ctl); }
 }
 // Only what another model might get past: no answer in time, overloaded (5xx), rate limited, unreachable, or not found. Never a refused key.
 const aiFallbackWorthy = e => !!e && (["timeout", "blocked", "rate_limited", "bad_model", "too_large", "empty_reply"].includes(e.code) || /^http_(5\d\d|404)$/.test(e.code));
@@ -697,7 +750,7 @@ function aiFallbackLines(f, small) {
 // ("key" counts when the person's own model is a small one: it gets the same short prompts, one job at a time)
 const smallEngine = () => BROWSER_ENGINES.has(aiCfg.engine) ? aiCfg.engine : aiCfg.engine === "key" && aiUsable("key") && keyIsSmall() ? "key" : null;
 const smallWhere = () => smallEngine() === "key" ? "through your key" : "on this computer";
-const SMALL = () => smallEngine() ? AI_NAME() : BROWSER_AI();
+const SMALL = () => smallEngine() ? aiNowLabel() : BROWSER_AI();
 // After the small-model path: the bigger AI to try next. A small model isn't asked twice, so there is none.
 const afterSmall = () => smallEngine() ? null : sample;
 const BIG_NAME = () => AI_NAME();

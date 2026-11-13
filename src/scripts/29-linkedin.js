@@ -264,7 +264,7 @@ Summary: ${p.summary || inp.about.slice(0, 600) || "(none)"}
 Experience: ${p.experience.length ? p.experience.map(e => `${e.title}${e.org ? ` at ${e.org}` : ""}`).join("; ") : liRoles(inp.experience).map(r => `${r.title}${r.company ? ` at ${r.company}` : ""}`).join("; ") || "(none)"}
 Achievements: ${bullets.join(" / ") || "(none)"}
 Education: ${edu || inp.education.split("\n").slice(0, 2).join("; ") || "(none)"}
-Skills: ${skills.join(", ") || "(none)"}`, skills };
+Skills: ${skills.join(", ") || "(none)"}${linStore.data.letter && linStore.data.letter.text ? `\nCover letter they chose (their own words and story, use only what it says): ${linStore.data.letter.text.slice(0, 900)}` : ""}`, skills };
 }
 function liTemplateHeadlines(inp) {
   const p = P(), f = liFacts(inp);

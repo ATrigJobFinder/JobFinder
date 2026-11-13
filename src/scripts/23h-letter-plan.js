@@ -97,7 +97,7 @@ function lrEmployerFacts(ad, company) {
 const lrKey = t => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 32);
 function ltQuestions() {
   const p = P(), d = BL(), pl = ltPlan(), info = ltInfo(), proofs = lwProofs(), needs = lwNeeds(proofs);
-  const best = proofs.slice().sort((a, b) => lwStrength(b.text) - lwStrength(a.text))[0];
+  const best = lwBestProof(proofs);
   const gaps = needs.filter(n => !n.proof && !(pl.gaps && pl.gaps[lrKey(n.need)])).map(n => ({ id: lrKey(n.need), text: n.need }));
   const known = LR.nameAllowlist([profileToText(p), d.ad, d.company, d.role, d.recipient, d.avail]);
   const others = LR.unknownNames(String(d.why || ""), known);
@@ -217,12 +217,6 @@ onInit(() => {
       if (df) { ltDifferent(+df.dataset.ltDiff, df); }
     });
   }
-  const em = $("ltCopyEmail");
-  if (em) em.addEventListener("click", async () => {
-    const t = ltEmailText();
-    try { await navigator.clipboard.writeText(t); em.textContent = "Copied"; } catch { em.textContent = "Couldn't copy"; }
-    setTimeout(() => { em.textContent = "Copy as email"; }, 1800);
-  });
 });
 
 /* --- On each paragraph: Add a detail, Different example --- */

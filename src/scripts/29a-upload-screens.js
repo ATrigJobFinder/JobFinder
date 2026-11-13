@@ -16,10 +16,10 @@ function applyLtWelcome() {
   for (const sel of [".view-head .top-actions", ".b-steps", "#ltLayout", "#ltPick"]) { const el = root.querySelector(sel); if (el) { if (on) el.hidden = true; else if (sel !== "#ltPick") el.hidden = false; } }
   root.classList.toggle("is-welcome", on);
   // With a resume or LinkedIn in the profile, "Read from my profile" is the blue way in. Without one it is greyed out and uploading is blue.
-  const has = hasProfile(P()), pr = $("ltwProfile"), up = $("ltwUploadCard");
+  const has = hasResume(profile.data), pr = $("ltwProfile"), up = $("ltwUploadCard");   // (a name on its own is not a resume)
   if (pr) {
     pr.disabled = !has; pr.classList.toggle("bw-card--go", has); pr.classList.toggle("bw-card--off", !has);
-    const t = $("ltwProfileText"); if (t) t.textContent = has ? "Job Finder uses the details already in your profile. You pick a layout first, and the letter is only written when you ask for it." : "There's nothing in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
+    const t = $("ltwProfileText"); if (t) t.textContent = has ? "Job Finder uses the details already in your profile. You pick a layout first, and the letter is only written when you ask for it." : "There's no resume in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
   }
   if (up) up.classList.toggle("bw-card--go", !has);
 }
@@ -52,7 +52,8 @@ onInit(() => {
       smoothTo($("ltwSaved"), 16);
     }
     else if (k === "profile") {
-      if (!hasProfile(P())) { note.innerHTML = `Your profile is empty, so there is nothing to read yet. <button class="linkish" type="button" data-lw="upload">Upload your resume or LinkedIn</button> first, or start writing manually.`; return; }
+      ltTemp = null;   // (the profile itself, not a file brought in just for this letter)
+      if (!hasResume(profile.data)) { note.innerHTML = `There is no resume in your profile yet, so there is nothing to read. <button class="linkish" type="button" data-lw="upload">Upload your resume or LinkedIn</button> first, or start writing manually.`; return; }
       // on to the layout. The letter is not written here: it is written when "Write all" or "Start from my profile" is pressed
       ltWelcomeOn = false; ltShowStep(0); applyLtWelcome(); renderLetterPage();
       window.scrollTo({ top: 0 });
@@ -63,29 +64,23 @@ onInit(() => {
   // One file goes into your profile: a resume, or your LinkedIn as a PDF (or pasted). It is shown as a card, and Next goes on to Layout.
   // Nothing is written for you here.
   const note = () => $("ltwNote");
-  const takeFile = async f => {
-    if (!f) return;
-    const st = $("ltwStatus");
-    await builderImportFile(f, st);
-    if (st.classList.contains("err")) return;
-    ltWelcomeHold = true;
-    note().innerHTML = `Your details are in your profile. Press <b>Next: Layout</b> to choose a design. The letter is only written when you ask for it.`;
-  };
+  // A file chosen here is read at once (see bStageFile: autoRead). There is no upload button.
+  const takeFile = f => { if (f) bStageFile(f, FILE_SETS.letter); };
+  FILE_SETS.letter.onDone = () => { ltWelcomeHold = true; note().innerHTML = `Your file is used for this letter only: nothing is added to your profile. Press <b>Next: Layout</b> to choose a design. The letter is only written when you ask for it.`; };
   const takeFiles = files => { const f = bOneFile(files, $("ltwStatus")); if (f) takeFile(f); };
   $("ltwResPick").addEventListener("click", () => $("ltwResFile").click());
   $("ltwResFile").addEventListener("change", async () => { const f = bOneFile($("ltwResFile").files, $("ltwStatus")); $("ltwResFile").value = ""; await takeFile(f); });
   dropZone("ltwResDrop", takeFiles);
+  // (a whole page pasted in is read straight away, as a file is)
+  $("ltwPaste").addEventListener("paste", () => setTimeout(() => { if (wordCount($("ltwPaste").value) >= 60) $("ltwPasteGo").click(); }, 60));
   $("ltwPasteGo").addEventListener("click", async () => {
     const st = $("ltwStatus");
     await importPastedLinkedIn("ltwPaste", st);
-    if (!st.classList.contains("err")) { ltWelcomeHold = true; note().innerHTML = `Your details are in your profile. Press <b>Next: Layout</b> to choose a design. The letter is only written when you ask for it.`; }
+    if (!st.classList.contains("err")) { ltWelcomeHold = true; note().innerHTML = `Your page is used for this letter only: nothing is added to your profile. Press <b>Next: Layout</b> to choose a design. The letter is only written when you ask for it.`; }
   });
   // an old cover letter is optional: it is sorted into the five paragraphs and shown as a card too. The page stays here until Next is pressed.
-  const takeLetter = async f => {
-    if (!f) return;
-    ltWelcomeHold = true;
-    if (await ltImportFile(f)) bShowFileCard(f, FILE_SETS.letterOld);
-  };
+  const takeLetter = f => { if (f) { ltWelcomeHold = true; bStageFile(f, FILE_SETS.letterOld); } };   // (read as soon as it is chosen)
+  FILE_SETS.letterOld.onDone = () => { ltWelcomeHold = true; };
   $("ltwPick").addEventListener("click", () => $("ltwFile").click());
   $("ltwFile").addEventListener("change", async () => { const f = bOneFile($("ltwFile").files, $("ltwLetterStatus")); $("ltwFile").value = ""; await takeLetter(f); });
   dropZone("ltwDrop", files => { const f = bOneFile(files, $("ltwLetterStatus")); if (f) takeLetter(f); });
@@ -93,8 +88,8 @@ onInit(() => {
   $("ltwNext").addEventListener("click", async () => {
     if (!(await aiIsConnected())) {
       const choice = await askConnectAi("your cover letter");
-      if (choice === "connect") { openView("connect"); return; }
-      if (choice !== "skip") return;   // (closed with Esc: stay here)
+      if (choice === "connect") { await openConnectPopup(); if (!(await aiIsConnected())) return; }
+      else if (choice !== "skip") return;   // (closed with Esc: stay here)
     }
     ltWelcomeOn = false; ltShowStep(0); applyLtWelcome(); window.scrollTo({ top: 0 });
   });
@@ -118,26 +113,53 @@ function applyLiWelcome() {
   for (const sel of [".view-head .top-actions", "#liForm", "#liOut"]) { const el = root.querySelector(sel); if (el) el.hidden = on; }
   root.classList.toggle("is-welcome", on);
   // With a resume in the profile, "Read from my profile" is the blue way in. Without one it is greyed out and uploading is blue.
-  const has = hasProfile(P()), pr = $("liwProfile"), up = $("liwUploadCard");
+  // (a resume saved to the profile counts too, since it can be picked there. A name on its own is not a resume.)
+  const has = hasResume(P()) || (() => { try { return (savedResumes.data.list || []).length > 0; } catch { return false; } })(), pr = $("liwProfile"), up = $("liwUploadCard");
   if (pr) {
     pr.disabled = !has; pr.classList.toggle("bw-card--go", has); pr.classList.toggle("bw-card--off", !has);
-    const t = $("liwProfileText"); if (t) t.textContent = has ? "Job Finder uses the resume already in your profile to write your headline, About and skills. Nothing is written until you ask for it." : "There's nothing in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
+    const t = $("liwProfileText"); if (t) t.textContent = has ? "Job Finder uses the resume already in your profile to write your headline, About and skills. Nothing is written until you ask for it." : "There's no resume in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
   }
   if (up) up.classList.toggle("bw-card--go", !has);
 }
 // Back to the opening page
 function liGoStart() { liWelcomeOn = true; liWelcomeHold = true; applyLiWelcome(); window.scrollTo({ top: 0 }); }
+// One panel open at a time: the upload boxes, or the resumes and cover letters already in the profile
 function liLwPanel(open, focusId) {
-  const box = $("liwImport"); if (!box) return;
-  box.hidden = !open;
+  const map = { upload: "liwImport", profile: "liwProfilePick" };
+  for (const [k, id] of Object.entries(map)) { const b = $(id); if (b) b.hidden = k !== open; }
   document.querySelectorAll("#liWelcome [data-lw][aria-controls]").forEach(b => b.setAttribute("aria-expanded", String(!!open && b.dataset.lw === open)));
-  if (open) { smoothTo(box, 16); const f = $(focusId); if (f) setTimeout(() => f.focus({ preventScroll: true }), 120); }
+  const box = open && $(map[open]);
+  if (box) { smoothTo(box, 16); const f = focusId && $(focusId); if (f) setTimeout(() => f.focus({ preventScroll: true }), 120); }
 }
-// On to the boxes. fill: the empty boxes are filled from the resume in the profile (nothing already there is replaced).
-// A LinkedIn that came in (a headline or About) is improved; otherwise a new one is built from the profile.
-function liOpenBoxes(fill) {
-  const inp = linStore.data.input;
-  if (fill && hasProfile(P())) liFillGaps(P(), inp);
+// Read from my profile: which resume, and which cover letter (optional). The resumes are the one being built now and the ones saved to the profile.
+const liPick = { resumes: [], letters: [] };
+async function liPickRender() {
+  const body = $("liwPickBody");
+  body.innerHTML = `<p class="progress">Looking in your profile…</p>`;
+  await Promise.all([profileReady, savedResumes.ready, baseLetter.ready, savedLetters.ready]);
+  const resumes = [];
+  if (hasResume(P())) resumes.push({ name: P().contact.name ? `${P().contact.name}'s resume` : "My resume", sub: "The resume in your profile now", profile: P() });
+  for (const x of savedResumes.data.list || []) if (x.profile && hasResume(mergeProfile(x.profile))) resumes.push({ name: x.name, sub: `Saved ${fmtSaved(x.saved)}${x.tplName ? ` · ${x.tplName} layout` : ""}`, profile: mergeProfile(x.profile) });
+  const letters = profileLetters();
+  liPick.resumes = resumes; liPick.letters = letters;
+  const row = (kind, k, name, sub, on) => `<label class="li-pick-row"><input type="radio" name="liw${kind}" value="${k}"${on ? " checked" : ""}><span class="saved-name"><b>${esc(name)}</b><span class="small muted">${esc(sub)}</span></span></label>`;
+  body.innerHTML = `<div class="b-sub">Resume</div>`
+    + (resumes.length ? `<div class="li-pick-list" role="radiogroup" aria-label="Resume">${resumes.map((r, k) => row("Res", k, r.name, r.sub, k === 0)).join("")}</div>` : `<p class="small muted">There is no resume in your profile yet. Upload one instead.</p>`)
+    + `<div class="b-sub">Cover letter <span class="opt">(optional)</span></div>`
+    + `<div class="li-pick-list" role="radiogroup" aria-label="Cover letter">${row("Let", -1, "No cover letter", "Write from the resume alone", true)}${letters.map((x, k) => row("Let", k, x.name, `${x.saved ? `Saved ${fmtSaved(x.saved)} · ` : ""}${wordCount(x.text)} words`, false)).join("")}</div>`
+    + (letters.length ? "" : `<p class="small muted">You haven't saved a cover letter to your profile yet. Write one in Create or edit cover letter and press <b>Save to my profile…</b>, and it will be here next time.</p>`);
+  $("liwProfileNextBox").hidden = !resumes.length;
+}
+const liPicked = () => {
+  const val = name => { const r = document.querySelector(`#liwPickBody input[name="${name}"]:checked`); return r ? +r.value : -1; };
+  return { resume: liPick.resumes[val("liwRes")] || liPick.resumes[0] || null, letter: liPick.letters[val("liwLet")] || null };
+};
+// On to the boxes. fill: the empty boxes are filled from the resume (nothing already there is replaced). src: the resume to read (the profile's by default).
+// letter: a cover letter chosen to draw on. A LinkedIn that came in (a headline or About) is improved; otherwise a new one is built from the profile.
+function liOpenBoxes(fill, src, letter) {
+  const inp = linStore.data.input, from = src || P();
+  if (fill && hasResume(from)) liFillGaps(from, inp);
+  linStore.data.letter = letter ? { name: letter.name, text: String(letter.text || "").slice(0, 3000) } : null;
   linStore.data.mode = inp.headline || inp.about ? "improve" : "create";
   linStore.save(true);
   liWelcomeOn = false; liWelcomeHold = false;
@@ -154,9 +176,10 @@ onInit(() => {
     note().textContent = "";
     if (k === "upload") liLwPanel("upload", "liwResPick");
     else if (k === "profile") {
-      if (!hasProfile(P())) { note().innerHTML = `Your profile is empty, so there is nothing to read yet. <button class="linkish" type="button" data-lw="upload">Upload your resume or LinkedIn</button> first, or start writing manually.`; return; }
-      // the boxes are filled from the profile's resume. Nothing is written by AI here: the headline and About are written when you ask for them.
-      liOpenBoxes(true);
+      if (!hasResume(P()) && !(savedResumes.data.list || []).length) { note().innerHTML = `There is no resume in your profile yet, so there is nothing to read. <button class="linkish" type="button" data-lw="upload">Upload your resume or LinkedIn</button> first, or start writing manually.`; return; }
+      // choose the resume (and a cover letter) first; Next opens the boxes. Nothing is written by AI here: the headline and About are written when you ask for them.
+      liLwPanel("profile");
+      liPickRender().then(() => { const r = document.querySelector("#liwPickBody input"); if (r) r.focus({ preventScroll: true }); });
     }
     else if (k === "blank") {
       liWelcomeOn = false; liWelcomeHold = false; linStore.data.mode = "create"; linStore.save(true);
@@ -171,14 +194,9 @@ onInit(() => {
     d.addEventListener("drop", e => { if (e.dataTransfer && e.dataTransfer.files.length) take(e.dataTransfer.files); });
   };
   const doneNote = `Your details are in your profile. Press <b>Next</b> to open your boxes.`;
-  const takeFile = async f => {
-    if (!f) return;
-    const st = $("liwStatus");
-    await builderImportFile(f, st);
-    if (st.classList.contains("err")) return;
-    liWelcomeHold = true;
-    note().innerHTML = doneNote;
-  };
+  // A file is only chosen here: it goes into the profile when "Upload to profile" is pressed (see bStageFile and bCommitFile)
+  const takeFile = f => { if (f) { liWelcomeHold = true; bStageFile(f, FILE_SETS.linkedin); } };
+  FILE_SETS.linkedin.onDone = () => { liWelcomeHold = true; note().innerHTML = doneNote; };
   $("liwResPick").addEventListener("click", () => $("liwResFile").click());
   $("liwResFile").addEventListener("change", async () => { const f = bOneFile($("liwResFile").files, $("liwStatus")); $("liwResFile").value = ""; await takeFile(f); });
   dropZone("liwResDrop", files => { const f = bOneFile(files, $("liwStatus")); if (f) takeFile(f); });
@@ -187,15 +205,21 @@ onInit(() => {
     await importPastedLinkedIn("liwPaste", st);
     if (!st.classList.contains("err")) { liWelcomeHold = true; note().innerHTML = doneNote; }
   });
-  // Next always opens the boxes. If no AI is connected, ask first (connect one, or carry on without)
-  $("liwNext").addEventListener("click", async () => {
+  // Next (blue, bottom right) is there once a file is in, or once a resume is chosen from the profile. It opens the boxes.
+  // If no AI is connected, ask first (connect one, or carry on without)
+  const nextToBoxes = async openIt => {
     if (!(await aiIsConnected())) {
       const choice = await askConnectAi("your LinkedIn");
-      if (choice === "connect") { openView("connect"); return; }
-      if (choice !== "skip") return;   // (closed with Esc: stay here)
+      if (choice === "connect") { await openConnectPopup(); if (!(await aiIsConnected())) return; }
+      else if (choice !== "skip") return;   // (closed with Esc: stay here)
     }
-    liOpenBoxes(true);
-  });
+    openIt();
+  };
+  $("liwNext").addEventListener("click", () => nextToBoxes(() => liOpenBoxes(true)));
+  $("liwProfileNext").addEventListener("click", () => nextToBoxes(() => { const c = liPicked(); liOpenBoxes(true, c.resume && c.resume.profile, c.letter); }));
+  // (the upload panel's Next shows once a file or pasted page is uploaded to the profile, and goes if it is taken back out: see bSyncNext)
+  // a saved resume can turn up after the page opens (it loads with the profile)
+  savedResumes.ready.then(() => applyLiWelcome());
   $("liBackStart").addEventListener("click", liGoStart);
   onProfile(() => applyLiWelcome());
   viewHooks.linkedin = (prev => (o = {}) => { if (o.mode) liWelcomeOn = false; return Promise.resolve(prev(o)).then(applyLiWelcome); })(viewHooks.linkedin);

@@ -40,6 +40,26 @@ Rules for the JSON:
 Example of the shape (the text here is only a placeholder):
 {"opening": "...", "experience": "...", "education": "...", "motivation": "...", "closing": "..."}`;
 
+// What the finished letter is checked on (the same rules as "Before you send it", from 14a and 14b). The AI is told them before it writes,
+// so it doesn't write what the checks would mark. jobWords: words that belong to this job itself (its title and field), which may be repeated as often as the job needs.
+function adviceJudged(jobWords) {
+  const jw = [...new Set((jobWords || []).map(w => String(w).toLowerCase()).filter(w => w.length > 3))].slice(0, 12);
+  const own = jw.length
+    ? " The words that belong to this job (" + jw.join(", ") + ") may be repeated as often as the job needs: for example \"engineering\" in an engineering job is fine."
+    : " Words that belong to the job itself, such as the name of its field, may be repeated as often as the job needs.";
+  return [
+    "How the finished letter will be judged (write so that it passes every one of these):",
+    "- Same words in two paragraphs: no run of four words may appear in two paragraphs, and no two paragraphs may start the same way. Do not say the same thing twice in different paragraphs.",
+    "- A degree, a university and a date belong in ONE paragraph only. A tool, a project or a former employer may appear in at most two paragraphs.",
+    "- Repeated words: apart from the job's own words, no word of five letters or more may appear more than three times in the whole letter. Vary the wording instead of repeating it." + own,
+    "- Habit words: use \"analyse/analysis\", \"effective\", \"skill\", \"ability\", \"proficient\", \"demonstrate\" and \"experience\" no more than three times between them in the whole letter, and at most one of these filler words in the whole letter: furthermore, moreover, additionally, in addition, utilise, in order to, very, really, eager, excited, robust, holistic, meticulous, foster, showcase, pivotal.",
+    "- Never write \"aligns with\", \"demonstrated ability\", \"proficient\", \"problem-solving\", \"interpersonal\", \"analytical skills\", \"commence\", \"drawn to\", \"passionate\", \"in short\", \"from day one\", \"skill set\" or \"don't hesitate\", and never begin a sentence \"This experience/ability/skill\" to explain why something matters. End each sentence on a fact.",
+    "- Sentences: opening 3 or fewer, evidence 6 or fewer, education 5 or fewer, why this employer 4 or fewer, close 4 or fewer. None over 30 words. No more than two sentences in a row start with \"I\" or \"My\", and under 40% of all sentences do.",
+    "- Length: opening 55 to 70 words, evidence 95 to 110, education and skills 75 to 90, why this employer 65 to 85, close 35 to 50; 330 to 390 in all.",
+    "- The opening names the job title and the employer. A degree still being studied is \"I am completing\", never \"I hold\". Numbers from one to nine are written as words, unless they have a unit.",
+    "- No long dashes, exclamation marks or questions. Australian spelling. No phone, email or link in the paragraphs. Every figure comes from the resume."
+  ].join("\n");
+}
 // The five keys the AI must return, in the order of the input boxes (COVER_PARTS in 15-cover-letter.js)
 const ADVICE_KEYS = ["opening", "experience", "education", "motivation", "closing"];
 const ADVICE_SCHEMA = { type: "object", properties: Object.fromEntries(ADVICE_KEYS.map(k => [k, { type: "string" }])), required: ADVICE_KEYS };
@@ -60,7 +80,7 @@ function advicePrompt(o) {
     `Length: ${lo} to ${hi} words in the five paragraphs together.`,
     `Reply with the JSON object holding all five keys: opening, experience, education, motivation, closing. None may be empty.`
   ].filter(Boolean);
-  return `${o.ad && !o.template ? `<job_ad>\n${clip(o.ad, 3000)}\n</job_ad>\n\n` : ""}<resume>\n${clip(o.resume, 5000)}\n</resume>\n\n<details>\n${lines.join("\n")}\n</details>${(o.others || []).length ? `\n\n<already_written>\nThese paragraphs are already in the letter. Do not repeat their points.\n${o.others.map(t => `- ${clip(t, 500)}`).join("\n")}\n</already_written>` : ""}\n\nWrite a tailored, highly professional cover letter for this specific position. Connect the applicant's specific past projects and work in the resume directly to the employer's operational needs in the ad.`;
+  return `${o.ad && !o.template ? `<job_ad>\n${clip(o.ad, 3000)}\n</job_ad>\n\n` : ""}<resume>\n${clip(o.resume, 5000)}\n</resume>\n\n<details>\n${lines.join("\n")}\n</details>\n\n<judged_on>\n${adviceJudged(o.jobWords)}\n</judged_on>${(o.others || []).length ? `\n\n<already_written>\nThese paragraphs are already in the letter. Do not repeat their points.\n${o.others.map(t => `- ${clip(t, 500)}`).join("\n")}\n</already_written>` : ""}\n\nWrite a tailored, highly professional cover letter for this specific position. Connect the applicant's specific past projects and work in the resume directly to the employer's operational needs in the ad.`;
 }
 
 // The answer, split into paragraphs: the greeting and sign-off the AI added anyway are dropped, a letter written on single lines is split on those,
@@ -104,7 +124,7 @@ async function adviceWrite(o, progress = () => {}) {
   const [lo, hi] = o.words || [330, 390];
   const res = await aiJSON({
     nano: LETTER_SYSTEM, full: LETTER_SYSTEM, prompt: advicePrompt(o), label: "Writing your cover letter", progress,
-    schema: ADVICE_SCHEMA, expect: Math.round(hi * 7) + 120, writing: true, plainKey: "letter",
+    schema: ADVICE_SCHEMA, expect: Math.round(hi * 7) + 120, writing: true, topOnly: true, plainKey: "letter", ...(o.effort ? { effort: o.effort } : {}),
     check: d => {
       const ps = adviceParas(d), n = wordCount(ps.join(" "));
       const missing = ADVICE_KEYS.filter((k, i) => !ps[i]);

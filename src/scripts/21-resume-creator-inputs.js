@@ -440,9 +440,10 @@ async function finishEntry(list, i, btn, quiet) {
   builder.finNote = { list, i, before, text: list === "experience" || list === "education" ? (wasDone ? "Saved. It's on your resume." : "Added to your resume.") : already ? (wasDone ? "Saved. It's on your resume." : "Already polished, so it went straight on your resume.") : r.via ? `Polished by ${viaWords(r.via)} and added to your resume.` : `Tidied up and added to your resume.${list === "referees" || list === "volunteering" ? "" : " " + aiMissWords(r)}` };
   touchProfile("builder");
   if (quiet) return true;
+  syncPending();   // a "not finished yet" notice from trying to move on is brought up to date
   renderBuilder(false);
   finToast();
-  const bar = stepsBar(); if (bar) smoothTo(bar, 8);   // the steps bar at the top, as when you move to the next step
+  scrollToListStart(list);   // the first job, qualification or box of this kind, where the finished card now sits
   const paper = $("bPaper"); if (paper) { paper.classList.remove("flash"); void paper.offsetWidth; paper.classList.add("flash"); }
   const scoreAfter = resumeHealth(P()).score;
   setTimeout(() => scorePop(scoreBefore, scoreAfter), 450);
@@ -450,6 +451,13 @@ async function finishEntry(list, i, btn, quiet) {
 }
 // Said at the bottom of the screen for 3 seconds when a card was just finished or polished, with Undo
 const finNoteHtml = () => "";
+// The top of the list a finished card belongs to: the first job or the first qualification, or the top of the Extras box (Projects, Volunteering, Referees, Awards...)
+function listStartEl(list) {
+  if (list === "experience" || list === "education") return document.querySelector(list === "experience" ? "#bForm details.b-card[data-card=experience], #bForm details.b-co" : "#bForm details.b-card[data-card=education]");
+  const inner = document.querySelector(`#bForm .b-extra-inner[data-extra="${list}"]`);
+  return inner ? inner.closest(".b-card") : null;
+}
+function scrollToListStart(list) { const el = listStartEl(list); if (el) smoothTo(el, 80); }
 function finToast() {
   const n = builder.finNote;
   if (n) actToast(n.text, () => undoFin(n));
@@ -490,11 +498,12 @@ async function polishText(key, btn, finish) {
   }
   p[key] = out.join("\n");
   builder.textPolished = key + JSON.stringify(out);
-  if (finish) p.extrasDone[key] = true;
+  if (finish) { p.extrasDone[key] = true; builder.extraFold = { ...(builder.extraFold || {}), [key]: true }; }   // a finished section folds to a short summary, like the cards above it
   touchProfile("builder");
   renderBuilder(false);
   const msg = (r.data ? `Polished by ${viaWords(r.via)}.` : r.tried ? aiMissWords(r) : "Tidied.") + (finish ? " It's on your resume." : "");
   const el = $(`bFin-text-${key}`); if (el) el.textContent = msg;
+  if (finish) scrollToListStart(key);   // the top of the box, now folded to a short summary
 }
 
 /* --- One-click fixes and rewording for a bullet point --- */
@@ -1087,7 +1096,7 @@ function langEditor() {
       : `<select data-lang="${i}" data-part="name" aria-label="Language ${i + 1}"><option value="">Choose a language…</option>${r.name && !known ? `<option selected>${esc(r.name)}</option>` : ""}${LANGUAGES.map(l => `<option${l === r.name ? " selected" : ""}>${esc(l)}</option>`).join("")}<option value="__other">Another language…</option></select>`;
     const lvKnown = LANG_LEVELS.some(([k]) => k === r.level);
     const lv = `<select data-lang="${i}" data-part="level" aria-label="Level for language ${i + 1}"${r.name ? "" : " disabled"}>${r.level ? "" : '<option value="" selected disabled hidden>Choose a level</option>'}${r.level && !lvKnown ? `<option value="${esc(r.level)}" selected>${esc(r.level)}</option>` : ""}${LANG_LEVELS.map(([k, l]) => `<option value="${k}"${k === r.level ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
-    return `<div class="lang-row${r.draft ? " is-blank" : ""}">${nameBox}${lv}${r.draft && !hasAny ? '<span class="chip-x-gap" aria-hidden="true"></span>' : r.draft ? `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Cancel this new language">×</button>` : `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button>`}</div>`;
+    return `<div class="lang-row${r.draft ? " is-blank" : ""}">${nameBox}${lv}${r.draft && !hasAny ? '<button type="button" class="chip-x" disabled aria-label="Nothing to remove yet">×</button>' : r.draft ? `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Cancel this new language">×</button>` : `<button type="button" class="chip-x" data-act="lang-del" data-i="${i}" aria-label="Remove ${esc(r.name || "this language")}">×</button>`}</div>`;
   };
   return `<div class="q" data-langs="1"><div class="q-label" id="chl_languages">Languages <span class="opt">(optional)</span></div><p class="q-hint">Any language other than English is worth listing, with your level. Choose one below, and press Add a language for the next.</p>
     <div class="lang-list">${rows.map(row).join("")}</div>

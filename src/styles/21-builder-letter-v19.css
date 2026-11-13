@@ -68,7 +68,6 @@
 .lt-guide summary { cursor: pointer; font-size: var(--step--1); color: var(--accent); }
 .lt-guide p { margin: 6px 0; font-size: var(--step--1); }
 .lt-guide .lt-eg { color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; }
-.lt-designs .lt-tpls { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .lt-designs .b-actions { margin: 10px 0; }
 
 /* The letter's spacing and margins */

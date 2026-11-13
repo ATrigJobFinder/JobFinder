@@ -2,10 +2,10 @@
 
 /* --- Things that need an AI: greyed out and crossed through when none is connected, with a link to connect one --- */
 // Is there any AI to ask? Yours (a key or a model), or the browser's own.
+// (The same test as the Next button's "Connect an AI?" question: a connected key or model, or a browser AI that is ready on this computer.
+// One that still has to download its model is not connected yet.)
 async function aiAbsent() {
-  if (typeof sample !== "undefined" && sample) return false;
-  const st = await chromeAIRaw();
-  return !(st === "available" || st === "downloadable" || st === "downloading");
+  return !(await aiIsConnected());
 }
 // (Turn into bullet points, Write my summary and Add a bullet point still work without an AI: built-in rules fill them in)
 const AI_ONLY = '[data-act="sum-reword"], [data-act="reword"], [data-act="redo-ask"], [data-act="x-reword"], [data-lt-rwmenu], [data-lt-write]';
@@ -15,8 +15,14 @@ function aiGateMark(root = document) {
   document.querySelectorAll(".b-aiin[data-ai-what]").forEach(box => {
     const had = box.querySelector(":scope > .ai-none-prompt");
     box.classList.toggle("ai-none", aiGateOn);
-    if (aiGateOn && !had) { const a = document.createElement("button"); a.type = "button"; a.className = "ai-none-prompt"; a.textContent = "Choose your AI to automate: " + box.dataset.aiWhat; a.addEventListener("click", () => openView("connect")); box.prepend(a); }
-    else if (!aiGateOn && had) had.remove();
+    if (aiGateOn && !box.classList.contains("is-folded")) aiFold(box, false);   // with no AI connected the box is always folded away
+    // greyed out, and nothing in it can be reached with the keyboard either
+    box.querySelectorAll(":scope > :not(.ai-none-prompt)").forEach(el => { el.inert = aiGateOn || (el.classList.contains("b-aiin-body") && box.classList.contains("is-folded")); });
+    if (aiGateOn && !had) {
+      const a = document.createElement("button"); a.type = "button"; a.className = "ai-none-prompt";
+      a.innerHTML = `<span class="ai-none-pill"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><b>Connect AI to use this section</b></span><span class="ai-none-sub">An AI can ${esc(box.dataset.aiWhat || "do this for you")}. Press here to choose one.</span>`;
+      a.addEventListener("click", () => openConnectPopup()); box.prepend(a);
+    } else if (!aiGateOn && had) had.remove();
   });
   root.querySelectorAll(AI_ONLY).forEach(b => {
     if (!b.dataset.aiLabel) b.dataset.aiLabel = b.title || "";
@@ -40,8 +46,7 @@ onInit(() => {
     const b = e.target.closest && e.target.closest(".ai-off");
     if (!b) return;
     e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-    toast("Connect an AI to use this.", "warn");
-    openView("connect");
+    openConnectPopup();
   }, true);
 });
 
@@ -74,13 +79,14 @@ onInit(() => {
 /* --- How many subjects show on the resume --- */
 onInit(() => {
   $("bForm").addEventListener("change", e => {
-    const n = e.target.closest && e.target.closest("input[data-subj-n]");
+    const n = e.target.closest && e.target.closest("input[data-subj-n], input[data-award-n]");
     if (!n) return;
-    const i = +n.dataset.subjN, ed = P().education[i];
+    const aw = n.hasAttribute("data-award-n"), i = +(aw ? n.dataset.awardN : n.dataset.subjN), ed = P().education[i];
     if (!ed) return;
-    ed.subjectsShown = Math.max(1, Math.min(8, Math.round(+n.value) || 3));
-    n.value = ed.subjectsShown;
-    subjRefresh(i, false);
+    const v = Math.max(1, Math.min(8, Math.round(+n.value) || 3));
+    if (aw) ed.awardsShown = v; else ed.subjectsShown = v;
+    n.value = v;
+    subjRefresh(i, false, aw ? "awards" : "coursework");
   });
 });
 

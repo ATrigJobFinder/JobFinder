@@ -1,5 +1,8 @@
 /* ===================== Resume creator ===================== */
-const P = () => profile.data;
+// The cover letter page can write from a resume or LinkedIn that was brought in just for that letter (ltTemp): it is never added to the profile.
+// While the letter page is showing, P() is that; everywhere else it is the profile. Its design settings (cv, prefs) are the profile's own.
+let ltTemp = null;
+const P = () => ltTemp && currentView === "letter" ? ltTemp : profile.data;
 // Goal first (it decides which designs and tips come up); the summary near the end, so it can draw on everything else
 const B_STEPS = [
   { key: "goal", label: "Goal" }, { key: "layout", label: "Layout" }, { key: "contact", label: "Contact" }, { key: "experience", label: "Experience" },
@@ -102,7 +105,7 @@ const STEP_RENDER = {
   },
   summary() {
     const p = P(), filled = prefillSummaryQ(p);
-    return stepHead(kicker("summary"), "Your profile in three sentences", "The short paragraph at the top. It's written last, so it can draw on everything you've added. Recruiters often decide whether to keep reading from this alone.")
+    return stepHead(kicker("summary"), "Your profile in three sentences", "The short paragraph at the top. It's written last, so it can draw on everything you've added. Recruiters often decide whether to keep reading from this alone. It's optional: if you leave it blank, your resume simply has no Profile section.")
       + (filled ? `<p class="tip">We've started these answers from your earlier steps. Change anything that doesn't sound like you, then write your summary.</p>` : "")
       + aiBoxOpen("sum", "write your summary", "Tell us about you", "AI: Info to create your summary", builder.foldOpen.sum === undefined ? !!p.summary.trim() : !builder.foldOpen.sum) + `<p class="q-hint">Answer in plain words. The AI uses these to write your summary below, and they never appear on the resume themselves.</p>`
       + q("summaryQ.who", "In one line, how would you describe yourself professionally?", { area: true, rows: 2, ph: "e.g. Final-year mechanical engineering student with internship experience in solar projects" })
@@ -110,7 +113,7 @@ const STEP_RENDER = {
       + q("summaryQ.proof", "What's one result you're proud of that backs that up?", { area: true, rows: 2, ph: "e.g. Cut a bracket's weight by 18% during my internship", hint: "A number makes it stick: how many, how much, how fast." })
       + q("summaryQ.next", "What are you looking for next?", { area: true, rows: 2, ph: "e.g. A graduate role in renewable energy design" })
       + `<div class="b-actions b-aiin-foot"><button class="btn primary" type="button" data-act="ai-summary">${p.summary.trim() ? "Write it again" : "Write my summary"}</button><span class="engine-note" id="bSumEngine"></span></div>` + aiBoxClose
-      + q("summary", "Your summary", { area: true, rows: 5, multi: true, after: `<div class="sum-meta"><p class="q-hint">Edit it until it sounds like you. Aim for 40 to 75 words, no “I”, no clichés.</p><span class="sum-words" id="bSumWords">${wordCount(p.summary)} ${wordCount(p.summary) === 1 ? "word" : "words"}</span></div><p class="b-check" id="bSumCheck"></p><div id="bSumActs">${summaryActions()}</div>` });
+      + q("summary", "Your summary", { opt: true, area: true, rows: 5, multi: true, after: `<div class="sum-meta"><p class="q-hint">Edit it until it sounds like you. Aim for 40 to 75 words, no “I”, no clichés.</p><span class="sum-words" id="bSumWords">${wordCount(p.summary)} ${wordCount(p.summary) === 1 ? "word" : "words"}</span></div><p class="b-check" id="bSumCheck"></p><div id="bSumActs">${summaryActions()}</div>` });
   },
   experience() {
     const p = P();
@@ -142,9 +145,15 @@ const STEP_RENDER = {
     // Each ticked section can be folded away with the small triangle in its top right corner (the answers stay where they are)
     const folded = key => !!(builder.extraFold || {})[key];
     const tog = (key, label) => p.extras[key] ? `<button type="button" class="b-extra-tog${folded(key) ? " is-folded" : ""}" data-act="extra-fold" data-key="${key}" aria-expanded="${!folded(key)}" aria-label="${folded(key) ? "Show" : "Hide"} ${esc(label)}" title="${folded(key) ? "Show" : "Hide"} this section"><svg viewBox="0 0 12 12" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4z" fill="currentColor"/></svg></button>` : "";
-    const box = (key, label, inner) => `<div class="b-card${p.extras[key] ? "" : " off"}${p.extrasDone[key] ? " done" : ""}"><div class="b-card-body"><div class="b-extra-head"><label class="q-check"><input type="checkbox" data-path="extras.${key}" data-rerender="1"${p.extras[key] ? " checked" : ""}> <b>${label}</b></label>${p.extras[key] && p.extrasDone[key] ? '<span class="card-tag done">On your resume</span>' : ""}${tog(key, label)}</div>${p.extras[key] ? `<div class="b-extra-inner" data-extra="${key}"${folded(key) ? " hidden" : ""}>${inner}</div>` : ""}</div></div>`;
+    // A finished awards, publications or interests section folds down to its lines, like a finished job above it; Edit opens it again
+    const peek = key => {
+      if (!p.extras[key] || !p.extrasDone[key] || !["awards", "publications", "interests"].includes(key)) return "";
+      const lines = key === "interests" ? [val(p.interests)].filter(Boolean) : linesOf(p[key]), shownN = lines.slice(0, 3);
+      return `<div class="b-extra-peek" data-peek="${key}"${folded(key) ? "" : " hidden"}><ul>${shownN.map(l => `<li>${esc(l)}</li>`).join("")}</ul>${lines.length > shownN.length ? `<span class="small muted">and ${lines.length - shownN.length} more</span>` : ""}<button class="linkish" type="button" data-act="extra-fold" data-key="${key}">Edit</button></div>`;
+    };
+    const box = (key, label, inner) => `<div class="b-card${p.extras[key] ? "" : " off"}${p.extrasDone[key] ? " done" : ""}"><div class="b-card-body"><div class="b-extra-head"><label class="q-check"><input type="checkbox" data-path="extras.${key}" data-rerender="1"${p.extras[key] ? " checked" : ""}> <b>${label}</b></label>${p.extras[key] && p.extrasDone[key] ? '<span class="card-tag done">On your resume</span>' : ""}${tog(key, label)}</div>${peek(key)}${p.extras[key] ? `<div class="b-extra-inner" data-extra="${key}"${folded(key) ? " hidden" : ""}>${inner}</div>` : ""}</div></div>`;
     return stepHead(kicker("extras"), "Anything else worth showing?", "Tick the sections you want. They're optional, but projects, volunteering and awards can make a short resume stand out. Finish adds each one to your resume.")
-      + box("availability", "Availability", `${workTypeQ()}<div class="q-grid">${startQ()}${q("availDays", "Days you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights", prose: true })}${wantsHours(P()) ? q("availHours", "Hours per week", { opt: true, ph: "e.g. 20", inputmode: "numeric", hint: "A number, or a range like 15 to 25.", ac: "off" }) : `<p class="q-hint wide">Hours per week shows up here when you choose part-time or casual work above.</p>`}${val(P().availability) && !val(P().availDays) && !val(P().availHours) ? `<p class="q-hint wide">Saved from before: “${esc(P().availability)}”. Fill in the two boxes above to replace it.</p>` : ""}</div>`)
+      + box("availability", "Availability", `${workTypeQ()}<div class="q-grid">${startQ()}${q("availDays", "Days you can work", { opt: true, hint: "Useful for casual, retail and hospitality roles.", ph: "e.g. Weekends and Thursday nights", prose: true })}${wantsHours(P()) ? q("availHours", "Hours per week", { opt: true, ph: "e.g. 20", inputmode: "numeric", hint: "A number, or a range like 15 to 25.", ac: "off" }) : ""}</div>`)
       + box("projects", "Projects", p.projects.map((x, i) => projCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="projects">+ Add a project</button></div><p class="q-hint">University, personal or work projects. Say what you built and what came of it.</p>`)
       + box("volunteering", "Volunteering", p.volunteering.map((x, i) => volCard(x, i)).join("") + `<div class="b-actions"><button class="btn" type="button" data-act="add" data-list="volunteering">+ Add a role</button></div>`)
       + box("awards", "Awards and achievements", lineListQ("awards", "Awards and achievements", "e.g. Dean's List, 2024", "+ Add an award") + textFoot("awards"))
@@ -167,7 +176,7 @@ const STEP_RENDER = {
       + `<div class="b-sub">Page setup</div>` + pageSetupQ()
       + designSuggestHtml()
       + `<div class="b-sub">Download</div><p class="q-hint">In your ${esc(t.name)} layout${t.ats ? ", which applicant tracking systems read reliably" : ". It has two columns, so for online job portals the Professional layout is read more reliably"}. <button class="linkish" type="button" data-act="goto" data-step="${SN("layout")}">Change layout</button></p>`
-      + `<div class="b-actions b-dl-row"><button class="btn primary" type="button" id="bDlBtn" data-dlmenu aria-haspopup="menu" aria-expanded="false">Download as…</button><span class="foot-gap"></span><button class="btn" type="button" data-act="save-resume">Save to my profile…</button></div><p class="q-hint">Save to my profile keeps this version under a name, like the job it's for, so you can open or download it again later. It needs a free account.</p><p class="status-line" id="bDlStatus" role="status"></p><p class="status-line" id="bSaveStatus" role="status"></p>`
+      + `<div class="b-actions b-dl-row"><button class="btn primary" type="button" id="bDlBtn" data-dlmenu aria-haspopup="menu" aria-expanded="false">Download as…</button><span class="foot-gap"></span><button class="btn primary" type="button" data-act="save-resume">Save to my profile…</button></div><p class="q-hint">Save to my profile keeps this version under a name, like the job it's for, so you can open or download it again later. It needs a free account.</p><p class="status-line" id="bDlStatus" role="status"></p><p class="status-line" id="bSaveStatus" role="status"></p>`
       + savedResumesHtml()
       + nextStepsHtml();
   }
@@ -192,11 +201,11 @@ const cardState = e => `<span class="card-tags">${!hasContent(e) ? "" : `<span c
 // (the newest first). A job on its own is a card by itself, as before. Drafts count, so a new title joins its employer straight away.
 function expGroups(p) {
   const byOrg = new Map();
-  p.experience.forEach((e, i) => { const k = orgKey(e.org); if (k) byOrg.set(k, [...(byOrg.get(k) || []), i]); });
+  p.experience.forEach((e, i) => { const k = stackKey(e); if (k) byOrg.set(k, [...(byOrg.get(k) || []), i]); });
   const seen = new Set(), out = [];
   p.experience.forEach((e, i) => {
     if (seen.has(i)) return;
-    const k = orgKey(e.org), ids = k && byOrg.get(k).length > 1 ? byOrg.get(k) : [i];
+    const k = stackKey(e), ids = k && byOrg.get(k).length > 1 ? byOrg.get(k) : [i];
     ids.forEach(j => seen.add(j));
     out.push({ key: ids.length > 1 ? k : "", ids });
   });
@@ -206,13 +215,14 @@ const expGroupSig = p => expGroups(p).map(g => g.ids.join(".")).join("|");
 // The box of questions that are only for the AI. It folds down to its heading and a faded glimpse of what is inside.
 // key: what remembers whether it is open (a job number, or "sum"); folded: how it starts
 function aiBoxOpen(key, what, title, tag, folded) {
+  if (typeof aiGateOn !== "undefined" && aiGateOn) folded = true;   // no AI connected: always folded
   return `<div class="b-aiin${folded ? " is-folded" : ""}" data-ai-field="1" data-ai-what="${what}" data-fold="${key}"><div class="b-aiin-head"><span class="b-sub">${title}</span><span class="card-tag ai">${tag}</span><button type="button" class="b-aiin-tog" data-act="ai-fold" aria-expanded="${!folded}"><span class="b-aiin-tog-t">${folded ? "Show" : "Hide"}</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div><div class="b-aiin-body"${folded ? " inert" : ""}>`;
 }
 const aiBoxClose = "</div></div>";
 function aiFold(box, want) {
   const open = want === undefined ? box.classList.contains("is-folded") : !!want;
   box.classList.toggle("is-folded", !open);
-  const body = box.querySelector(":scope > .b-aiin-body"); if (body) body.inert = !open;
+  const body = box.querySelector(":scope > .b-aiin-body"); if (body) body.inert = !open || box.classList.contains("ai-none");
   const t = box.querySelector(".b-aiin-tog"); if (t) { t.setAttribute("aria-expanded", String(open)); const s = t.querySelector(".b-aiin-tog-t"); if (s) s.textContent = open ? "Hide" : "Show"; }
   builder.foldOpen[box.dataset.fold] = open;
   if (open) box.querySelectorAll("textarea").forEach(autoGrow);
@@ -255,22 +265,43 @@ function expCard(e, i, nested) {
     <div class="b-actions"><button class="btn" type="button" data-act="add-bullet" data-i="${i}" title="Writes one more bullet point from your answers that doesn't repeat the others">+ Add a bullet point</button>${genned ? `<button class="btn ghost" type="button" data-act="redo-ask" data-i="${i}" aria-expanded="${builder.redoAsk === i}">Try again…</button>` : ""}</div>
     ${verbsHelp(i)}
     <div class="b-sugg" id="bSugg${i}">${suggHtml(i)}</div>
-    ${e.org && !nested ? `<div class="b-actions b-role-add"><button class="btn ghost" type="button" data-act="add-role" data-i="${i}">+ Add a promotion or new title at ${esc(shortOrg(e.org))}</button></div><p class="q-hint">Jobs at the same employer, one after the other, are stacked under a single company heading on your resume. Applicant tracking systems read that layout well.</p>` : ""}
-    ${cardFoot("experience", i, e)}
+    ${e.org && !nested ? `<div class="b-actions b-role-add"><button class="btn ghost" type="button" data-act="add-role" data-i="${i}">+ Add a promotion or new title at ${esc(shortOrg(e.org))}</button></div>` : ""}
+    ${cardFoot("experience", i, e, nested)}
   </div></details>${finNoteHtml("experience", i)}`;
 }
 const NOUN = { experience: "job", education: "qualification", projects: "project", volunteering: "role", referees: "referee" };
 const FIN_HINT = {
-  experience: "Finish checks this job has a title, employer and start date, and adds it to your resume. Bullet points are a good idea but not required. Only finished jobs show in the preview and downloads.",
-  education: "Finish checks this has a name, place and dates, tidies spelling, and adds it to your resume. Only finished entries show in the preview and downloads.",
   projects: "Finish tidies your notes into clear resume lines (each a full sentence that starts with an action word, with no “I” or “my”) and adds the project to your resume.",
   volunteering: "Finish tidies the spelling of your lines, starts each with an action word and drops “I” and “my”, and adds the role to your resume.",
   referees: "Finish tidies the phone number and email and adds them to your resume."
 };
-function cardFoot(list, i, e) {
-  return `${e.done ? "" : `<p class="q-hint fin-hint">${FIN_HINT[list]}</p>`}${list === "referees" ? "" : `<p class="q-hint hide-why">${e.hidden ? "Hidden: it stays saved in your profile but is left off this resume. Press Show on resume to bring it back." : "Hide from resume keeps it saved but leaves it off this resume. It can be brought back any time, and Job Finder may also hide things itself to fit a page and tell you why."}</p>`}<p class="status-line" id="bFin-${list}-${i}" role="status"></p>
-    <div class="b-card-foot"><button class="btn ghost" type="button" data-act="del" data-list="${list}" data-i="${i}">Remove</button>${list === "referees" ? "" : `<button class="btn ghost" type="button" data-act="hide" data-list="${list}" data-i="${i}" aria-pressed="${!!e.hidden}">${e.hidden ? "Show on resume" : "Hide from resume"}</button>`}
-    <span class="foot-gap"></span><button class="btn primary" type="button" data-act="finish" data-list="${list}" data-i="${i}">${e.done ? "Finish" : `Finish this ${NOUN[list]}`}</button></div>`;
+// A button with a hover (and keyboard focus) explanation: the words sit in a small box above it, and are read out as its description
+let tipSeq = 0;
+function tipBtn(label, tip, attrs, cls = "btn ghost") {
+  const id = "tip" + (++tipSeq);
+  return `<span class="tip-wrap"><button class="${cls}" type="button" aria-describedby="${id}" ${attrs}>${label}</button><span class="tip-box" role="tooltip" id="${id}">${esc(tip)}</span></span>`;
+}
+// Each button under a card says what it does when you hover over it
+function cardTips(list, e, nested) {
+  const noun = NOUN[list], org = e.org ? shortOrg(e.org) : "";
+  return {
+    del: `Delete this ${noun} from your resume and profile for good. You will be asked to press it a second time to be sure.`,
+    hide: e.hidden ? `Show this ${noun} on this resume again.` : `Hide this ${noun} from this resume. It stays saved in your profile, and Show brings it back.`,
+    split: `Take this job out of the stack under ${org || "its employer"}. It then gets its own company heading on your resume, and the other jobs there stay stacked together.`,
+    stack: `Put this job back in the stack under ${org || "its employer"}, with your other jobs there, under one company heading.`,
+    finish: list === "experience" ? "Checks this job has a title, employer and start date, then adds it to your resume. Bullet points are a good idea but not required. Only finished jobs show in the preview and downloads."
+      : list === "education" ? "Checks this qualification has a level or subject, a place of study and dates, then adds it to your resume. Only finished qualifications show in the preview and downloads."
+      : list === "referees" ? "Tidies the phone number and email, then adds this referee to your resume."
+      : `Tidies your notes and adds this ${noun} to your resume. Only finished ${noun}s show in the preview and downloads.`
+  };
+}
+function cardFoot(list, i, e, nested) {
+  const t = cardTips(list, e, nested), at = `data-list="${list}" data-i="${i}"`;
+  // a job that was split away from its employer's stack can be stacked again if other jobs there are stacked
+  const canStack = list === "experience" && !!e.grp && P().experience.some((x, k) => k !== i && orgKey(x.org) === orgKey(e.org) && !x.grp);
+  return `${e.done || !FIN_HINT[list] ? "" : `<p class="q-hint fin-hint">${FIN_HINT[list]}</p>`}${list === "referees" || !e.hidden ? "" : `<p class="q-hint hide-why">Hidden: it stays saved in your profile but is left off this resume. Press Show to bring it back.</p>`}<p class="status-line" id="bFin-${list}-${i}" role="status"></p>
+    <div class="b-card-foot">${tipBtn("Delete", t.del, `data-act="del" ${at}`)}${list === "referees" ? "" : tipBtn(e.hidden ? "Show" : "Hide", t.hide, `data-act="hide" ${at} aria-pressed="${!!e.hidden}"`)}${list === "experience" && nested ? tipBtn("Split", t.split, `data-act="split" ${at}`) : ""}${canStack ? tipBtn("Stack", t.stack, `data-act="unsplit" ${at}`) : ""}
+    <span class="foot-gap"></span>${tipBtn(e.done ? "Finish" : `Finish this ${NOUN[list]}`, t.finish, `data-act="finish" ${at}`, "btn primary")}</div>`;
 }
 function bulletRow(path, text, i, j, current) {
   const alts = builder.alts[`${i}.${j}`], ask = builder.fixAsk === `${i}.${j}`;
@@ -293,6 +324,7 @@ function eduCard(e, i) {
     <div class="q-dates">${q(base + ".start", "Started", { ph: datePh("Feb 2022"), date: true })}${q(base + ".end", e.current ? "Expected to finish" : "Finished", { ph: datePh("Nov 2025"), date: true })}${endCheck(base + ".current", "I'm still studying")}</div>
     ${builder.autoStudy === base + ".end" && e.current ? `<p class="b-check ok" role="status">That's after today, so “I'm still studying” is ticked${studyStage(e) && studyStage(e).label ? ` and you'll be described as ${aOrAn(studyStage(e).label)} ${studyStage(e).label} student` : ""}.</p>` : ""}
     <div class="q-grid">${gradeQ(e, base)}</div>
+    <div class="b-sub b-edu-hl">Academic highlights</div>
     ${awardsQ(e, i)}
     ${subjectsQ(e, i)}
     ${projectQ(e, base)}
@@ -436,7 +468,8 @@ function resumeHealth(p) {
   if (["none", "student"].includes(stageOf(p))) { /* the job title is only asked from early career up */ }
   else if (!p.target.title.trim()) add("warn", "Add the job title you're aiming for. It becomes your headline.", SN("goal")); else add("pass", "Headline matches the job you want.");
   const sw = wordCount(p.summary);
-  if (!sw) add("warn", "Write a short profile for the top.", SN("summary"));
+  // (the profile is optional: with none written there is nothing to warn about, and the resume has no Profile section)
+  if (!sw) { /* optional */ }
   else if (sw < 25) add("warn", "Your profile is short. Aim for 40 to 75 words.", SN("summary"));
   else if (sw > 95) add("warn", `Your profile is ${sw} words. Trim it to under 80.`, SN("summary"));
   else if (CLICHES.some(x => new RegExp("\\b" + x + "\\b", "i").test(p.summary)) || FILLER.test(p.summary)) add("warn", "Your profile uses clichés. Replace them with specifics.", SN("summary"));
@@ -523,7 +556,7 @@ function renderBuilder(focus) {
   const pend = builder.pendingGoto;
   const flipFrom = builder.animate ? flipCapture() : null;
   builder.animate = false;
-  f.innerHTML = STEP_RENDER[k]() + (pend ? `<div class="b-pending" role="alert"><p>${esc(pend.msg)}</p><div class="b-actions"><button class="btn primary" type="button" data-act="finish-all">Finish ${pend.count > 1 ? "them" : "it"} and continue</button><button class="btn" type="button" data-act="goto" data-step="${pend.step}" data-force="1">Continue without ${pend.count > 1 ? "them" : "it"}</button></div></div>` : "")
+  f.innerHTML = STEP_RENDER[k]() + (pend && !pend.count ? `<div class="b-pending ok" role="status"><p>${esc(pend.msg)}</p><div class="b-actions"><button class="btn primary" type="button" data-act="goto" data-step="${pend.step}" data-force="1">Continue to ${B_STEPS[pend.step].label} →</button></div></div>` : pend ? `<div class="b-pending" role="alert"><p>${esc(pend.msg)}</p><div class="b-actions"><button class="btn primary" type="button" data-act="finish-all">Finish ${pend.count > 1 ? "them" : "it"} and continue</button><button class="btn" type="button" data-act="goto" data-step="${pend.step}" data-force="1">Continue without ${pend.count > 1 ? "them" : "it"}</button></div></div>` : "")
     + `<div class="b-nav">${builder.step > 0 ? `<button class="btn" type="button" data-act="goto" data-step="${builder.step - 1}">← ${B_STEPS[builder.step - 1].label}</button>` : `<button class="btn" type="button" data-back-start="1">← Back to start</button>`}${builder.step < B_STEPS.length - 1 ? `<button class="btn primary" type="button" data-act="goto" data-step="${builder.step + 1}">Next: ${B_STEPS[builder.step + 1].label} →</button>` : ""}</div>`;
   renderSteps();
   updateChecks();
@@ -536,6 +569,18 @@ function renderBuilder(focus) {
   if (flipFrom) flipPlay(flipFrom);
 }
 const stepsBar = () => document.querySelector("#view-builder .b-steps");
+// The notice under the cards after trying to move on with unfinished entries: what it says, and bringing it up to date as they are finished
+function draftsMsg(drafts) {
+  const d0 = drafts[0].e, nm = d0.title || d0.degree || d0.name || d0.org || d0.inst;
+  return `${drafts.length === 1 ? `“${nm}” isn't` : `${drafts.length} entries aren't`} finished yet, so ${drafts.length === 1 ? "it's" : "they're"} not on your resume.`;
+}
+function syncPending() {
+  const pend = builder.pendingGoto;
+  if (!pend) return;
+  const drafts = draftsIn(P(), B_STEPS[builder.step].key);
+  pend.count = drafts.length;
+  pend.msg = drafts.length ? draftsMsg(drafts) : "Everything on this step is finished now, so it's all on your resume.";
+}
 // Text boxes grow to fit what's in them, so nothing is hidden
 function autoGrow(t) { if (!t || !t.isConnected) return; t.style.height = "auto"; t.style.height = Math.max(t.scrollHeight + 2, 44) + "px"; }
 // Scroll so an element sits just under the top bar, gently
@@ -562,12 +607,12 @@ function builderAccent(t) { const c = P().cv; return c.template === t.key && t.a
 // The designs that match the filters, best first, a dozen at a time (the chosen one always shows)
 function layoutMatches() { const sel = P().cv.template; return rankTemplates().filter(({ t }) => tplMatches(t, builder.tplFilter) || t.key === sel); }
 function layoutCards() {
-  const sel = P().cv.template, data = EXAMPLE_PROFILE, ranked = rankTemplates();   // always the example, so every part of each design can be seen
+  const sel = P().cv.template, data = P(), ranked = rankTemplates();   // the person's own details, and grey guidance in each part they haven't done yet (never made-up details)
   const best = ranked.filter(r => r.rec).slice(0, 3).map(r => r.t.key);
   const list = layoutMatches();
   const showing = list.slice(0, builder.tplShow);
   if (sel && !showing.some(r => r.t.key === sel)) { const s = list.find(r => r.t.key === sel); if (s) showing.unshift(s); }
-  return showing.map(({ t }) => `<button type="button" class="tpl-card" data-act="tpl" data-tpl="${t.key}" aria-pressed="${sel === t.key}" aria-label="${esc(t.name)}. ${esc(t.goodFor)}"><span class="tpl-thumb"><div>${cvHtml(cvModel(data, t), t, { accent: sel === t.key ? builderAccent(t) : t.accent })}</div></span><span class="tpl-name">${esc(t.name)}</span>${best.includes(t.key) || t.ats ? `<span class="tpl-badges">${best.includes(t.key) ? '<span class="tpl-badge">Best match</span>' : ""}${t.ats ? '<span class="tpl-badge ats">ATS-friendly</span>' : ""}</span>` : ""}</button>`).join("") || `<p class="small muted">No design matches all of those. Untick one of the filters.</p>`;
+  return showing.map(({ t }) => `<button type="button" class="tpl-card" data-act="tpl" data-tpl="${t.key}" aria-pressed="${sel === t.key}" aria-label="${esc(t.name)}. ${esc(t.goodFor)}"><span class="tpl-thumb"><div>${cvHtml(cvModel(data, t, { guide: true }), t, { accent: sel === t.key ? builderAccent(t) : t.accent })}</div></span><span class="tpl-name">${esc(t.name)}</span>${best.includes(t.key) || t.ats ? `<span class="tpl-badges">${best.includes(t.key) ? '<span class="tpl-badge">Best match</span>' : ""}${t.ats ? '<span class="tpl-badge ats">ATS-friendly</span>' : ""}</span>` : ""}</button>`).join("") || `<p class="small muted">No design matches all of those. Untick one of the filters.</p>`;
 }
 function layoutMore() {
   const n = layoutMatches().length, left = n - builder.tplShow;
@@ -578,20 +623,20 @@ function renderPreview(keepPaper) {
   const frame = $("bPaper");
   if (!frame || currentView !== "builder") return;
   const p = P(), base = builderTpl(), tpl = tplWithPrefs(base);
-  // with nothing finished yet, show a made-up resume so the design can be judged
-  // (and while picking a layout, always: a full example shows every part of the design, whatever has been filled in so far)
-  const picking = !builder.welcome && B_STEPS[builder.step] && B_STEPS[builder.step].key === "layout";
-  const example = picking || (!hasProfile(p) && !finished(p.experience).length && !finished(p.education).length);
+  // What you've done shows as it is. Every part you haven't finished yet shows grey guidance on what to put there (never made-up details),
+  // and stays that way until that part is complete. The summary is optional: with none written, there is no Profile section.
+  const model = cvModel(p, tpl, { guide: true });
+  const guided = model.guided || [], example = guided.length > 0;
   let pages = builder.pages || 1;
   if (!keepPaper) {
-    pages = mountPaper(frame, cvHtml(cvModel(example ? EXAMPLE_PROFILE : p, tpl, { ghostSummary: true }), tpl, { accent: builderAccent(base) }));
+    pages = mountPaper(frame, cvHtml(model, tpl, { accent: builderAccent(base) }));
     builder.pages = pages;
     paperHighlight();
-    bpEditor.example = example;
+    bpEditor.example = false;   // typing on the preview is for your own words: the grey guidance is locked (see bpEditor.locked)
     paperEditable(frame, bpEditor);
   } else if (+frame.dataset.pages) pages = builder.pages = +frame.dataset.pages;
   const drafts = draftsIn(p).length, hidden = ["experience", "education", "projects", "volunteering"].reduce((a, l) => a + p[l].filter(e => e.hidden && e.done !== false && hasContent(e)).length, 0);
-  $("bPages").textContent = `${pages} page${pages === 1 ? "" : "s"} in the ${tpl.name} layout.${example ? (picking ? " This is an example with made-up details so you can judge the design. Your own details show once you move on." : " This is an example with made-up details. Yours replace it as you finish each part.") : ""}${pages > 2 && !example ? " Aim for two at most." : ""}${drafts ? ` ${drafts} ${drafts === 1 ? "entry isn't" : "entries aren't"} finished yet, so ${drafts === 1 ? "it's" : "they're"} not shown.` : ""}${hidden ? ` ${hidden} hidden from this resume.` : ""}`;
+  $("bPages").textContent = `${pages} page${pages === 1 ? "" : "s"} in the ${tpl.name} layout.${example ? " Grey text shows what goes in each part. It turns into your own words as you finish each part." : ""}${pages > 2 && !example ? " Aim for two at most." : ""}${drafts ? ` ${drafts} ${drafts === 1 ? "entry isn't" : "entries aren't"} finished yet, so ${drafts === 1 ? "it's" : "they're"} not shown.` : ""}${hidden ? ` ${hidden} hidden from this resume.` : ""}`;
   const h = resumeHealth(p);
   $("bScoreMini").innerHTML = `Resume strength: <span style="color:${h.score >= 80 ? "var(--good)" : h.score >= 60 ? "var(--accent)" : "var(--warn)"}">${h.score}/100</span>`;
 }
@@ -700,7 +745,7 @@ function onBuilderInput(e) {
   if (/^experience\.\d+\.org$/.test(path)) { const co = t.closest("details.b-co"); if (co && !t.closest(".b-co-roles")) {
     for (const k of (co.dataset.ids || "").split(".")) { const x = p.experience[+k]; if (x) x.org = v; }
     touchProfile("builder");
-    if (change) { builder.openCo.add(orgKey(v)); keepOpen(); renderBuilder(false); } else previewSoon();
+    if (change) { builder.openCo.add(stackKey(p.experience[+(co.dataset.ids || "").split(".")[0]])); keepOpen(); renderBuilder(false); } else previewSoon();
     return;
   } }
   if (path === "target.jobSub") document.querySelectorAll('#bForm [data-act="pick-sub"]').forEach(x => x.setAttribute("aria-pressed", String(x.dataset.val === v)));
@@ -840,8 +885,7 @@ async function onBuilderClick(e) {
       if (!b.dataset.force && !builder.welcome && to > builder.step && ["experience", "education", "extras"].includes(cur)) {
         const drafts = draftsIn(p, cur);
         if (drafts.length) {
-          const d0 = drafts[0].e, nm = d0.title || d0.degree || d0.name || d0.org || d0.inst;
-          builder.pendingGoto = { step: to, count: drafts.length, msg: `${drafts.length === 1 ? `“${nm}” isn't` : `${drafts.length} entries aren't`} finished yet, so ${drafts.length === 1 ? "it's" : "they're"} not on your resume.` };
+          builder.pendingGoto = { step: to, count: drafts.length, msg: draftsMsg(drafts) };
           // open every draft and take you back to the first one (the notice with the buttons is under the cards)
           for (const d of drafts) if (builder.open[d.list]) builder.open[d.list].add(d.i);
           renderBuilder(false);
@@ -862,7 +906,7 @@ async function onBuilderClick(e) {
       const left = draftsIn(p, cur).length;
       if (!left && pend) { builder.pendingGoto = null; builder.step = pend.step; renderBuilder(true); return; }
       keepOpen();
-      for (const s of stuck) { builder.open[s.list].add(s.i); if (s.list === "experience") { const k = orgKey(s.e.org); if (k) builder.openCo.add(k); } }
+      for (const s of stuck) { builder.open[s.list].add(s.i); if (s.list === "experience") { const k = stackKey(s.e); if (k) builder.openCo.add(k); } }
       if (pend && stuck.length) { pend.count = left; pend.msg = `${left === 1 ? "One entry can't" : left + " entries can't"} be finished yet, so ${left === 1 ? "it's" : "they're"} not on your resume. The reason is under ${left === 1 ? "it" : "each one"} below.`; }
       touchProfile("builder");
       renderBuilder(false);
@@ -881,10 +925,14 @@ async function onBuilderClick(e) {
       builder.extraFold = { ...(builder.extraFold || {}), [key]: fold };
       const inner = document.querySelector(`#bForm .b-extra-inner[data-extra="${key}"]`);
       if (inner) inner.hidden = fold;
-      b.classList.toggle("is-folded", fold); b.setAttribute("aria-expanded", String(!fold));
-      const label = (b.closest(".b-extra-head").querySelector("b") || {}).textContent || "this section";
-      b.setAttribute("aria-label", `${fold ? "Show" : "Hide"} ${label}`); b.title = `${fold ? "Show" : "Hide"} this section`;
-      if (!fold && inner) inner.querySelectorAll("textarea").forEach(autoGrow);
+      const pk = document.querySelector(`#bForm .b-extra-peek[data-peek="${key}"]`); if (pk) pk.hidden = !fold;
+      const tg = document.querySelector(`#bForm .b-extra-tog[data-key="${key}"]`);   // (the small triangle: pressed from here or from a finished section's Edit button)
+      if (tg) {
+        tg.classList.toggle("is-folded", fold); tg.setAttribute("aria-expanded", String(!fold));
+        const label = ((tg.closest(".b-extra-head") || document).querySelector("b") || {}).textContent || "this section";
+        tg.setAttribute("aria-label", `${fold ? "Show" : "Hide"} ${label}`); tg.title = `${fold ? "Show" : "Hide"} this section`;
+      }
+      if (!fold && inner) { inner.querySelectorAll("textarea").forEach(autoGrow); const f1 = inner.querySelector("input:not([disabled]), textarea"); if (f1 && b.closest(".b-extra-peek")) f1.focus({ preventScroll: true }); }
       return;
     }
     case "ai-fold": { const box = b.closest(".b-aiin"); if (box) aiFold(box); return; }
@@ -949,7 +997,7 @@ async function onBuilderClick(e) {
       keepOpen();
       const arr = listArr(p, list), entry = arr[i];
       const name = entry.title || entry.degree || entry.name || "this entry";
-      if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = `Remove “${name}”? Click again`; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Remove"; } }, 4000); return; }
+      if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = `Delete “${name}”? Click again`; setTimeout(() => { if (b.isConnected) { b.dataset.sure = ""; b.textContent = "Delete"; } }, 4000); return; }
       arr.splice(i, 1);
       builder.foldOpen = {};
       builder.extraAlts = {};
@@ -958,11 +1006,25 @@ async function onBuilderClick(e) {
       if (list === "experience" || list === "education") window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
       return;
     }
+    case "split": case "unsplit": {
+      // Split: this job leaves the stack under its employer and gets its own company heading. Stack: it goes back.
+      keepOpen();
+      const x = p.experience[i];
+      if (!x) return;
+      const was = x.grp || "", nm = x.title || "This job", co = shortOrg(x.org) || "its employer";
+      x.grp = act === "split" ? "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) : "";
+      builder.open.experience.add(i);
+      touchProfile("builder"); renderBuilder(false);
+      const card = document.querySelector(`#bForm details[data-card="experience"][data-i="${i}"]`);
+      if (card) { smoothTo(card, 80); card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash"); }
+      actToast(act === "split" ? `Split “${nm}” from the other jobs at ${co}. It has its own heading on your resume now.` : `“${nm}” is stacked with your other jobs at ${co} again.`, () => { keepOpen(); x.grp = was; builder.open.experience.add(i); touchProfile("builder"); renderBuilder(false); });
+      return;
+    }
     case "add-role": {
       keepOpen();
       const src = p.experience[i];
       if (!src) return;
-      const nx = emptyExp(); nx.org = src.org; nx.location = src.location || "";
+      const nx = emptyExp(); nx.org = src.org; nx.location = src.location || ""; nx.grp = src.grp || "";   // (a title added to a job that was split away joins that job)
       // the newer title goes above the one it follows, and the entries below it move down one place
       p.experience.splice(i, 0, nx);
       const down = k => k >= i ? k + 1 : k;
@@ -1117,6 +1179,7 @@ async function saveResumeVersion(btn) {
   list.unshift({ id: uid8(), name, saved: new Date().toISOString(), tpl: t.key, tplName: t.name, accent: builderAccent(t), profile: JSON.parse(JSON.stringify(p)) });
   if (list.length > MAX_SAVED) list.length = MAX_SAVED;
   savedResumes.save(true);
+  builder.savedSig = resumeSig();   // (saved: leaving this page won't ask)
   renderBuilder(false);
   const s2 = $("bSaveStatus"); if (s2) s2.textContent = `“${name}” is ${whereWords(savedResumes.where === "loading" ? profile.where : savedResumes.where)}.`;
 }
@@ -1127,6 +1190,7 @@ function openSavedResume(k) {
   replaceProfile(x.profile, "import");
   P().cv.template = x.tpl; P().cv.accent = x.accent || "";
   touchProfile("import");
+  builder.savedSig = resumeSig();
   builder.open = openSets(); builder.sugg = {};
   renderBuilder(false);
   const st = $("bSaveStatus");
@@ -1508,6 +1572,11 @@ function mergeProfiles(into, got) {
   mergeList("projects", ["name", "org"], ["name", "org", "start", "end", "details"]);
   for (const k of Object.keys(p.skills)) { const have = new Set(p.skills[k].map(s => s.toLowerCase())); for (const s of g.skills[k]) if (!have.has(s.toLowerCase())) { p.skills[k].push(s); have.add(s.toLowerCase()); } }
   for (const k of ["awards", "publications", "interests", "availability"]) if (!val(p[k]) && val(g[k])) { p[k] = g[k]; p.extras[k] = true; }
+  // availability read from the old resume has already been sorted into its boxes (see migrateAvailability): the work type, when they can start, days and hours
+  { let got = false;
+    for (const k of ["startWhen", "availDays", "availHours"]) if (!val(p[k]) && val(g[k])) { p[k] = g[k]; got = true; }
+    for (const w of g.target.workTypes || []) if (!(p.target.workTypes || []).includes(w)) { (p.target.workTypes || (p.target.workTypes = [])).push(w); got = true; }
+    if (got && g.extras.availability) p.extras.availability = true; }
   for (const k of ["projects", "volunteering"]) if (p[k].length && g.extras[k]) p.extras[k] = true;
   if (g.referees.mode === "list" && p.referees.mode !== "list" && g.referees.list.length) { p.referees = g.referees; p.extras.referees = true; }
   return p;
@@ -1660,6 +1729,19 @@ async function importInto(kind, input, statusEl, sourceName) {
   if (kind === "resume" && (!text || wordCount(text) < 30)) { statusEl.textContent = "That doesn't look like enough resume text to read."; statusEl.classList.add("err"); return false; }
   if (kind === "linkedin" && !(input.experience || input.education || input.headline || input.name)) { statusEl.textContent = `Couldn't find your profile sections in ${sourceName}. Try LinkedIn's PDF instead.`; statusEl.classList.add("err"); return false; }
   statusEl.classList.remove("err");
+  // The cover letter page: what is read is used for that letter only, and nothing is added to the profile
+  const set0 = fileSetFor(statusEl);
+  if (set0 && set0.temp) {
+    const real = profile.data, got0 = kind === "linkedin" ? profileFromLinkedIn(input) : profileFromText(text), t = mergeProfile(mergeProfiles(emptyProfile(), got0));
+    t.cv = real.cv; t.prefs = real.prefs;   // (the letter's design choices stay the profile's own)
+    t.target.title = val(t.target.title) ? t.target.title : real.target.title;
+    t.target.jobType = jobTypeForTitle(t.target.title) || real.target.jobType || "";
+    ltTemp = t;
+    const nj = t.experience.filter(hasContent).length, nq = t.education.filter(hasContent).length, ns = Object.values(t.skills).flat().length;
+    const what = [nj ? `${nj} job${nj === 1 ? "" : "s"}` : "", nq ? `${nq} qualification${nq === 1 ? "" : "s"}` : "", ns ? `${ns} skill${ns === 1 ? "" : "s"}` : ""].filter(Boolean);
+    statusEl.innerHTML = `<b>Read ${esc(sourceName)}</b><ul class="imp-list"><li>${what.length ? `Found ${esc(listJoin(what))}.` : "Nothing found to use."}</li><li>Used for this letter only. Nothing was added to your profile.</li></ul>`;
+    return true;
+  }
   const before = JSON.parse(JSON.stringify(P()));
   // An uploaded resume or LinkedIn profile is read by Job Finder's own rules only: the AI is never given it
   const got = kind === "linkedin" ? profileFromLinkedIn(input) : profileFromText(text);
@@ -1717,30 +1799,71 @@ function fileIconSvg(name) {
 }
 // The opening pages that take a file: where the drop box, its card and the paste box are, and which message line they use.
 // "base" is the profile from before the file was read (kept on the message line), so a different file can replace it.
+// "next" is the box holding that page's blue Next button, which only shows once something has been uploaded to the profile.
 const FILE_SETS = {
-  builder: { name: "builder", status: "bImportStatus", drop: "bDrop", card: "bFileCard", paste: "bLiPasteBox", input: "bFile", takesProfile: true },
-  letter: { name: "letter", status: "ltwStatus", drop: "ltwResDrop", card: "ltwFileCard", paste: "ltwPasteBox", input: "ltwResFile", takesProfile: true },
-  linkedin: { name: "linkedin", status: "liwStatus", drop: "liwResDrop", card: "liwFileCard", paste: "liwPasteBox", input: "liwResFile", takesProfile: true },
-  letterOld: { name: "letterOld", status: "ltwLetterStatus", drop: "ltwDrop", card: "ltwLetterCard", paste: "", input: "ltwFile", takesProfile: false }   // an old cover letter: no profile to take back
+  builder: { name: "builder", status: "bImportStatus", drop: "bDrop", card: "bFileCard", paste: "bLiPasteBox", input: "bFile", next: "bImportNextBox", takesProfile: true, autoRead: true, howto: "bLiHowto" },   // (autoRead: a file chosen here is read straight away, with no button to press)
+  letter: { name: "letter", status: "ltwStatus", drop: "ltwResDrop", card: "ltwFileCard", paste: "ltwPasteBox", input: "ltwResFile", next: "ltwNextBox", takesProfile: false, temp: true, autoRead: true, doneText: "Read. Used for this letter only" },
+  linkedin: { name: "linkedin", status: "liwStatus", drop: "liwResDrop", card: "liwFileCard", paste: "liwPasteBox", input: "liwResFile", next: "liwNextBox", takesProfile: true },
+  letterOld: { name: "letterOld", status: "ltwLetterStatus", drop: "ltwDrop", card: "ltwLetterCard", paste: "", input: "ltwFile", next: "ltwNextBox", takesProfile: false, autoRead: true, doneText: "Read. Your letter is in the paragraphs" }   // an old cover letter: no profile to take back
 };
 const fileSetFor = statusEl => statusEl ? [FILE_SETS.builder, FILE_SETS.letter, FILE_SETS.linkedin].find(f => $(f.status) === statusEl) || null : null;
-function bShowFileCard(file, set = FILE_SETS.builder) {
+// Next is there once a file (or pasted page) has been uploaded to the profile, and goes again when it is taken back out
+function bSyncNext(set) {
+  const box = set && set.next && $(set.next);
+  if (box) box.hidden = !Object.values(FILE_SETS).some(f => f.next === set.next && f.done);
+}
+// Create or edit resume (autoRead): a file that is chosen is read at once and its details fill in the questions. There is no upload button.
+// The other opening pages (cover letter, LinkedIn): a file that has been chosen is only a card until "Upload to profile" is pressed.
+// (A file already read shows the same card with "Choose a different file", which takes it back out.)
+// staged: true = chosen, not read yet; "reading" = being read now; "failed" = could not be read
+function bShowFileCard(file, set = FILE_SETS.builder, staged = false) {
   const card = $(set.card), drop = $(set.drop); if (!card || !drop) return;
-  card.innerHTML = `${fileIconSvg(file.name)}<span class="b-file-name">${esc(file.name)}</span><button class="linkish" type="button" data-file-swap="${set.name}">Choose a different file</button>`;
+  const swap = `<button class="linkish" type="button" data-file-swap="${set.name}">Choose a different file</button>`;
+  const action = staged === "reading" ? `<span class="tl-found busy" role="status">Reading it…</span>`
+    : staged === "failed" ? swap
+    : staged ? `<button class="btn primary" type="button" data-file-commit="${set.name}">Upload to profile</button>${swap}`
+    : `<span class="tl-found">${set.autoRead ? (set.doneText || "Read. Your details are filled in") : "Uploaded to your profile"}</span>${swap}`;
+  card.innerHTML = `${fileIconSvg(file.name)}<span class="b-file-name">${esc(file.name)}</span>${action}`;
   card.hidden = false; drop.hidden = true;
+  const how = set.howto && $(set.howto); if (how) how.hidden = true;   // (the LinkedIn steps are only for before the file is in)
   const paste = set.paste && $(set.paste); if (paste) { paste.open = false; paste.hidden = true; }   // one file only: the paste box goes away until it is removed
+  set.done = staged === false; bSyncNext(set);
+}
+const stagedFiles = {};
+function bStageFile(file, set = FILE_SETS.builder) {
+  if (!file) return;
+  stagedFiles[set.name] = file;
+  const st = $(set.status);
+  if (set.autoRead) { if (st) { st.classList.remove("err"); st.textContent = ""; } bShowFileCard(file, set, "reading"); return bCommitFile(set); }
+  if (st) { st.classList.remove("err"); st.textContent = "Press Upload to profile to read this file into your profile. Nothing is added until you do."; }
+  bShowFileCard(file, set, true);
+}
+async function bCommitFile(set) {
+  const file = set && stagedFiles[set.name]; if (!file) return;
+  const st = $(set.status), btn = $(set.card) && $(set.card).querySelector("[data-file-commit]");
+  if (btn) btn.disabled = true;
+  let ok;
+  if (set.name === "letterOld") ok = await ltImportFile(file);
+  else { await builderImportFile(file, st); ok = !st.classList.contains("err"); }
+  if (!ok) { if (set.autoRead) bShowFileCard(file, set, "failed"); else if (btn && btn.isConnected) btn.disabled = false; return; }   // the card stays, with the reason on the message line, so another try or another file is one press away
+  delete stagedFiles[set.name];
+  bShowFileCard(file, set);
+  if (set.onDone) set.onDone(file);
 }
 function bClearFileCards(set) {
   for (const f of set ? [set] : Object.values(FILE_SETS)) {
-    const card = $(f.card), drop = $(f.drop), paste = f.paste && $(f.paste);
+    const card = $(f.card), drop = $(f.drop), paste = f.paste && $(f.paste), how = f.howto && $(f.howto);
+    if (how) how.hidden = false;
     if (card) { card.hidden = true; card.textContent = ""; }
     if (drop) drop.hidden = false;
     if (paste) paste.hidden = false;
+    f.done = false; delete stagedFiles[f.name]; bSyncNext(f);
   }
 }
-// "Choose a different file": the one brought in is taken back out first, so the new one replaces it rather than adding to it
+// "Choose a different file": a file already uploaded is taken back out first, so the new one replaces it rather than adding to it
 function bSwapFile(set) {
   if (!set) return;
+  if (set.temp) ltTemp = null;   // the file brought in for the letter is let go
   const st = $(set.status);
   if (set.takesProfile && st && st.jfBase) { replaceProfile(st.jfBase, "import"); st.jfBase = null; builder.undo = null; }
   bClearFileCards(set);
@@ -1757,9 +1880,15 @@ async function importPastedLinkedIn(textId, st) {
   const t = $(textId).value;
   if (wordCount(t) < 20) { st.classList.add("err"); st.textContent = "Paste your whole LinkedIn profile page first: press Ctrl+A then Ctrl+C on it (Cmd on a Mac)."; return; }
   if (await importInto("linkedin", liFromPage(t), st, "your LinkedIn page")) {
-    $(textId).value = ""; builder.step = 0; renderBuilder(false);
+    $(textId).value = ""; bAfterImport(st);
     const set = fileSetFor(st); if (set) bShowFileCard({ name: "Pasted LinkedIn page.txt" }, set);
   }
+}
+// After something is read in: the resume builder starts at the first step; the cover letter page just draws itself again with what it read
+function bAfterImport(statusEl) {
+  const s = fileSetFor(statusEl);
+  if (s && s.temp) { if (typeof renderLetterPage === "function") renderLetterPage(); return; }
+  builder.step = 0; renderBuilder(false);
 }
 async function builderImportFile(file, statusEl) {
   if (!file) return;
@@ -1769,8 +1898,8 @@ async function builderImportFile(file, statusEl) {
     const { text } = await readFile(file);
     // a LinkedIn "Save to PDF" file dropped in the resume box is read as LinkedIn
     const li = /\.pdf$/i.test(file.name) && /\b(Top Skills|Contact)\b[\s\S]{0,400}\b(linkedin\.com\/in\/|Experience)\b/.test(text) ? await readLinkedInPdf(file).catch(() => null) : null;
-    if (li && (li.experience || li.education)) { if (await importInto("linkedin", li, statusEl, file.name)) { builder.step = 0; renderBuilder(false); { const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); } } return; }
-    if (await importInto("resume", text, statusEl, file.name)) { builder.step = 0; renderBuilder(false); { const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); } }
+    if (li && (li.experience || li.education)) { if (await importInto("linkedin", li, statusEl, file.name)) { bAfterImport(statusEl); { const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); } } return; }
+    if (await importInto("resume", text, statusEl, file.name)) { bAfterImport(statusEl); { const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); } }
   } catch (e) { statusEl.classList.add("err"); statusEl.textContent = e && e.message ? e.message : "Couldn't read that file."; }
 }
 async function builderImportLinkedIn(file, statusEl) {
@@ -1778,7 +1907,7 @@ async function builderImportLinkedIn(file, statusEl) {
   statusEl.classList.remove("err"); statusEl.textContent = `Reading ${file.name}…`;
   try {
     if (!/\.pdf$/i.test(file.name)) throw new Error("Use the PDF from LinkedIn's “Save to PDF”, or paste your profile page below.");
-    if (await importInto("linkedin", await readLinkedInPdf(file), statusEl, file.name)) { builder.step = 0; renderBuilder(false); const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); }
+    if (await importInto("linkedin", await readLinkedInPdf(file), statusEl, file.name)) { bAfterImport(statusEl); const set = fileSetFor(statusEl); if (set) bShowFileCard(file, set); }
   } catch (e) { statusEl.classList.add("err"); statusEl.textContent = e && e.message ? e.message : "Couldn't read that file. Paste your profile page instead."; }
 }
 
@@ -1810,14 +1939,16 @@ onInit(() => {
     }
     if (e.target.matches && e.target.matches("details.b-card")) { keepOpen(); if (e.target.open) e.target.querySelectorAll("textarea").forEach(autoGrow); } }, true);
   $("bPick").addEventListener("click", () => $("bFile").click());
-  $("bFile").addEventListener("change", async () => { const st = $("bImportStatus"), f = bOneFile($("bFile").files, st); $("bFile").value = ""; if (f) await builderImportFile(f, st); });
+  $("bFile").addEventListener("change", async () => { const st = $("bImportStatus"), f = bOneFile($("bFile").files, st); $("bFile").value = ""; if (f) bStageFile(f, FILE_SETS.builder); });
   ["dragenter", "dragover"].forEach(t => $("bDrop").addEventListener(t, e => { e.preventDefault(); $("bDrop").classList.add("over"); }));
   ["dragleave", "drop"].forEach(t => $("bDrop").addEventListener(t, e => { e.preventDefault(); $("bDrop").classList.remove("over"); }));
-  $("bDrop").addEventListener("drop", e => { const st = $("bImportStatus"), f = e.dataTransfer && bOneFile(e.dataTransfer.files, st); if (f) builderImportFile(f, st); });
-  $("bFromScanner").addEventListener("click", async () => { if (await importResumeText(finalText(), $("bImportStatus"), "the resume from Tailor to a job")) { builder.step = 0; renderBuilder(false); } });
+  $("bDrop").addEventListener("drop", e => { const st = $("bImportStatus"), f = e.dataTransfer && bOneFile(e.dataTransfer.files, st); if (f) bStageFile(f, FILE_SETS.builder); });
+  $("bFromScanner").addEventListener("click", async () => { if (await importResumeText(finalText(), $("bImportStatus"), "the resume from Tailor to a job")) { builder.step = 0; renderBuilder(false); FILE_SETS.builder.done = true; bSyncNext(FILE_SETS.builder); } });
   $("bLiPasteGo").addEventListener("click", () => importPastedLinkedIn("bLiPaste", $("bImportStatus")));
+  // (a whole page pasted in is read straight away, as a file is)
+  $("bLiPaste").addEventListener("paste", () => setTimeout(() => { if (wordCount($("bLiPaste").value) >= 60) importPastedLinkedIn("bLiPaste", $("bImportStatus")); }, 60));
   // (the card that replaces a drop box once its file is in: "Choose a different file" opens the picker again)
-  document.addEventListener("click", e => { const b = e.target.closest("[data-file-swap]"); if (b) bSwapFile(FILE_SETS[b.dataset.fileSwap]); });
+  document.addEventListener("click", e => { const b = e.target.closest("[data-file-swap]"); if (b) bSwapFile(FILE_SETS[b.dataset.fileSwap]); const c = e.target.closest("[data-file-commit]"); if (c) bCommitFile(FILE_SETS[c.dataset.fileCommit]); });
   $("bReset").addEventListener("click", () => {
     const b = $("bReset");
     if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Clear all my answers?"; setTimeout(() => { b.dataset.sure = ""; b.textContent = "Start fresh"; }, 4000); return; }

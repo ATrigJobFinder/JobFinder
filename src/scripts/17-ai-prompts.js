@@ -28,7 +28,9 @@ async function aiJSON(task) {
 async function aiJSONInner(task, gen) {
   const { nano, full, examples = [], prompt, schema, check, progress = () => {}, label = "Working", noRetry = false, expect, writing = false, plainKey = "" } = task;
   // writing prose (a letter) wants more natural wording than extracting facts: AI_WRITING (14-ai-engines.js) goes to every AI, the one in your key, the one in the browser and Chrome's
-  const bigOpts = { cache: false, ...(writing ? AI_WRITING : {}), ...(plainKey ? { plainKey } : {}), ...(task.effort || aiEffortNow() ? { effort: task.effort || aiEffortNow() } : {}), ...(task.tier ? { tier: task.tier } : {}) };
+  const bigOpts = { cache: false, ...(writing ? AI_WRITING : {}), ...(plainKey ? { plainKey } : {}), ...(task.effort || aiEffortNow() ? { effort: task.effort || aiEffortNow() } : {}), ...(task.tier ? { tier: task.tier } : {}), ...(task.topOnly || (typeof currentView !== "undefined" && currentView === "letter") ? { topOnly: true } : {}) };   // (topOnly: a cover letter is only ever written by the top Gemini model, see 14-ai-engines.js)
+  // a cover letter is only written by the highest Gemini model: if the key is set to another one, nothing is asked of any AI
+  if (bigOpts.topOnly) { const g = aiTopGate(); if (g) return { data: null, via: null, rejected: false, tried: ["big"], error: g }; }
   let rejected = false, error = null, raw = null, rawWhy = "", rawVia = null;
   const tried = [];
   aiLastProblem = null;
@@ -54,7 +56,9 @@ async function aiJSONInner(task, gen) {
   const big = afterSmall();
   if (big) {
     tried.push("big");
-    progress(`${label} with ${BIG_NAME()}…`);
+    // which model is being used: named now, and again if it hands the job to another one (the model's own call says so through onModel)
+    progress(`${label} with ${bigModelName(bigOpts)}…`);
+    bigOpts.onModel = (m, prev) => progress(prev ? `${prev} didn't answer. ${label} with ${m}…` : `${label} with ${m}…`);
     const first = `${full || nano}${examplesAsText(examples)}\n\nNow the real input:\n${prompt}`;
     try {
       const d1 = await big.json(first, bigOpts);
@@ -71,6 +75,11 @@ async function aiJSONInner(task, gen) {
     } catch (e) { error = e; }
   }
   return { data: null, via: null, rejected, tried, error, raw, rawWhy, rawVia };
+}
+// The model a call to the bigger AI starts with: the key's model (Gemini's small one for quick jobs), or the one in the browser
+function bigModelName(o) {
+  if (aiCfg.engine === "key" && aiCfg.key.model) return aiModelLabel(o && o.tier === "small" && !o.topOnly && aiCfg.key.provider === "gemini" && aiProvider().small ? aiProvider().small : aiCfg.key.model);
+  return BIG_NAME();
 }
 const viaWords = via => via === "chrome" ? SMALL() : via === "big" ? BIG_NAME() : "built-in rules (no AI)";
 // Why there's no AI answer, in plain words

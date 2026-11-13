@@ -206,6 +206,15 @@ async function aicTestKey() {
   if (!aiUsable("key")) { aicMsg("aicKeyOut", !aiSecret() ? "Paste your key first." : "Choose a model first.", "err"); undo(); return; }
   btn.disabled = true; aicMsg("aicKeyOut", "Testing…");
   try {
+    // Gemini: the connection is tested with Gemini 3.5 Flash-Lite only (quick and cheap). The key is what is being checked: cover letters are written by the top model.
+    if (aiCfg.key.provider === "gemini" && aiProvider().small) {
+      const small = aiProvider().small;
+      aicMsg("aicKeyOut", `Testing ${geminiName(small)}…`);
+      const r = await testAiTimed("key", AI_TEST_SECONDS, "small");
+      saveAiCfg(); setAiEngine("key"); $("aicKeyModel").value = aiCfg.key.model;
+      aicMsgLines("aicKeyOut", [{ text: `Your Gemini key works: ${geminiName(small)} answered.`, main: true }, { text: `Test reply in ${(r.ms / 1000).toFixed(1)} s: “${r.text}”` }, { text: `Your writing is done by ${geminiName(aiCfg.key.model)}. It is not tested here, and a cover letter is never handed to a smaller model.` }], "ok");
+      return;
+    }
     const f = await testKeyWithFallback(m => aicMsg("aicKeyOut", `Testing ${m}…`)), r = f.r;
     saveAiCfg(); setAiEngine("key"); $("aicKeyModel").value = f.model;
     aicMsgLines("aicKeyOut", aiFallbackLines(f), "ok");
@@ -310,7 +319,12 @@ function aicWire() {
     const btn = $("aicTestNow"), e = aiCfg.engine;
     btn.disabled = true; aicMsg("aicTestNowOut", "Testing…");
     try {
-      if (e === "key" && aiUsable(e)) {
+      if (e === "key" && aiUsable(e) && aiCfg.key.provider === "gemini" && aiProvider().small) {
+        // Gemini is tested with Gemini 3.5 Flash-Lite only; the model that writes is left as it is
+        const small = aiProvider().small, r = await testAiTimed("key", AI_TEST_SECONDS, "small");
+        aicMsg("aicTestNowOut", `Working: ${geminiName(small)} answered "${r.text}" in ${(r.ms / 1000).toFixed(1)} s.`, "ok");
+      }
+      else if (e === "key" && aiUsable(e)) {
         const was = aiCfg.key.model;
         try { const f = await testKeyWithFallback(m => aicMsg("aicTestNowOut", `Testing ${m}…`)); if (f.model !== was) { saveAiCfg(); const el = $("aicKeyModel"); if (el) el.value = f.model; } aicMsgLines("aicTestNowOut", aiFallbackLines(f), "ok"); }
         catch (err) { aiCfg.key.model = was; throw err; }
@@ -396,6 +410,31 @@ function aiDisconnectAsk() {
 $("aiChip").removeAttribute("aria-haspopup");
 $("aiChip").addEventListener("click", () => openView("connect"));
 $("abAi").addEventListener("click", () => openView("connect"));
+// "Connect an AI" from inside a page (the greyed-out AI sections, the "Connect an AI?" question): Choose your AI opens in a pop-up over the page
+// you are on, so closing it brings you back to exactly where you were. Resolves to whether an AI is connected when it closes.
+let connectDlg = null;
+function openConnectPopup() {
+  return new Promise(resolve => {
+    const view = $("view-connect");
+    if (!view || typeof HTMLDialogElement === "undefined" || currentView === "connect") { if (currentView !== "connect") openView("connect"); resolve(false); return; }
+    if (connectDlg && connectDlg.open) { resolve(false); return; }
+    const home = { parent: view.parentNode, next: view.nextSibling };
+    const d = document.createElement("dialog");
+    d.className = "jf-dialog aic-dialog"; d.setAttribute("aria-label", "Choose your AI");
+    d.innerHTML = `<div class="aic-dlg"><div class="aic-dlg-bar"><span>You're still on your page. Close this when you're done.</span><button class="btn primary" type="button" data-aic-done>Done</button></div><div class="aic-dlg-body"></div></div>`;
+    d.querySelector(".aic-dlg-body").appendChild(view);
+    document.body.appendChild(d);
+    view.hidden = false;
+    try { renderConnect(); } catch (err) { console.error(err); }
+    d.querySelector("[data-aic-done]").addEventListener("click", () => d.close());
+    d.addEventListener("close", async () => {
+      view.hidden = true; home.parent.insertBefore(view, home.next); d.remove(); connectDlg = null;
+      if (typeof aiGateRefresh === "function") await aiGateRefresh();   // (the greyed-out sections follow what was chosen)
+      resolve(await aiIsConnected());
+    }, { once: true });
+    connectDlg = d; d.showModal();
+  });
+}
 $("abAiX").addEventListener("click", aiDisconnectAsk);
 onInit(() => {
   aiChangeListeners.add(() => {

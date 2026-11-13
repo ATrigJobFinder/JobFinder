@@ -59,14 +59,14 @@ function tlApply() {
   const has = tlProfileHas(), b = $("tlwProfile"), up = $("tlwUploadCard");
   if (b) {
     b.disabled = !has; b.classList.toggle("bw-card--go", has); b.classList.toggle("bw-card--off", !has);
-    const t = $("tlwProfileText"); if (t) t.textContent = has ? "Choose a resume, and a cover letter if you like, from the ones already in your profile. Nothing needs uploading." : "There's nothing in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
+    const t = $("tlwProfileText"); if (t) t.textContent = has ? "Choose a resume, and a cover letter if you like, from the ones already in your profile. Nothing needs uploading." : "There's no resume in your profile yet. Upload your resume or LinkedIn first, and this is ready to use.";
   }
   if (up) up.classList.toggle("bw-card--go", !has);
   $("tlwUpload").classList.toggle("is-ready", !!els.resume.value.trim());
 }
 function tlGoStart() { tl.on = true; tl.hold = true; tlApply(); tlRender(); tlPanel(els.resume.value.trim() || cover.letters.length ? "upload" : null); window.scrollTo({ top: 0 }); }
 function tlLeave() { if (!tl) return; tl.on = false; tl.hold = false; }
-const tlProfileHas = () => { try { return hasProfile(P()) || (savedResumes.data.list || []).length > 0 || profileLetters().length > 0; } catch { return false; } };
+const tlProfileHas = () => { try { return hasResume(P()) || (savedResumes.data.list || []).length > 0 || profileLetters().length > 0; } catch { return false; } };
 
 /* --- The cards: the resume (in place of its drop box), and the summary on the job ad page --- */
 function tlRender() {
@@ -97,7 +97,7 @@ async function tlProfileList() {
   box.innerHTML = `<p class="progress">Looking in your profile…</p>`;
   await Promise.all([profileReady, savedResumes.ready, baseLetter.ready, savedLetters.ready]);
   const resumes = [];
-  if (hasProfile(P())) resumes.push({ name: P().contact.name ? `${P().contact.name}'s resume` : "My resume", sub: "The resume in your profile now", profile: P() });
+  if (hasResume(P())) resumes.push({ name: P().contact.name ? `${P().contact.name}'s resume` : "My resume", sub: "The resume in your profile now", profile: P() });
   for (const x of savedResumes.data.list || []) resumes.push({ name: x.name, sub: `Saved ${fmtSaved(x.saved)}${x.tplName ? ` · ${x.tplName} layout` : ""}`, profile: x.profile });
   const letters = tailorMode === "resume" ? [] : profileLetters();
   box._resumes = resumes; box._letters = letters;

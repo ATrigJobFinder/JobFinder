@@ -68,19 +68,46 @@ function lwNeeds(proofs) {
   return (picked || []).map(q => { const proof = lwMatch(q.text, proofs || lwProofs(), taken); if (proof) taken.add(proof); return { need: q.text, proof }; });
 }
 
+/* --- What the person has chosen to use (everything is automatic until they change it) --- */
+// BL().use: { proof: the line to lead with, study: which qualification, skills: the skills to name (null = the first few), needProof: { requirement: the line that answers it, or "-" for none } }
+const lwUse = () => { const d = BL(); if (!d.use || typeof d.use !== "object") d.use = {}; if (!d.use.needProof || typeof d.use.needProof !== "object") d.use.needProof = {}; return d.use; };
+let lwEditing = "";   // which row is open for changing: "contact", "proof", "study", "skills"
+// The strongest line of evidence, or the one the person chose (a line they wrote themselves counts too)
+function lwBestProof(proofs) {
+  const all = proofs || lwProofs(), u = lwUse();
+  if (u.proof) return all.find(x => x.text === u.proof) || { text: u.proof, kind: "own", at: "written by you" };
+  return all.slice().sort((a, b) => lwStrength(b.text) - lwStrength(a.text))[0];
+}
+const lwStudyKey = e => [e.degree, e.inst].map(x => String(x || "").trim()).join("|");
+// The skills the letter names: the ones the person ticked, or the first few in the resume
+const lwSkillsAll = p => [...new Set([...p.skills.hard, ...p.skills.software, ...p.skills.soft])];
+const lwSkillsUse = p => { const u = lwUse(), all = lwSkillsAll(p); return Array.isArray(u.skills) ? u.skills.filter(s => all.includes(s)) : [...p.skills.hard, ...p.skills.software].slice(0, 4); };
+// a chosen line goes first in its job's lines
+const lwPinFirst = (list, bullets) => { const u = lwUse().proof; if (!u) return list; const hit = (bullets || []).map(lwClean).find(b => b === u); return hit ? [hit, ...list.filter(x => x !== hit)] : list; };
+
 /* --- The panel above the paragraphs --- */
 const lwShortText = (t, n = 110) => { const s = String(t || ""); return s.length > n ? s.slice(0, n - 1).replace(/\s+\S*$/, "") + "…" : s; };
 function lwResumeRows() {
-  const p = P(), c = p.contact, proofs = lwProofs(), edu = lwEdu(p), moreEdu = lwStudyList(p).length - 1;
-  const skills = [...p.skills.hard, ...p.skills.software, ...p.skills.soft];
-  const best = proofs.slice().sort((a, b) => lwStrength(b.text) - lwStrength(a.text))[0];
+  const p = P(), c = p.contact, proofs = lwProofs(), edu = lwEdu(p), moreEdu = lwStudyList(p).length - 1, u = lwUse();
+  const skills = lwSkillsUse(p), allSkills = lwSkillsAll(p);
+  const best = lwBestProof(proofs);
   const go = `<button class="linkish" type="button" data-nx="builder">Add it in the resume builder</button>`;
-  const row = (state, label, text) => `<li class="${state}"><span class="mk" aria-hidden="true">${state === "ok" ? "✓" : state === "warn" ? "!" : "–"}</span><span><b>${label}</b> ${text}</span></li>`;
+  const chg = (key, label = "Change") => `<button class="linkish lw-edit" type="button" data-lw-edit="${key}" aria-expanded="${lwEditing === key}">${lwEditing === key ? "Done" : label}</button>`;
+  const row = (state, label, text, key, editor) => `<li class="${state}"><span class="mk" aria-hidden="true">${state === "ok" ? "✓" : state === "warn" ? "!" : "–"}</span><span class="lw-body"><b>${label}</b> ${text}${key ? ` ${chg(key)}` : ""}${key && lwEditing === key ? `<div class="lw-editor">${editor}</div>` : ""}</span></li>`;
+  const inp = (k, label, v, type = "text") => `<label class="field lw-f">${label}<input type="${type}" data-lw-contact="${k}" value="${esc(v || "")}" autocomplete="off"></label>`;
+  const contactEditor = `<div class="q-grid">${inp("first", "First name", c.first)}${inp("last", "Last name", c.last)}${inp("email", "Email", c.email, "email")}${inp("phone", "Phone", c.phone)}${inp("location", "Location", c.location)}</div><p class="small muted">These are your resume's details too, so a change here changes them there.</p>`;
+  const proofTop = proofs.slice().sort((a, b) => lwStrength(b.text) - lwStrength(a.text)).slice(0, 8);
+  const opt = (on, attrs, text, sub) => `<button type="button" class="lw-opt" aria-pressed="${on}" ${attrs}><span>${esc(text)}</span>${sub ? `<small>${esc(sub)}</small>` : ""}</button>`;
+  const proofEditor = `<div class="lw-opts" role="group" aria-label="Choose your best proof">${opt(!u.proof, 'data-lw-pick="proof" data-val=""', "Automatic: the strongest line in your resume")}${proofTop.map(x => opt(u.proof === x.text, `data-lw-pick="proof" data-val="${esc(x.text)}"`, lwShortText(x.text, 140), x.at)).join("")}</div>
+    <label class="field lw-f">Or write your own<textarea rows="2" data-lw-own="proof" placeholder="A result you are proud of, in one sentence, with a number if you have one">${u.proof && !proofs.some(x => x.text === u.proof) ? esc(u.proof) : ""}</textarea></label><div class="b-actions"><button class="btn" type="button" data-lw-ownuse="proof">Use my own line</button></div>`;
+  const studies = lwStudyList(p);
+  const studyEditor = `<div class="lw-opts" role="group" aria-label="Choose the qualification to build the letter around">${opt(!u.study, 'data-lw-pick="study" data-val=""', "Automatic: your highest qualification")}${studies.map(e => opt(u.study === lwStudyKey(e), `data-lw-pick="study" data-val="${esc(lwStudyKey(e))}"`, lwStudy(e) || e.inst)).join("")}</div>`;
+  const skillEditor = `<div class="lw-opts lw-chips" role="group" aria-label="Choose the skills the letter names">${allSkills.map(s => `<button type="button" class="opt-chip" data-lw-skill="${esc(s)}" aria-pressed="${skills.includes(s)}">${esc(s)}</button>`).join("") || `<span class="small muted">No skills in your resume yet.</span>`}</div><p class="small muted">Tick the ones to name in the letter. The letter only names skills that are in your resume.</p>`;
   return [
-    c.name && (c.email || c.phone) ? row("ok", "Your details", `${esc(c.name)}${c.location ? ` · ${esc(c.location)}` : ""}. They go in the letter head.`) : row("warn", "Your details", `${c.name ? "" : "No name yet. "}${c.email || c.phone ? "" : "No phone or email yet. "}The letter head needs them. ${go}`),
-    best ? (/\d/.test(best.text) ? row("ok", "Your best proof", `“${esc(lwShortText(best.text))}” (${esc(best.at)}). The opening leads with a result like this.`) : row("warn", "Your best proof", `“${esc(lwShortText(best.text))}” has no number. A figure (how many, how much, how fast) makes the opening much stronger. ${go}`)) : row("warn", "Your best proof", `No job, project or volunteering with results yet, so the letter can only describe your study and skills. ${go}`),
-    edu ? row("ok", "Your study", esc(lwStudy(edu)) + (moreEdu > 0 ? ` and ${moreEdu} more` : "")) : row("opt", "Your study", `Not added. ${go}`),
-    skills.length ? row("ok", "Your skills", esc(listJoin(skills.slice(0, 4))) + (skills.length > 4 ? ` and ${skills.length - 4} more` : "")) : row("opt", "Your skills", `None added. ${go}`)
+    c.name && (c.email || c.phone) ? row("ok", "Your details", `${esc(c.name)}${c.location ? ` · ${esc(c.location)}` : ""}. They go in the letter head.`, "contact", contactEditor) : row("warn", "Your details", `${c.name ? "" : "No name yet. "}${c.email || c.phone ? "" : "No phone or email yet. "}The letter head needs them.`, "contact", contactEditor),
+    best ? (/\d/.test(best.text) ? row("ok", "Your best proof", `“${esc(lwShortText(best.text))}” (${esc(best.at)}). The opening leads with a result like this.${u.proof ? " <em>(your choice)</em>" : ""}`, "proof", proofEditor) : row("warn", "Your best proof", `“${esc(lwShortText(best.text))}” has no number. A figure (how many, how much, how fast) makes the opening much stronger. ${u.proof ? "" : go}`, "proof", proofEditor)) : row("warn", "Your best proof", `No job, project or volunteering with results yet, so the letter can only describe your study and skills. ${go}`, "proof", proofEditor),
+    edu ? row("ok", "Your study", esc(lwStudy(edu)) + (moreEdu > 0 && !u.study ? ` and ${moreEdu} more` : "") + (u.study ? " <em>(your choice)</em>" : ""), studies.length > 1 ? "study" : "", studyEditor) : row("opt", "Your study", `Not added. ${go}`),
+    allSkills.length ? row("ok", "Your skills", esc(listJoin(skills.slice(0, 4))) + (skills.length > 4 ? ` and ${skills.length - 4} more` : "") + (Array.isArray(u.skills) ? " <em>(your choice)</em>" : ""), "skills", skillEditor) : row("opt", "Your skills", `None added. ${go}`)
   ].join("");
 }
 // A requirement no job line answers may still be named in your skills: say so, and what to add
@@ -91,9 +118,15 @@ function lwSkillNote(need) {
 function lwNeedRows() {
   const ad = String(BL().ad || "").trim();
   if (wordCount(ad) < 15 && !lwTypedNeeds(BL()).length) return ad ? `<li class="opt"><span class="mk" aria-hidden="true">–</span><span>That is too short to read. Paste the whole ad.</span></li>` : "";
-  const needs = lwNeeds(lwProofs());
+  const proofs = lwProofs(), needs = lwNeeds(proofs), np = lwUse().needProof;
   if (!needs.length) return `<li class="opt"><span class="mk" aria-hidden="true">–</span><span>Couldn't pick out what the ad asks for. The letter will use your resume's strongest evidence instead.</span></li>`;
-  return `<li class="head"><b>What the ad asks for most, and your proof for each</b></li>` + needs.map((n, i) => `<li class="${n.proof ? "ok" : "warn"}"><span class="mk" aria-hidden="true">${i + 1}</span><span><b>They ask for:</b> ${esc(n.need)}<br><span class="small muted">${n.proof ? `Your proof: “${esc(lwShortText(n.proof.text))}” (${esc(n.proof.at)})` : `${lwSkillNote(n.need)} <button class="linkish lt-ignore" type="button" data-lt-ignore="${esc(lrKey(n.need))}" data-lt-ignore-text="${esc(n.need)}" title="Leave this out of the letter: it won't be asked about or claimed">Ignore</button>`}</span></span></li>`).join("") + lwIgnoredRow();
+  // the proof for a requirement: the one the person chose for it (or "-" for none), else the best match
+  const chosen = n => { const k = lrKey(n.need), v = np[k]; return v === "-" ? { none: true } : v ? { proof: proofs.find(x => x.text === v) || { text: v, at: "written by you" } } : { proof: n.proof }; };
+  const select = (n, cur) => `<label class="lw-need-pick small">Use a different proof <select data-lw-needproof="${esc(lrKey(n.need))}"><option value="">Automatic: the best match</option>${proofs.map(x => `<option value="${esc(x.text)}"${np[lrKey(n.need)] === x.text ? " selected" : ""}>${esc(lwShortText(x.text, 90))}</option>`).join("")}<option value="-"${np[lrKey(n.need)] === "-" ? " selected" : ""}>None: don't claim this</option></select></label>`;
+  return `<li class="head"><b>What the ad asks for most, and your proof for each</b></li>` + needs.map((n, i) => {
+    const ch = chosen(n), proof = ch.proof;
+    return `<li class="${proof ? "ok" : "warn"}"><span class="mk" aria-hidden="true">${i + 1}</span><span><b>They ask for:</b> ${esc(n.need)}<br><span class="small muted">${proof ? `Your proof: “${esc(lwShortText(proof.text))}” (${esc(proof.at)})${np[lrKey(n.need)] ? " <em>(your choice)</em>" : ""}` : `${ch.none ? "You chose not to claim this, so the letter leaves it out." : lwSkillNote(n.need)} ${ch.none ? "" : `<button class="linkish lt-ignore" type="button" data-lt-ignore="${esc(lrKey(n.need))}" data-lt-ignore-text="${esc(n.need)}" title="Leave this out of the letter: it won't be asked about or claimed">Ignore</button>`}`}</span>${proofs.length ? select(n, ch) : ""}</span></li>`;
+  }).join("") + lwIgnoredRow();
 }
 // Requirements set aside with Ignore, and a way to bring them back
 function lwIgnoredRow() {
@@ -128,7 +161,17 @@ function renderLetterSources() {
     box.addEventListener("input", e => { if (e.target.id === "lt-ad" || e.target.id === "lt-needs") { clearTimeout(t); t = setTimeout(() => { const n = $("ltSrcNeeds"); if (n) n.innerHTML = lwNeedRows(); }, 500); } });
     box.addEventListener("change", e => { if (e.target.id === "lt-ad") lwAdFill(e.target.value); });
     // Ignore: this one requirement is set aside for this letter (it is not asked about, and the AI is told not to claim it)
+    // Change: open one row to edit it or pick another of what the resume has; the choice is kept with the letter and used when it is written
+    const redraw = () => { baseLetter.save(true); ltInfoMemo.key = ""; const r = $("ltSrcResume"); if (r) r.innerHTML = lwResumeRows(); const n = $("ltSrcNeeds"); if (n && !ltTemplate()) n.innerHTML = lwNeedRows(); renderLetterPlan(); if (typeof renderLetterPreview === "function") renderLetterPreview(); };
     box.addEventListener("click", e => {
+      const ed = e.target.closest("[data-lw-edit]");
+      if (ed) { lwEditing = lwEditing === ed.dataset.lwEdit ? "" : ed.dataset.lwEdit; $("ltSrcResume").innerHTML = lwResumeRows(); return; }
+      const pk = e.target.closest("[data-lw-pick]");
+      if (pk) { lwUse()[pk.dataset.lwPick] = pk.dataset.val; redraw(); return; }
+      const sk = e.target.closest("[data-lw-skill]");
+      if (sk) { const p = P(), u = lwUse(), cur = lwSkillsUse(p), v = sk.dataset.lwSkill; u.skills = cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v]; redraw(); return; }
+      const own = e.target.closest("[data-lw-ownuse]");
+      if (own) { const t = box.querySelector('[data-lw-own="proof"]'), v = t ? lwClean(t.value) : ""; if (v) { lwUse().proof = v; redraw(); } return; }
       const b = e.target.closest("[data-lt-ignore], [data-lt-unignore]"); if (!b) return;
       const pl = ltPlan();
       if (b.dataset.ltIgnore) { pl.ignored = { ...(pl.ignored || {}), [b.dataset.ltIgnore]: b.dataset.ltIgnoreText || "x" }; }
@@ -136,6 +179,12 @@ function renderLetterSources() {
       baseLetter.save(true); ltInfoMemo.key = "";
       const n = $("ltSrcNeeds"); if (n) n.innerHTML = lwNeedRows();
       renderLetterPlan();
+    });
+    box.addEventListener("change", e => {
+      const c = e.target.closest("[data-lw-contact]");
+      if (c) { const k = c.dataset.lwContact, ct = P().contact; ct[k] = c.value.trim(); if (k === "first" || k === "last") syncName(ct); touchProfile("letter"); redraw(); return; }
+      const np = e.target.closest("[data-lw-needproof]");
+      if (np) { const u = lwUse(); if (np.value) u.needProof[np.dataset.lwNeedproof] = np.value; else delete u.needProof[np.dataset.lwNeedproof]; redraw(); }
     });
     // what the questions and the situation depend on: the reason, the start date, the ad
     box.addEventListener("change", e => { if (["lt-why", "lt-avail", "lt-ad", "lt-needs"].includes(e.target.id)) { ltInfoMemo.key = ""; renderLetterPlan(); } });

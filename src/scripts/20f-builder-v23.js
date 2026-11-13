@@ -36,17 +36,17 @@ function flipPlay(from) {
 const awardList = e => String((e && e.awards) || "").split(/\n|;/).map(x => x.replace(/\s+/g, " ").trim()).filter(x => x && !isBlank(x));
 const fldList = (e, fld) => fld === "awards" ? awardList(e) : listOf(val(e.coursework)).filter(x => !isBlank(x));
 const fldStore = (e, fld, list) => { if (fld === "awards") e.awards = list.join("\n"); else e.coursework = list.join(", "); };
-const fldShown = (e, fld) => fld === "awards" ? 999 : subjN(e);
+const fldShown = (e, fld) => fld === "awards" ? awardsN(e, awardList(e).length) : subjN(e);
 const fldOf = el => (el && el.dataset && el.dataset.fld) || "coursework";
 const subjList = e => fldList(e, "coursework");
 function subjChips(e, i, fld = "coursework") {
   const all = fldList(e, fld), n = fldShown(e, fld), aw = fld === "awards";
-  return all.map((s, k) => `<span class="echip subj-chip${k < n ? "" : " off"}${k === n - 1 && all.length > n ? " cut" : ""}" role="button" tabindex="0" draggable="true" data-subj-chip="1" data-fld="${fld}" data-i="${i}" data-k="${k}" data-flip="${aw ? "a" : "s"}${i}:${flipText(i, s)}" title="Click to edit. Drag to move." aria-label="${esc(s)}${aw ? "" : k < n ? ", shown on your resume" : ", not shown"}. Press Enter to edit, Delete to remove."><span class="subj-text">${esc(s)}</span><span class="chip-x" role="button" data-subj-x="1" title="Remove" aria-label="Remove ${esc(s)}">×</span></span>`).join("");
+  return all.map((s, k) => `<span class="echip subj-chip${k < n ? "" : " off"}${k === n - 1 && all.length > n ? " cut" : ""}" role="button" tabindex="0" draggable="true" data-subj-chip="1" data-fld="${fld}" data-i="${i}" data-k="${k}" data-flip="${aw ? "a" : "s"}${i}:${flipText(i, s)}" title="Click to edit. Drag to move." aria-label="${esc(s)}${k < n ? ", shown on your resume" : ", not shown"}. Press Enter to edit, Delete to remove."><span class="subj-text">${esc(s)}</span><span class="chip-x" role="button" data-subj-x="1" title="Remove" aria-label="Remove ${esc(s)}">×</span></span>`).join("");
 }
 function subjNote(e, fld = "coursework") {
   const all = fldList(e, fld), n = all.length;
-  if (fld === "awards") return n ? `All ${n} show on your resume. Press Enter to add another, and drag a bubble to rearrange them.` : "Press Enter to add each award or scholarship, and drag a bubble to rearrange them.";
   const shown = fldShown(e, fld);
+  if (fld === "awards") return n > shown ? `Only the first ${shown} show on your resume (${n - shown} more kept here, shaded). Press Enter to add another, and drag a bubble to rearrange them.` : n ? `All ${n} show on your resume. Press Enter to add another, and drag a bubble to rearrange them.` : "Press Enter to add each award or scholarship, and drag a bubble to rearrange them. Put the best ones first.";
   return n > shown ? `Only the first ${shown} show on your resume (${n - shown} more kept here, shaded). Press Enter to add another, and drag a bubble to rearrange them.` : n ? `All ${n} show on your resume. Press Enter to add another, and drag a bubble to rearrange them. The first ${shown} are used if you add more.` : `Press Enter to add each subject, and drag a bubble to rearrange them. The first ${shown} show on your resume, so put the ones closest to the job first.`;
 }
 function chipListQ(e, i, fld) {
@@ -54,7 +54,7 @@ function chipListQ(e, i, fld) {
   return `<div class="q wide subj-q" data-subj="${i}" data-fld="${fld}"><label class="q-label" for="${id}">${aw ? "Scholarships or awards" : "Specific relevant subjects"} <span class="opt">(optional)</span></label>
     <div class="q-body"><div class="pick sugg subj-box"><div class="chip-edit subj-edit"><span class="subj-chips" data-subj-list="${i}" data-fld="${fld}">${subjChips(e, i, fld)}</span><input type="text" id="${id}" class="chip-in" data-subj-in="${i}" data-fld="${fld}" data-suggest="${aw ? "award" : "relsubject"}" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" placeholder="${aw ? "Type an award or scholarship and press Enter" : "Type a subject and press Enter"}" autocomplete="off"></div><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="${aw ? "Award" : "Subject"} suggestions" hidden></ul></div>
     <p class="q-hint subj-note" id="${aw ? "awNote" : "subjNote"}${i}">${esc(subjNote(e, fld))}</p>
-    ${aw ? "" : `<label class="subj-n">Show <input type="number" min="1" max="8" step="1" value="${subjN(e)}" data-subj-n="${i}" aria-label="How many subjects to show on your resume"> on my resume</label>`}</div></div>`;
+    ${/* a <span>, not a <label>: a label hands its hover and clicks to the first button inside it (the −), which lit up when the mouse was anywhere on the line */""}<span class="subj-n">Show <input type="number" min="1" max="8" step="1" value="${fldShown(e, fld)}" ${aw ? "data-award-n" : "data-subj-n"}="${i}" aria-label="How many ${aw ? "scholarships or awards" : "subjects"} to show on your resume"> on my resume</span></div></div>`;
 }
 const subjectsQ = (e, i) => chipListQ(e, i, "coursework");
 const awardsQ = (e, i) => chipListQ(e, i, "awards");
@@ -63,6 +63,9 @@ function subjRefresh(i, keepFocus, fld = "coursework") {
   if (!e || !host) return;
   host.innerHTML = subjChips(e, i, fld);
   const n = $((fld === "awards" ? "awNote" : "subjNote") + i); if (n) n.textContent = subjNote(e, fld);
+  // the "Show − 3 +" box follows (awards show all of them until a number is chosen, so it moves as they are added)
+  const ni = document.querySelector(`#bForm input[data-${fld === "awards" ? "award" : "subj"}-n="${i}"]`);
+  if (ni && document.activeElement !== ni) { ni.value = fldShown(e, fld); const w = ni.closest(".num-step"); if (w) numState(w); }
   if (keepFocus) { const inp = $((fld === "awards" ? "awIn" : "subjIn") + i); if (inp) inp.focus(); }
   touchProfile("builder"); previewSoon();
 }

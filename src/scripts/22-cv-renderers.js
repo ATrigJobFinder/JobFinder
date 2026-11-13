@@ -326,6 +326,10 @@ function licenceShown(p) {
   if (cv.licenceShow) return true;
   return LICENCE_WORK.has(cv.jobType || (p.target || {}).jobType || "");
 }
+// Guidance text on a preview is wrapped in two private-use marks. The page is drawn with them in place, then they become a grey, italic span.
+const GH_OPEN = "", GH_CLOSE = "";
+const GH = s => GH_OPEN + s + GH_CLOSE;
+const ghostMarks = html => html.split(GH_OPEN).join('<span class="cv-ghost">').split(GH_CLOSE).join("</span>");
 function cvModel(p, tpl, opts = {}) {
   const T = TITLE_SETS[tpl.titles] || TITLE_SETS.standard;
   const c = p.contact, cvp = p.cv || {};
@@ -333,8 +337,8 @@ function cvModel(p, tpl, opts = {}) {
   const hideSet = opts.all ? new Set() : new Set((cvp.hideLines || []).map(s => norm(String(s))));
   const keep = a => a.filter(s => !hideSet.has(norm(String(s))));
   const clean = a => keep(a.map(s => val(s)).filter(Boolean));
+  // (the summary is optional: with none written there is no Profile section at all)
   if (p.summary.trim()) sec.summary = { kind: "text", text: p.summary.trim() };
-  else if (opts.ghostSummary) sec.summary = { kind: "text", text: "Your profile goes here: two or three sentences on who you are and what you're after. You write it in the Summary step.", ghost: true };
   const exp = stackRoles(shown(p.experience).filter(e => e.title || e.org), e => ({ title: e.title, org: e.org, loc: val(e.location), dates: rangeOf(e), bullets: clean(e.bullets) }), tpl.dates === "gutter" || tpl.dates === "timeline");
   if (exp.length) sec.experience = { kind: "entries", items: exp };
   const edu = shown(p.education).filter(e => e.degree || e.inst).map(e => ({ title: e.degree, org: e.inst, loc: val(e.location), dates: rangeOf(e, true), bullets: keep(eduLines(e, p)) }));
@@ -354,11 +358,21 @@ function cvModel(p, tpl, opts = {}) {
     sec.referees = list.length ? { kind: "referees", items: list.map(r => ({ name: r.name, role: val(r.role), org: val(r.org), phone: val(r.phone), email: val(r.email) })) } : { kind: "text", text: "Available on request" };
   }
   const contact = [c.location, c.phone, c.email, shortUrl(c.linkedin), shortUrl(c.website)].map(s => val(s)).filter(Boolean);
+  // opts.guide: what you've filled in shows as it is, and every part that isn't done yet shows what to put there (in grey), not made-up details.
+  // A part stays grey until it is complete: a job or qualification that isn't finished is not on the resume yet, so its guide shows.
+  const guided = [];
+  if (opts.guide) {
+    if (!sec.experience) { sec.experience = { kind: "entries", items: [{ title: GH("Job title"), org: GH("Employer"), loc: GH("City, State"), dates: GH("Mon YYYY – Present"), bullets: [GH("Start with an action word: what you did, and what came of it"), GH("Add a number where you can: how many, how much or how often")] }] }; guided.push("experience"); }
+    if (!sec.education) { sec.education = { kind: "entries", items: [{ title: GH("Your qualification"), org: GH("University, TAFE or school"), loc: "", dates: GH("Mon YYYY – Mon YYYY"), bullets: [GH("Optional: a grade, awards, or the subjects closest to the job")] }] }; guided.push("education"); }
+    if (!sec.skills) { sec.skills = { kind: "groups", groups: [{ label: "Technical", items: [GH("skills the job ad asks for")] }, { label: "Software & tools", items: [GH("programs and equipment you use")] }] }; guided.push("skills"); }
+    if (!contact.length) { contact.push(GH("City, State"), GH("Phone number"), GH("Email address")); guided.push("contact"); }
+  }
   const details = [c.workRights, !opts.all && !licenceShown(p) ? "" : c.licence].map(s => String(s || "").trim()).filter(Boolean);
   if (!opts.all) for (const k of cvp.hideSections || []) delete sec[k];
   const order = orderedSections(tpl, p).filter(k => sec[k]);
   const mk = k => ({ key: k, title: T[k], ...sec[k] });
-  const model = { name: c.name.trim() || "Your Name", headline: p.target.title.trim(), contact, details, main: [], side: [], sectionKeys: order };
+  const model = { name: c.name.trim() || (opts.guide ? GH("Your Name") : "Your Name"), headline: p.target.title.trim() || (opts.guide ? GH("Your job title") : ""), contact, details, main: [], side: [], sectionKeys: order, guided };
+  if (opts.guide && !p.target.title.trim()) guided.push("headline");
   if (tpl.layout === "sidebar") {
     model.side.push({ key: "contact", title: T.contact, kind: "contact", items: [...contact, ...details] });
     model.side.push(...order.filter(k => SIDE_KEYS.has(k)).map(mk));
@@ -386,7 +400,8 @@ function tplColours(tpl, accent) {
 }
 
 /* --- 1. The page preview (HTML) --- */
-function cvHtml(model, tpl, opts = {}) {
+const cvHtml = (model, tpl, opts = {}) => ghostMarks(cvHtmlRaw(model, tpl, opts));
+function cvHtmlRaw(model, tpl, opts = {}) {
   const C = tplColours(tpl, opts.accent);
   const px = pt => (pt * 96 / 72).toFixed(2) + "px";
   const style = [

@@ -194,19 +194,7 @@ function employersFor(inp) {
 }
 
 /* --- A broad subject needs a follow-up: "Professional Engineering" → which kind? Added to the qualification's name --- */
-const VAGUE_SUBJECTS = [
-  [/^(professional |advanced |applied )?engineering( \(honou?rs\))?$/i, "Which engineering discipline?", "Mechanical;Civil;Electrical;Chemical;Software;Mechatronic;Mining;Aerospace;Biomedical;Environmental;Structural;Renewable Energy;Electrical and Electronic;Geotechnical;Materials"],
-  [/^(advanced |applied |health |general )?science$/i, "Which area of science?", "Chemistry;Physics;Biology;Biochemistry;Microbiology;Genetics;Environmental Science;Marine Biology;Geology;Mathematics;Statistics;Neuroscience;Psychology"],
-  [/^arts$/i, "What did you major in?", "History;English;Politics;Philosophy;Sociology;Languages;Media and Communications;Criminology;International Relations;Psychology;Anthropology"],
-  [/^(business|commerce|business administration)$/i, "What did you major in?", "Accounting;Finance;Marketing;Management;Economics;Human Resources;Supply Chain;International Business;Information Systems;Business Analytics;Entrepreneurship"],
-  [/^(information technology|it|computing)$/i, "Which area of IT?", "Software Development;Cyber Security;Networks;Data Science;Information Systems;Artificial Intelligence;Game Development;Cloud Computing"],
-  [/^health science$/i, "Which area of health?", "Public Health;Nutrition;Exercise Science;Biomedical Science;Health Promotion;Health Services Management;Paramedic Science"],
-  [/^(education|teaching)$/i, "Which level or area?", "Primary;Secondary;Early Childhood;Special Education;Physical Education;Vocational Education"],
-  [/^design$/i, "Which kind of design?", "Graphic;Interior;Industrial;Fashion;Communication;Visual;Digital;Architectural"],
-  [/^(creative arts|fine arts)$/i, "Which art form?", "Visual Arts;Music;Drama;Dance;Film;Creative Writing;Photography"],
-  [/^medical science$/i, "Which area?", "Pathology;Biochemistry;Immunology;Microbiology;Pharmacology"]
-];
-const vagueSubject = s => { const t = String(s || "").trim(); return t ? VAGUE_SUBJECTS.find(([re]) => re.test(t)) || null : null; };
+// (VAGUE_SUBJECTS and vagueSubject are in 19-profile.js, because the profile reads them when it loads)
 // The follow-up box, shown for the first subject of a university-level qualification
 function detailQ(e, base, i) {
   const lv = qualLevel(e.level), v = lv && (lv.school || lv.vet || lv.k === "short" || lv.k === "other") ? null : vagueSubject(e.subject);
@@ -275,11 +263,12 @@ function applyWelcome() {
   const w = $("bWelcome"); if (w) w.hidden = !on;
   for (const sel of [".b-layout", ".view-head .top-actions", ".b-steps"]) { const el = root.querySelector(sel); if (el) el.hidden = on; }
   root.classList.toggle("is-welcome", on);
-  // With a resume in the profile, "from profile" is the blue way in; without one it is greyed out and uploading is blue
-  const has = hasProfile(P()), pr = $("bwProfile"), up = $("bwUpload");
+  // With a resume in the profile, "from profile" is the blue way in; without one it is greyed out and uploading is blue.
+  // (A name on its own, from a profile that was only just created, is not a resume.)
+  const has = hasResume(P()), pr = $("bwProfile"), up = $("bwUpload");
   if (pr) {
     pr.disabled = !has; pr.classList.toggle("bw-card--go", has); pr.classList.toggle("bw-card--off", !has);
-    const t = $("bwProfileText"); if (t) t.textContent = has ? "Use the resume already saved in your profile. We fill in your jobs, study and skills." : "There's no resume in your profile yet. Upload one, or your LinkedIn, to use this next time.";
+    const t = $("bwProfileText"); if (t) t.textContent = has ? "Use the resume already saved in your profile. We fill in your jobs, study and skills." : "There's no resume in your profile yet. Upload one, or your LinkedIn, and it will be here next time.";
   }
   if (up) up.classList.toggle("bw-card--go", !has);
 }
@@ -305,7 +294,7 @@ onInit(() => {
     const b = e.target.closest("[data-bw]");
     if (!b) return;
     if (b.dataset.bw === "upload") openImportPanel("bPick");
-    else if (b.dataset.bw === "profile") { if (!hasProfile(P())) return; builder.welcome = false; builder.step = 0; renderBuilder(true); }
+    else if (b.dataset.bw === "profile") { if (!hasResume(P())) return; builder.welcome = false; builder.step = 0; renderBuilder(true); }
     else { builder.welcome = false; builder.step = 0; renderBuilder(true); }
   });
   // Bringing something in doesn't move on by itself: Next does. If no AI is connected, ask first.
@@ -315,8 +304,8 @@ onInit(() => {
     next.addEventListener("click", async () => {
       if (!(await aiIsConnected())) {
         const choice = await askConnectAi();
-        if (choice === "connect") { openView("connect"); return; }
-        if (choice !== "skip") return;   // (closed with Esc: stay here)
+        if (choice === "connect") { await openConnectPopup(); if (!(await aiIsConnected())) return; }   // (a pop-up: back here when it closes, and on if an AI is connected now)
+        else if (choice !== "skip") return;   // (closed with Esc: stay here)
       }
       builder.welcome = false; builder.step = 0; renderBuilder(true);
       window.scrollTo({ top: 0 });

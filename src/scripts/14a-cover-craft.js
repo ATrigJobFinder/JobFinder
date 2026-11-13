@@ -178,6 +178,14 @@ const contactWhy = (found, part) => `it includes "${found}": your contact detail
 /* --- Checks done in code on the whole letter --- */
 // paras: the paragraphs as text. source: the candidate's details, to check figures against (optional).
 // Returns [{ level: "warn", title, detail }]
+// The words that belong to the job itself (its title and field): "engineering" in an engineering job may be repeated as often as the job needs.
+// → lower-case stems; a word is the job's own if it starts with one ("engineers", "engineering" for "engineer")
+function clJobWords(...texts) {
+  const out = new Set();
+  for (const w of texts.join(" ").toLowerCase().match(/[a-z]{4,}/g) || []) { const stem = w.replace(/(ing|ers|er|ed|es|s)$/, ""); if (stem.length >= 4) out.add(stem); }
+  return [...out];
+}
+const clIsJobWord = (w, stems) => (stems || []).some(s => w.startsWith(s));
 function coverQuality(paras, source, opts = {}) {
   const out = [];
   const texts = paras.map(p => String(p || ""));
@@ -218,7 +226,7 @@ function coverQuality(paras, source, opts = {}) {
   const STOPISH = new Set("which their there where would could should about these those being because while through during after before between under again other every first second three four having within without against around still often since until which"
     .split(" "));
   const counts = new Map();
-  for (const w of (all.toLowerCase().match(/[a-z][a-z'-]{4,}/g) || [])) if (!STOPISH.has(w)) counts.set(w, (counts.get(w) || 0) + 1);
+  for (const w of (all.toLowerCase().match(/[a-z][a-z'-]{4,}/g) || [])) if (!STOPISH.has(w) && !clIsJobWord(w, opts.jobWords)) counts.set(w, (counts.get(w) || 0) + 1);
   const rep = [...counts].filter(([, n]) => n > 3).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([w]) => w);
   if (rep.length) out.push({ where: hit(t => rep.some(w => t.toLowerCase().includes(w))), test: x => rep.some(w => x.toLowerCase().includes(w)), marks: rep, ask: `Use a different word for ${rep.map(w => `“${w}”`).join(", ")}: they appear more than three times in the letter.`, fix: "reword", level: "warn", title: "Repeated words", detail: `“${rep.join("”, “")}” appear more than three times. Vary the wording.` });
   // 6. things that should never be in a cover letter

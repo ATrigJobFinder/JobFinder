@@ -169,7 +169,7 @@ function chooseInner() {
       <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
       <span>About <b>${Math.max(total, sideT)} lines</b> in the longest column. ${pageWord} about <b>${capAll}</b> in the ${esc(geo.tpl.name)} layout with ${geo.tpl.margin} mm margins${geo.tpl.lh && geo.tpl.lh !== 1 ? ` and ${geo.tpl.lh}× line spacing` : ""}. ${over > 0 || sideOver > 0 ? `<b>${lineWord(Math.max(over, sideOver))} over</b>, so it runs onto ${pages === 2 ? "a third page" : "a second page"}.` : `It fits on ${pages === 2 ? "two pages" : "one page"}${capAll - Math.max(total, sideT) >= 4 ? ` with about ${lineWord(capAll - Math.max(total, sideT))} to spare` : ""}.`}${geo.sidebar ? ` Column 1 uses ${sideT} lines and column 2 uses ${total}.` : ""}</span></div>
     <div class="b-actions"><button class="btn primary" type="button" data-act="ch-fit">Fit to one page</button><button class="btn" type="button" data-act="ch-fit2">Fit on two pages</button><button class="btn" type="button" data-act="ch-all">Show everything again</button></div>
-    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. It checks both columns, then checks the preview, and keeps going until the preview agrees. It also keeps up to " + SKILLS_FIT_MAX + " skills under each skill heading (Technical, Software & tools, Languages, Strengths), the ones that matter most for the job, and after each fit it learns how many lines really fit, so the next press aims for that. If there's room later, press it again and it ticks back what it hid. Drag the handles to change the order."}</p>
+    <p class="small muted" id="chNote" role="status">${builder.chNote ? esc(builder.chNote) : "Fit to one page or two pages hides the least useful parts first, newest and most relevant last, and says why for each. It checks both columns, then checks the preview, and keeps going until the preview agrees. It also keeps up to " + SKILLS_FIT_MAX + " skills under each skill heading (Technical, Software & tools, Languages, Strengths), the ones that matter most for the job, and one press fits twice: it fits by its estimate, measures how far the preview says that was out, then fits again to the measured size (putting back anything that still fits). Press it again any time and it ticks back what it hid if there's room. Drag the handles to change the order."}</p>
     <ol class="ch-list${geo.sidebar ? " two-col" : ""}">${list || '<li class="small muted">Finish a job or qualification first, and it will show here.</li>'}</ol>`;
 }
 function chooseHtml() {
@@ -365,6 +365,7 @@ function chooseAct(act, b) {
     const pages = act === "ch-fit2" ? 2 : 1, word = pages === 1 ? "one page" : "two pages";
     builder.chPages = pages;
     learnCap(p);   // what the preview shows now says how many lines really fit
+    const cap0 = fitCap(pages);   // the estimate this press starts from
     const back = restoreFit(p, pages);   // anything an earlier fit hid comes back first if there's room now
     const trimmedSkills = capSkills(p, SKILLS_FIT_MAX);   // at most 8 skills under each skill heading, the ones that matter most for the job
     const plan = planOnePage(p, pages), sideNote = pageGeometry().sidebar ? " Both columns were checked." : "";
@@ -385,11 +386,24 @@ function chooseAct(act, b) {
       hidden += forced.hidden;
       stillOver = livePages() > pages;
     }
+    // One press fits twice: the first pass above used the estimate, and the preview has now shown how far out it was (too many pages, or room to spare).
+    // The second pass works to that measured size: it puts back anything that was hidden but still fits (each one checked on the preview), or hides a little more if it is still over.
+    let again = 0;
+    if (livePages() != null && livePages() <= pages) again = restoreFit(p, pages);
+    for (let tries = 0, extra = 1; tries < 4 && livePages() != null && livePages() > pages; tries++, extra += 1) {
+      const more = planOnePage(p, pages, extra);
+      if (!more.steps.length) break;
+      applyPlan(p, more); hidden += more.steps.length; renderPreview(); learnCap(p);
+    }
+    stillOver = livePages() != null ? livePages() > pages : stillOver;
+    const cap1 = fitCap(pages), off = Math.round(cap1 - cap0);
+    const putBack = again ? ` it put back ${again} thing${again === 1 ? "" : "s"} that still fit` : "";
+    const calNote = off ? ` The first estimate was about ${Math.abs(off)} line${Math.abs(off) === 1 ? "" : "s"} ${off > 0 ? "too cautious" : "too generous"}, so it measured the preview and fitted again${again ? ` and${putBack}` : ""}.` : again ? ` The first pass hid a little more than it needed to, so${putBack}.` : "";
     const skillNote = trimmedSkills ? ` Kept up to ${SKILLS_FIT_MAX} skills under each skill heading, the ones that matter most for the job (${trimmedSkills} left off).` : "";
     const tight = forced && forced.tightened.length ? ` Switched to ${forced.tightened.join(" and ")} (change it back in Page setup).` : "";
-    if (forced && (forced.hidden || forced.tightened.length)) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"}. ` : "") + (stillOver ? `The preview still shows more than ${word} after hiding ${hidden} thing${hidden === 1 ? "" : "s"}.` : `It fits on ${word}, and the preview agrees${hidden ? ` (${hidden} thing${hidden === 1 ? "" : "s"} hidden, each with its reason below, and a button to put it back)` : ""}.`) + tight + (stillOver ? " Shorten your bullet points or choose a more compact design." : "") + sideNote + skillNote;
-    else if (!hidden) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (!stillOver ? `It fits on ${word}, and the preview agrees. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + sideNote + skillNote;
-    else builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${hidden} thing${hidden === 1 ? "" : "s"} to fit ${word}${stillOver ? ", but the preview still shows it a little over" : ", and the preview agrees"}. Each has its reason below, with a button to put it back.` + sideNote + skillNote;
+    if (forced && (forced.hidden || forced.tightened.length)) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"}. ` : "") + (stillOver ? `The preview still shows more than ${word} after hiding ${hidden} thing${hidden === 1 ? "" : "s"}.` : `It fits on ${word}, and the preview agrees${hidden ? ` (${hidden} thing${hidden === 1 ? "" : "s"} hidden, each with its reason below, and a button to put it back)` : ""}.`) + tight + (stillOver ? " Shorten your bullet points or choose a more compact design." : "") + calNote + sideNote + skillNote;
+    else if (!hidden) builder.chNote = (back ? `Put back ${back} thing${back === 1 ? "" : "s"} that fit now. ` : "") + (!stillOver ? `It fits on ${word}, and the preview agrees. Nothing to hide.` : "There's nothing left that's safe to hide. Shorten your bullet points or choose a more compact design.") + calNote + sideNote + skillNote;
+    else builder.chNote = (back ? `Put back ${back}, ` : "") + `hid ${hidden} thing${hidden === 1 ? "" : "s"} to fit ${word}${stillOver ? ", but the preview still shows it a little over" : ", and the preview agrees"}. Each has its reason below, with a button to put it back.` + calNote + sideNote + skillNote;
     refreshChoose();
     builder.fitDoneAt = Date.now();
     return;

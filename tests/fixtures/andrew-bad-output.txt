@@ -1,0 +1,25 @@
+ANDREW SMITH
+Perth, WA | 0400 000 000 | andrew.smith@email.com | linkedin.com/in/andrew-smith-example
+Mechanical Engineer
+
+PROFILE
+Mechanical engineering graduate with experience in data analysis and renewable energy projects. Keen to apply analytical and design skills in an engineering role.
+
+EXPERIENCE
+Nov 2022 – May   Data Analyst - Vacation Student Program
+2023   Worley, Perth, WA
+• Collected, cleaned, and organised complex datasets using Python and Microsoft Excel to identify key trends and relationships that informed business decisions
+• Delivered clear data visualisations in Power BI to translate analytical findings into actionable insights for cross-functional stakeholders
+• Collaborated with a team of 2 to identify operational process improvements using Microsoft Excel and Microsoft Office suites
+
+EDUCATION
+Feb 2024 – Nov   Master of Professional Engineering (Mechanical)
+2025   RMIT University, Melbourne, VIC
+• WAM: 82
+• Thesis: Heat transfer in battery modules
+Feb 2020 – Nov   Bachelor of Engineering (Honours) (Mechanical)
+2023   Curtin University, Perth, WA
+• Relevant coursework: Thermodynamics, Fluid Mechanics, Machine Design
+
+SKILLS
+Software: Python, Microsoft Excel, Power BI, SolidWorks, ANSYS

@@ -53,8 +53,8 @@ const STAGES = [
 const WORK_RIGHTS = ["", "Australian citizen", "Permanent resident", "Full working rights", "Student visa (limited hours)", "Graduate visa (full working rights)", "Working holiday visa"];
 
 // hidden: kept in your profile but left off this resume. polished: the bullets as they were last polished.
-const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], toolsSeen: "", done: false, hidden: false, hideWhy: "", polished: "" });
-const emptyEdu = () => ({ degree: "", level: "", subject: "", detail: "", detailFor: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, projectsMore: [], degreeCustom: false, subjectsShown: 3, done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyExp = () => ({ title: "", org: "", location: "", start: "", end: "", current: false, answers: { duties: "", wins: "", tools: "", people: "" }, bullets: [], toolsSeen: "", grp: "", done: false, hidden: false, hideWhy: "", polished: "" });
+const emptyEdu = () => ({ degree: "", level: "", subject: "", detail: "", detailFor: "", double: false, level2: "", subject2: "", inst: "", location: "", start: "", end: "", current: false, grade: "", gradeType: "", awards: "", coursework: "", project: "", projectKind: "", projectTitle: "", projectOpen: false, projectSplit: false, projectsMore: [], degreeCustom: false, subjectsShown: 3, awardsShown: 0, done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyProj = () => ({ name: "", org: "", start: "", end: "", current: false, details: "", done: false, hidden: false, hideWhy: "", polished: "" });
 const emptyRef = () => ({ name: "", role: "", org: "", phone: "", phoneIso: "", email: "", done: false, polished: "" });
 const emptyProfile = () => ({
@@ -74,8 +74,8 @@ const emptyProfile = () => ({
   extrasDone: { awards: false, publications: false, interests: false },
   // order: the sections in the order the person arranged them. hideSections / hideLines: left off this version of the resume (kept in the profile).
   // hideWhy: "key||reason" lines saying why Job Finder hid something to fit the page.
-  cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false, licenceShow: false },
-  prefs: { dateStyle: "words", font: "", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterMatch: true, letterPages: 1 },
+  cv: { template: "", accent: "", accent2: "", letterTemplate: "", letterAccent: "", letterAccentFor: "", jobType: "", formality: 0, order: [], hideSections: [], hideLines: [], hideWhy: [], hideLicence: false, licenceShow: false },
+  prefs: { dateStyle: "words", font: "", onePage: false, spacing: "normal", margins: "normal", lang: "en-AU", letterSpacing: "normal", letterMargins: "normal", letterFont: "", letterMatch: true, letterPages: 1 },
   updated: ""
 });
 
@@ -98,9 +98,17 @@ function syncName(c) {
 /* --- Qualifications: a level ("Bachelor with Honours") and a subject ("Engineering (Mechanical)"), joined on the resume --- */
 // Honours goes before any specialisation in brackets: Bachelor of Engineering (Honours) (Mechanical)
 const honoursName = s => { const t = val(s); if (!t) return "Bachelor (Honours)"; const i = t.indexOf(" ("); return i > 0 ? `Bachelor of ${t.slice(0, i)} (Honours)${t.slice(i)}` : `Bachelor of ${t} (Honours)`; };
+// Year 12 certificates, written in full on the resume: "WACE" becomes "Western Australian Certificate of Education (WACE)".
+// Anything not in this list is kept as it was typed, in brackets.
+const SCHOOL_CERTS = {
+  WACE: "Western Australian Certificate of Education (WACE)", HSC: "New South Wales Higher School Certificate (HSC)", VCE: "Victorian Certificate of Education (VCE)",
+  QCE: "Queensland Certificate of Education (QCE)", SACE: "South Australian Certificate of Education (SACE)", TCE: "Tasmanian Certificate of Education (TCE)",
+  NTCET: "Northern Territory Certificate of Education and Training (NTCET)"
+};
+const year12Name = s => { const t = String(s || "").trim(); return !t ? "Year 12" : SCHOOL_CERTS[t.toUpperCase()] ? `Year 12 ${SCHOOL_CERTS[t.toUpperCase()]}` : /\(.+\)\s*$/.test(t) ? `Year 12 ${t}` : `Year 12 (${t})`; };
 const QUAL_LEVELS = [
   { k: "y10", label: "Incomplete or Junior Secondary (Year 10)", join: s => s ? `Year 10 (${s})` : "Year 10", re: /^Year\s*10\b\s*(?:\((.*)\))?\s*$/i, ph: "Optional, e.g. the school certificate's name", school: true },
-  { k: "y12", label: "Completed Senior Secondary (Year 12)", join: s => s ? `Year 12 (${s})` : "Year 12", re: /^Year\s*12\b\s*(?:\((.*)\))?\s*$/i, ph: "e.g. HSC, VCE, QCE, WACE or SACE", school: true },
+  { k: "y12", label: "Completed Senior Secondary (Year 12)", join: year12Name, re: /^Year\s*12\b\s*(?:\((.*)\)|(.+))?\s*$/i, ph: "e.g. HSC, VCE, QCE, WACE or SACE", school: true },
   { k: "c1", label: "Certificate I", join: s => `Certificate I in ${s}`, re: /^Certificate I\s+in\s+(.+)$/i, vet: true },
   { k: "c2", label: "Certificate II", join: s => `Certificate II in ${s}`, re: /^Certificate II\s+in\s+(.+)$/i, vet: true },
   { k: "c3", label: "Certificate III", join: s => `Certificate III in ${s}`, re: /^Certificate III\s+in\s+(.+)$/i, vet: true },
@@ -129,8 +137,8 @@ function splitQual(d) {
     const m = t.match(q.re);
     if (!m) continue;
     const s = [m[1], m[2]].filter(x => val(x)).join(" ").trim();
-    // only split it if joining the parts gives the same name back
-    return qualKey(qualName(q.k, s)) === qualKey(t) ? [q.k, s] : ["other", t];
+    // only split it if joining the parts gives the same name back (a school certificate may be written in full, so it is always split)
+    return q.school || qualKey(qualName(q.k, s)) === qualKey(t) ? [q.k, s] : ["other", t];
   }
   return ["other", t];
 }
@@ -147,14 +155,40 @@ function syncProject(e) {
   }
   if (e.projectSplit || val(e.projectTitle)) { e.projectSplit = true; e.project = val(e.projectTitle) ? `${e.projectKind || "Thesis"}: ${val(e.projectTitle)}` : ""; }
 }
-// A broad subject like "Professional Engineering" gets the follow-up the person gave ("Mechanical") after a comma:
-// "Bachelor of Professional Engineering, Mechanical". Brackets are avoided because applicant tracking systems can drop or misread them.
+// A broad subject like "Professional Engineering" gets the follow-up the person gave ("Mechanical") in brackets, the way Australian
+// qualifications are written: "Master of Professional Engineering (Mechanical)". The discipline stays in brackets, and the resume reader
+// (the ATS check) expects it there, so it is kept together with the qualification's name.
 function subjectWithDetail(e) {
-  const s = val(e.subject), d = val(e.detail);
-  return s && d && typeof vagueSubject === "function" && vagueSubject(s) ? `${s}, ${d}` : s;
+  const s = val(e.subject), d = val(e.detail).replace(/^\(\s*|\s*\)$/g, "");
+  return s && d && typeof vagueSubject === "function" && vagueSubject(s) ? `${s} (${d})` : s;
+}
+// A broad subject needs a follow-up: "Professional Engineering" → which kind? Added to the qualification's name
+const VAGUE_SUBJECTS = [
+  [/^(professional |advanced |applied )?engineering( \(honou?rs\))?$/i, "Which engineering discipline?", "Mechanical;Civil;Electrical;Chemical;Software;Mechatronic;Mining;Aerospace;Biomedical;Environmental;Structural;Renewable Energy;Electrical and Electronic;Geotechnical;Materials"],
+  [/^(advanced |applied |health |general )?science$/i, "Which area of science?", "Chemistry;Physics;Biology;Biochemistry;Microbiology;Genetics;Environmental Science;Marine Biology;Geology;Mathematics;Statistics;Neuroscience;Psychology"],
+  [/^arts$/i, "What did you major in?", "History;English;Politics;Philosophy;Sociology;Languages;Media and Communications;Criminology;International Relations;Psychology;Anthropology"],
+  [/^(business|commerce|business administration)$/i, "What did you major in?", "Accounting;Finance;Marketing;Management;Economics;Human Resources;Supply Chain;International Business;Information Systems;Business Analytics;Entrepreneurship"],
+  [/^(information technology|it|computing)$/i, "Which area of IT?", "Software Development;Cyber Security;Networks;Data Science;Information Systems;Artificial Intelligence;Game Development;Cloud Computing"],
+  [/^health science$/i, "Which area of health?", "Public Health;Nutrition;Exercise Science;Biomedical Science;Health Promotion;Health Services Management;Paramedic Science"],
+  [/^(education|teaching)$/i, "Which level or area?", "Primary;Secondary;Early Childhood;Special Education;Physical Education;Vocational Education"],
+  [/^design$/i, "Which kind of design?", "Graphic;Interior;Industrial;Fashion;Communication;Visual;Digital;Architectural"],
+  [/^(creative arts|fine arts)$/i, "Which art form?", "Visual Arts;Music;Drama;Dance;Film;Creative Writing;Photography"],
+  [/^medical science$/i, "Which area?", "Pathology;Biochemistry;Immunology;Microbiology;Pharmacology"]
+];
+const vagueSubject = s => { const t = String(s || "").trim(); return t ? VAGUE_SUBJECTS.find(([re]) => re.test(t)) || null : null; };
+// "Engineering (Mechanical)" is a subject ("Engineering") and a discipline ("Mechanical"). Only a broad subject (one that asks a follow-up,
+// see VAGUE_SUBJECTS) is split, and "(Honours)" stays where it is.
+function splitDiscipline(e) {
+  const m = val(e.subject).match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+  if (!m || /^(?:hons?\.?|honou?rs)$/i.test(m[2].trim()) || typeof vagueSubject !== "function") return;
+  const vs = vagueSubject(m[1].trim());
+  if (!vs) return;
+  e.subject = m[1].trim();
+  if (!val(e.detail)) { e.detail = m[2].trim(); e.detailFor = vs[0].source; }
 }
 function syncQual(e) {
   syncProject(e);
+  splitDiscipline(e);
   if (e.degreeCustom && val(e.degree)) return;   // the person wrote the title themselves
   if (e.double && (val(e.level) || val(e.subject) || val(e.level2) || val(e.subject2))) {
     e.degree = [qualName(e.level, subjectWithDetail(e)), qualName(e.level2, e.subject2)].filter(Boolean).join(" / ");
@@ -164,7 +198,7 @@ function syncQual(e) {
   else if (val(e.degree)) {
     const parts = val(e.degree).split(DOUBLE_SPLIT);
     if (parts.length === 2) { [e.level, e.subject] = splitQual(parts[0]); [e.level2, e.subject2] = splitQual(parts[1]); e.double = true; e.degree = [qualName(e.level, e.subject), qualName(e.level2, e.subject2)].join(" / "); }
-    else [e.level, e.subject] = splitQual(e.degree);
+    else { [e.level, e.subject] = splitQual(e.degree); splitDiscipline(e); if (qualLevel(e.level) && qualLevel(e.level).school) e.degree = qualName(e.level, e.subject); }   // (a school certificate is written out in full)
   }
 }
 const syncProfile = p => { syncName(p.contact); p.education.forEach(syncQual); };
@@ -208,6 +242,7 @@ function mergeProfile(raw) {
   if ((+raw.v || 1) < 2) { base.volunteering.forEach(x => { if (x.title || x.org) x.done = true; }); base.referees.list.forEach(r => { if (r.name) r.done = true; }); }
   for (const o of [base.target, base.cv]) if (OLD_JOB_TYPES[o.jobType]) o.jobType = OLD_JOB_TYPES[o.jobType];
   syncProfile(base);
+  migrateAvailability(base);
   base.updated = str(raw.updated);
   return base;
 }
@@ -263,6 +298,8 @@ function profileChanged(source) {
 function touchProfile(source) { syncProfile(profile.data); undoRecord(source); profileChanged(source || "edit"); saveProfileSoon(); }
 function replaceProfile(p, source) { profile.data = mergeProfile(p); touchProfile(source || "replace"); }
 const hasProfile = p => !!(p.contact.name.trim() || p.experience.some(e => e.title || e.org) || p.education.some(e => e.degree || e.inst) || p.summary.trim());
+// A resume in the profile: a name on its own (a profile that was only just created) is not one. There has to be a job, a qualification, a summary or skills.
+const hasResume = p => !!(p.experience.some(e => e.title || e.org) || p.education.some(e => e.degree || e.inst) || p.summary.trim() || Object.values(p.skills).some(a => Array.isArray(a) && a.length));
 
 /* --- Small helpers --- */
 const getPath = (o, path) => path.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
@@ -395,7 +432,7 @@ function eduLines(e, p, jobText, all) {
   const out = [];
   const g = gradeText(e);
   if (g) out.push(g);
-  { const aw = String(e.awards || "").split(/\n|;/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean); if (aw.length) out.push(aw.join("; ")); }
+  { const aw = String(e.awards || "").split(/\n|;/).map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean), shown = all ? aw : aw.slice(0, awardsN(e, aw.length)); if (shown.length) out.push(shown.join("; ")); }
   const cw = all ? listOf(val(e.coursework)).filter(x => !isBlank(x)) : pickSubjects(e, p, jobText);
   if (cw.length) out.push("Relevant coursework: " + cw.join(", "));
   if (val(e.project)) out.push(thesisLine(e.project));
@@ -442,7 +479,32 @@ function startText(p) {
 // Days and hours per week are kept apart; an older single "days and hours" line still shows if the new boxes are empty
 const WORK_TYPES = [["full", "Full-time"], ["part", "Part-time"], ["casual", "Casual"]];
 const workTypeText = p => { const w = ((p.target && p.target.workTypes) || []).filter(k => WORK_TYPES.some(x => x[0] === k)); return w.length ? `Looking for ${listJoin(w.map(k => WORK_TYPES.find(x => x[0] === k)[1].toLowerCase()))} work` : ""; };
-const availabilityText = p => [workTypeText(p), startText(p), val(p.availDays) || val(p.availHours) ? [val(p.availDays), val(p.availHours) ? `${val(p.availHours).replace(/\s*(hours?|hrs?)?\s*(a|per)?\s*(week)?\s*$/i, "").trim()} hours per week` : ""].filter(Boolean).join(", ") : val(p.availability)].filter(Boolean).join(". ");
+const availabilityText = p => {
+  const parts = [workTypeText(p), startText(p), val(p.availDays) || val(p.availHours) ? [val(p.availDays), val(p.availHours) ? `${val(p.availHours).replace(/\s*(hours?|hrs?)?\s*(a|per)?\s*(week)?\s*$/i, "").trim()} hours per week` : ""].filter(Boolean).join(", ") : val(p.availability)].filter(Boolean);
+  const seen = new Set();
+  return parts.filter(x => { const k = x.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); if (seen.has(k)) return false; seen.add(k); return true; }).join(". ");   // (the same sentence is never said twice)
+};
+// An older single line of availability ("Full time. Available to start with two weeks' notice") is moved into the boxes it belongs in:
+// the work type, the "When can you start?" list, and the days and hours. Whatever is left over goes in "Days you can work", so nothing is lost.
+function migrateAvailability(p) {
+  const raw = val(p.availability);
+  if (!raw) return;
+  let t = raw;
+  const take = (re, fn) => { const m = t.match(re); if (m) { fn(m); t = t.replace(new RegExp(re.source, re.flags + "g"), " "); } };   // (every time it is said, not only the first)
+  const types = [];
+  for (const [re, k] of [[/\bfull[\s-]*time\b/i, "full"], [/\bpart[\s-]*time\b/i, "part"], [/\bcasual\b/i, "casual"]]) take(re, () => types.push(k));
+  const wt = p.target.workTypes || (p.target.workTypes = []);
+  for (const k of types) if (!wt.includes(k)) wt.push(k);
+  const WEEKS = { one: "1w", "1": "1w", two: "2w", "2": "2w", four: "4w", "4": "4w" };
+  take(/\b(one|two|four|1|2|4)\s+weeks?['’]?\s*(?:notice)?/i, m => { if (!val(p.startWhen)) p.startWhen = WEEKS[m[1].toLowerCase()]; });
+  take(/\b(?:one|1)\s+month['’]?s?\s*(?:notice)?/i, () => { if (!val(p.startWhen)) p.startWhen = "4w"; });
+  take(/\b(?:immediate(?:ly)?(?: start)?|available now|asap|straight away)\b/i, () => { if (!val(p.startWhen)) p.startWhen = "now"; });
+  take(/(\d+(?:\s*(?:-|–|to)\s*\d+)?)\s*(?:hours?|hrs?)\b\s*(?:a|per|\/)?\s*(?:week|wk)?/i, m => { if (!val(p.availHours)) p.availHours = m[1].replace(/\s+/g, " "); });
+  // the filler words around what was found
+  const rest = t.replace(/\b(?:looking for|work|available|availability|to start|start|from|with|after|on|notice|is|i am|i'm|can|could|able to|happy to|ready to)\b/gi, " ").replace(/[\s.,;:|()\-–]+/g, " ").replace(/^(?:and|or)\s+|\s+(?:and|or)$/gi, "").trim();
+  if (rest.length > 2 && !val(p.availDays)) p.availDays = rest.charAt(0).toUpperCase() + rest.slice(1);
+  p.availability = "";
+}
 // Only entries the person has finished go on the resume
 const finished = list => list.filter(e => e.done !== false);
 // …and of those, the ones they haven't hidden from this resume
@@ -450,6 +512,8 @@ const shown = list => finished(list).filter(e => !e.hidden);
 // Relevant subjects: everything is kept, and the ones closest to the job go on the resume
 const SUBJECTS_SHOWN = 3;
 // How many of the subjects show: the person's own number for this qualification, 1 to 8
+// Scholarships and awards work the same way, 1 to 8. Until the person sets a number, every award shows (up to 8), as it always did.
+const awardsN = (e, count) => { const n = Math.round(+(e && e.awardsShown) || 0); return n > 0 ? Math.max(1, Math.min(8, n)) : Math.max(1, Math.min(8, count || 0)); };
 const subjN = e => Math.max(1, Math.min(8, Math.round(+(e && e.subjectsShown) || SUBJECTS_SHOWN)));
 function pickSubjects(e) {
   return listOf(val(e.coursework)).filter(x => !isBlank(x)).slice(0, subjN(e));
@@ -472,6 +536,64 @@ function datesOfLine(line) {
   const one = String(line).match(new RegExp(`${MY}|\\b(?:19|20)\\d{2}\\b`, "i"));
   return { start: "", end: one ? fmtDate(one[0]) : "", current: /expected|current/i.test(line) };
 }
+// The lines under "Referees" → one referee each, however they are laid out:
+//   everything on one line:   Priya Shah | Store Manager | Brightwater | 0400 000 000 | priya@email.com
+//   one detail to a line:     Priya Shah / Store Manager, Brightwater / 0400 000 000 / priya@email.com
+//   with labels:              Name: Priya Shah / Role: Store Manager / Phone: 0400 000 000 / Email: priya@email.com
+// A blank line, a new "Name:", or a name after a referee's phone or email starts the next referee. Blank lines are kept in `lines` for this.
+const REF_EMAIL = /[\w.+-]+@[\w.-]+\.\w+/, REF_PHONE = /(?:\+|\()?\d[\d\s().\-]{7,}\d/;
+const REF_LABEL = /^(referee(?:\s*(?:no\.?|number|#)?\s*\d+)?(?:\s*name)?|full name|name|job title|role|title|position|relationship|organi[sz]ation|company|employer|phone|mobile|telephone|tel|ph|e-?mail)\s*:\s*(.*)$/i;
+function parseReferees(lines, max = 5) {
+  const refs = [];
+  let cur = null, gap = false;
+  const push = () => { if (cur && (cur.name || cur.role || cur.org || cur.phone || cur.email)) refs.push(cur); cur = null; };
+  const fresh = () => ({ ...emptyRef() });
+  const bits = s => String(s).replace(/\s+(?:at|@)\s+/i, ", ").split(/\s*(?:\||·|\t|,|\s[–—-]\s)\s*/).map(x => x.trim()).filter(x => x && !/^(e|m|p|ph|email|e-mail|mobile|phone|tel):?$/i.test(x));
+  const nameLike = s => /^[A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){1,3}$/.test(s) && !/\d/.test(s);
+  const give = (r, name, rest) => { r.name = name || ""; r.role = rest[0] || ""; r.org = rest.slice(1).join(", "); };
+  for (const raw of lines) {
+    const l = String(raw || "").trim();
+    if (!l) { gap = true; continue; }
+    const wasGap = gap; gap = false;
+    const lab = l.match(REF_LABEL), both = REF_EMAIL.test(l) && REF_PHONE.test(l.replace(REF_EMAIL, " "));
+    const key = lab ? lab[1].toLowerCase().replace(/\s+/g, " ") : "", v = lab ? lab[2].trim() : "";
+    const field = /^(referee|full name|name)/.test(key) ? "name" : /title|role|position|relationship/.test(key) ? "role" : /organi|company|employer/.test(key) ? "org" : /phone|mobile|tel|^ph$/.test(key) ? "phone" : "email";
+    if (lab && !(both && (field === "phone" || field === "email"))) {   // ("Phone: … | Email: …" on one line has both, so it is read below)
+      if (field === "name") {
+        if (!v) { push(); cur = fresh(); continue; }   // "Referee 2:" on its own
+        if (cur && cur.name) push();
+        cur = cur || fresh();
+        const b = bits(v); cur.name = b[0] || v; cur.role = cur.role || b[1] || ""; cur.org = cur.org || b.slice(2).join(", ");
+      } else if (v) {
+        cur = cur || fresh();
+        if (field === "phone") { if (!cur.phone) cur.phone = ((v.match(REF_PHONE) || [v])[0]).trim(); }
+        else if (field === "email") { if (!cur.email) cur.email = (v.match(REF_EMAIL) || [v])[0]; }
+        else if (!cur[field]) cur[field] = v;
+      }
+      continue;
+    }
+    const email = (l.match(REF_EMAIL) || [""])[0], noMail = l.replace(email, " "), phone = ((noMail.match(REF_PHONE) || [""])[0]).trim();
+    const rest = bits(noMail.replace(phone, " ").replace(/\b(?:e-?mail|mobile|phone|tel|ph|m|p|e)\s*:/gi, " "));
+    if ((email || phone) && !rest.length) {   // a phone or email on its own line belongs to the referee above it
+      if (cur && ((email && cur.email) || (phone && cur.phone))) push();
+      cur = cur || fresh();
+      if (email) cur.email = email;
+      if (phone) cur.phone = phone;
+    } else if (email || phone) {   // the whole referee on one line
+      push();
+      const r = fresh(); give(r, rest[0], rest.slice(1)); r.phone = phone; r.email = email; refs.push(r);
+    } else {
+      const b = bits(l);
+      const startNew = !cur || !!(cur.phone || cur.email) || (wasGap && !!cur.name) || (!!(cur.name && cur.role && cur.org) && nameLike(l));
+      if (startNew) { push(); cur = fresh(); give(cur, b[0], b.slice(1)); }
+      else if (!cur.name) give(cur, b[0], b.slice(1));
+      else if (!cur.role) { cur.role = b[0] || ""; cur.org = cur.org || b.slice(1).join(", "); }
+      else if (!cur.org) cur.org = b.join(", ");
+    }
+  }
+  push();
+  return refs.slice(0, max);
+}
 function profileFromText(text) {
   const p = emptyProfile();
   const c = candidateFrom(text);
@@ -486,7 +608,9 @@ function profileFromText(text) {
   const L = parsed.lines;
   const firstHead = parsed.sections[1] ? parsed.sections[1].headIdx : Math.min(L.length, 6);
   const top = L.slice(0, firstHead).map(l => l.trim()).filter(Boolean);
-  if (top[1] && top[1].length < 70 && !/[@|]|\d{3}/.test(top[1]) && top[1] !== c.location) p.target.title = top[1];
+  // the headline under the name: the first line that isn't contact details (the name, then perhaps "Perth, WA | 0400 000 000 | email", then the title)
+  const titleLine = top.slice(1, 4).find(l => l.length < 70 && !/[@|]|\d{3}|https?:|linkedin\.com/i.test(l) && l !== c.location && !/^[A-Z][A-Za-z .'-]+,\s*(?:VIC|NSW|QLD|WA|SA|TAS|ACT|NT)\b/.test(l));
+  if (titleLine) p.target.title = titleLine;
   for (const s of parsed.sections) {
     if (s.type === "top") continue;
     const body = L.slice(s.start, s.end + 1).map(l => l.trim()).filter(Boolean);
@@ -511,11 +635,7 @@ function profileFromText(text) {
       }
     } else if (s.type === "referees") {
       if (/request/i.test(plain.join(" ")) || !plain.length) p.referees = { mode: "request", list: [] };
-      else p.referees = { mode: "list", list: plain.slice(0, 3).map(l => {
-        const email = (l.match(/[\w.+-]+@[\w.-]+\.\w+/) || [""])[0], phone = ((l.match(/(?:\+|\()?\d[\d\s().\-]{7,}\d/) || [""])[0]).trim();
-        const rest = l.replace(email, " ").replace(phone, " ").split(/\s*(?:\||·|\t|,|\s[–—-]\s)\s*/).map(x => x.trim()).filter(x => x && !/^(e|m|p|ph|email|mobile|phone):?$/i.test(x));
-        return { ...emptyRef(), name: rest[0] || "", role: rest[1] || "", org: rest.slice(2).join(", "), phone, email };
-      }) };
+      else p.referees = { mode: "list", list: parseReferees(L.slice(s.start, s.end + 1).map(l => l.replace(BULLET_RE, "").trim())) };
       p.extras.referees = true;
     } else if (s.type === "other") {
       const t = s.title.toLowerCase();

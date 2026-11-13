@@ -49,7 +49,8 @@ function lwStudyList(p) {
     .sort((a, b) => b.r - a.r || b.end - a.end || a.i - b.i).map(x => x.e);
 }
 // The qualification the standard (no AI) letter is built around: the highest one
-const lwEdu = p => lwStudyList(p)[0] || null;
+// (or the one the person chose in "What your letter is written from")
+const lwEdu = p => { const u = (BL().use || {}).study; return (u && lwStudyList(p).find(e => lwStudyKey(e) === u)) || lwStudyList(p)[0] || null; };
 // "Thesis: Title" or a plain title → "Major project: Title" (the letter always says major project)
 const lwMajor = s => { const r = projRow(s); return r.title ? `Major project: ${r.title}` : ""; };
 // What the AI is given about study: one line per qualification, highest first, with its project, awards and results kept on that line
@@ -104,8 +105,14 @@ function lwInputs(only) {
   });
   const others = only >= 0 ? d.parts.filter((x, k) => k !== only && x.text.trim() && !/[\[\]{}]/.test(x.text)).map(x => x.text.trim()) : [];
   // requirements the person chose to ignore (see the panel "What your letter is written from"): the letter must not claim or mention them
+  // what the person chose in "What your letter is written from": the line to lead with, the qualification, the skills, and the proof for each requirement
+  const u = lwUse(), proofs = lwProofs(), best = lwBestProof(proofs);
+  if (u.proof && best) extra.push(`The applicant chose this as their strongest proof, so lead the letter with it and keep its facts exactly: "${lwClean(best.text)}"${best.kind === "own" ? " (their own words)" : best.at ? ` (from ${best.at})` : ""}`);
+  if (u.study) { const e = lwEdu(p); if (e) extra.push(`Build the Education paragraph around this qualification: ${lwStudy(e)}`); }
+  if (Array.isArray(u.skills) && u.skills.length) extra.push(`The applicant wants these skills named in the letter, and only these: ${u.skills.join(", ")}`);
+  for (const [k, v] of Object.entries(u.needProof)) { const need = lwNeeds(proofs).find(n => lrKey(n.need) === k); if (!need) continue; extra.push(v === "-" ? `The applicant has no evidence for this requirement from the ad, so do not mention it or claim it anywhere in the letter: "${lwClean(need.need)}"` : `For the ad's requirement "${lwClean(need.need)}", use this as the proof: "${lwClean(v)}"`); }
   for (const t of Object.values(ltPlan().ignored || {})) if (t) extra.push(`The applicant has no evidence for this requirement from the ad, so do not mention it or claim it anywhere in the letter: "${lwClean(t)}"`);
-  return { resume: lwResumeText(), study: lwStudyText(p), template: tpl, ad: tpl ? "" : d.ad, role: lwClean(d.role) || lwClean(p.target.title), company: lwClean(d.company), why: tpl ? "" : lwClean(d.why), avail: lwClean(d.avail) || availabilityText(p), needs: tpl ? "" : d.needs, extra, others, words: letterRange() };
+  return { effort: lwTakesEffort() ? lwEffort() : "", jobWords: ltJobWords(), resume: lwResumeText(), study: lwStudyText(p), template: tpl, ad: tpl ? "" : d.ad, role: lwClean(d.role) || lwClean(p.target.title), company: lwClean(d.company), why: tpl ? "" : lwClean(d.why), avail: lwClean(d.avail) || availabilityText(p), needs: tpl ? "" : d.needs, extra, others, words: letterRange() };
 }
 
 // Put a paragraph in the letter and the box
@@ -139,6 +146,19 @@ async function lwWriteOne(i, btn) {
   } finally { lwBusy = false; if (acts) delete acts.dataset.busy; if (btn) btn.disabled = false; }
 }
 
+// The words that belong to the job itself (its title and field), which the checks let the letter repeat, and which the AI is told it may repeat
+const ltJobWords = () => { try { const p = P(), d = BL(); return clJobWords(d.role, p.target.title, p.target.jobType ? jobLabel(p.target.jobType) : ""); } catch { return []; } };
+// The effort choice above Write all: low, medium or high, each with how long it should take
+function ltEffortRender() {
+  const box = $("ltEffort");
+  if (!box) return;
+  const show = lwTakesEffort();
+  box.hidden = !show;
+  if (!show) { box.innerHTML = ""; return; }
+  const cur = lwEffort(), words = letterRange()[1];
+  box.innerHTML = `<div class="q-label" id="ltEffL">How hard should the AI think? <span class="opt">(for Write all and Write with AI)</span></div><div class="seg seg-fill lt-effort-seg" role="group" aria-labelledby="ltEffL">${Object.entries(LW_EFFORT).map(([k, o]) => `<button type="button" data-lt-effort="${k}" aria-pressed="${cur === k}"><span>${o.label}${k === "high" ? " (recommended)" : ""}</span><small>${lwSayTime(lwEstimateSec(words, k))}</small></button>`).join("")}</div><p class="small muted">${esc(LW_EFFORT[cur].note)}. Times are for about ${words} words, and come from your own recent letters once there are some.</p>`;
+}
+onInit(() => { aiChangeListeners.add(() => ltEffortRender()); });
 // The checks from the fix brief, run on the finished letter (and again whenever the preview is drawn): [{ i, type, detail }]
 function ltValidate() {
   const d = BL(); if (ltTemplate()) return [];
@@ -151,12 +171,22 @@ function ltValidate() {
 const LW_TIMES_KEY = "jobfinder.letterWriteTimes.v1";
 const lwEngineKey = () => aiCfg.engine === "key" ? `key:${aiCfg.key.provider}:${aiCfg.key.model}` : aiCfg.engine;
 const lwTimes = () => { try { const l = JSON.parse(localStorage.getItem(LW_TIMES_KEY) || "[]"); return Array.isArray(l) ? l : []; } catch { return []; } };
-function lwTimeSave(words, ms) { try { localStorage.setItem(LW_TIMES_KEY, JSON.stringify([...lwTimes(), { eng: lwEngineKey(), words, ms }].slice(-12))); } catch { /* storage blocked */ } }
-function lwEstimateSec(words) {
-  const mine = lwTimes().filter(x => x.eng === lwEngineKey() && x.words > 100).slice(-4);
-  if (mine.length) { const per = mine.map(x => x.ms / 1000 / x.words).sort((a, b) => a - b)[Math.floor(mine.length / 2)]; return Math.max(5, Math.round(per * words)); }
+// How hard the AI thinks before it writes: low, medium or high (high is recommended). It only applies to AIs that think (Gemini's newer models, gpt-oss).
+// Each level is taken to be about this many times as long as medium, until the person's own recent times say otherwise.
+const LW_EFFORT = { low: { label: "Low", mult: 0.5, note: "A quick first draft" }, medium: { label: "Medium", mult: 1, note: "Balanced" }, high: { label: "High", mult: 2, note: "Recommended: the best writing, and the fewest fixes afterwards" } };
+const lwEffort = () => { const e = (BL() || {}).effort; return LW_EFFORT[e] ? e : "high"; };
+// Does the AI in use take an effort level?
+const lwTakesEffort = () => aiCfg.engine === "key" && aiUsable("key") && ((aiCfg.key.provider === "gemini" && GEMINI_THINKS_RE.test(aiCfg.key.model || "")) || aiOssReasoning(aiCfg.key.model || ""));
+function lwTimeSave(words, ms, eff = lwEffort()) { try { localStorage.setItem(LW_TIMES_KEY, JSON.stringify([...lwTimes(), { eng: lwEngineKey(), words, ms, eff }].slice(-16))); } catch { /* storage blocked */ } }
+function lwEstimateSec(words, eff = lwEffort()) {
+  const thinks = lwTakesEffort(), mult = thinks ? LW_EFFORT[eff].mult : 1, med = x => x.slice().sort((a, b) => a - b)[Math.floor(x.length / 2)];
+  const mine = lwTimes().filter(x => x.eng === lwEngineKey() && x.words > 100);
+  // this person's own times at this level; or at another level, scaled to this one
+  const same = mine.filter(x => !thinks || (x.eff || "high") === eff).slice(-4), other = mine.slice(-4);
+  if (same.length) return Math.max(5, Math.round(med(same.map(x => x.ms / 1000 / x.words)) * words));
+  if (thinks && other.length) return Math.max(5, Math.round(med(other.map(x => x.ms / 1000 / x.words / LW_EFFORT[x.eff || "high"].mult)) * mult * words));
   if (BROWSER_ENGINES.has(aiCfg.engine)) { const m = browserModel(aiCfg.engine, aiCfg.engine === "tfjs" ? aiCfg.tfjsModel : aiCfg.webllmModel); return m ? Math.round(aiEstimate(aiCfg.engine, m.id, 3500, words * 7)) : 60; }
-  if (aiCfg.engine === "key") return Math.round(10 + words * 0.04);   // a hosted model at medium effort: a few seconds to start, then quick
+  if (aiCfg.engine === "key") return Math.round((12 + words * 0.05) * mult);   // a hosted model: a few seconds to start, then quick; thinking harder takes longer
   return Math.round(15 + words * 0.2);   // the browser's own AI
 }
 const lwSayTime = s => s < 50 ? `about ${Math.max(5, Math.round(s / 5) * 5)} seconds` : s < 90 ? "about a minute" : `about ${Math.round(s / 60)} minutes`;
@@ -182,12 +212,18 @@ async function lwStart(btn) {
   BL().parts = COVER_PARTS.map((p, k) => ({ part: p.key, text: "", detail: was[k] && was[k].detail, altIx: was[k] && was[k].altIx }));
   baseLetter.save(true); renderLetterPage();
   let r = { paragraphs: null, res: null };
-  const tm = lwTimedStatus(st, lwEstimateSec(letterRange()[1]));
+  const tm = lwTimedStatus(st, lwEstimateSec(letterRange()[1])), effortUsed = lwTakesEffort() ? lwEffort() : "";
   try {
     tm.set("Writing your cover letter from your resume and the Cover Letter Advice…");
     r = await adviceWrite(lwInputs(-1), m => tm.set(m));
   } finally { tm.stop(); lwBusy = false; btn.disabled = false; st.classList.remove("busy"); }
-  if (r.paragraphs && r.res && r.res.via === "big") lwTimeSave(wordCount(r.paragraphs.join(" ")), tm.ms());
+  // The highest Gemini model is the only one that writes a cover letter. If it can't, nothing is written: the letter you had is put back, with the reason.
+  if (r.res && r.res.error && r.res.error.code === "top_only") {
+    BL().parts = was; baseLetter.save(true); renderLetterPage();
+    st.innerHTML = aiMissHtml(r.res.error.message);
+    return;
+  }
+  if (r.paragraphs && r.res && r.res.via === "big") lwTimeSave(wordCount(r.paragraphs.join(" ")), tm.ms(), effortUsed || "high");
   const res = r.res, stopped = !!(res && res.cancelled), noAi = !!(res && !res.tried.length && !stopped), filled = [];
   COVER_PARTS.forEach((part, i) => {
     const text = r.paragraphs && r.paragraphs[i], note = () => $("ltx-" + i);
@@ -251,7 +287,7 @@ function ltTargetText() {
 const lwEsc = t => String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 // Numbers and skills in AI-written text that aren't in your profile (or already approved)
 function madeUpIn(text) {
-  const p = P(), d = BL(), src = [profileToText(p), d.role, d.company, d.recipient, d.why, d.avail, ...(p.prefs.okFacts || [])].join("\n");
+  const p = P(), d = BL(), src = [profileToText(p), (d.use || {}).proof, d.role, d.company, d.recipient, d.why, d.avail, ...(p.prefs.okFacts || [])].join("\n");
   const clean = String(text).replace(TOKEN_RE, " "), okNums = new Set(numsOf(src)), have = skillSet(src), out = new Set();
   TOKEN_RE.lastIndex = 0;
   for (const n of numsOf(clean)) if (!okNums.has(n) && !/^(19|20)\d{2}$/.test(n)) out.add(n);

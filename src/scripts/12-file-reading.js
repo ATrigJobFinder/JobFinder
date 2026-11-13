@@ -22,7 +22,7 @@ function pdfItemsToText(items) {
     row.parts.push({ x, w: it.width || 0, s: it.str, h });
   }
   rows.sort((a, b) => b.y - a.y);
-  return rows.map(r => {
+  return joinWrappedDates(rows.map(r => {
     r.parts.sort((a, b) => a.x - b.x);
     let line = "", end = null;
     for (const p of r.parts) {
@@ -32,7 +32,30 @@ function pdfItemsToText(items) {
       line += p.s; end = p.x + p.w;
     }
     return fixSpacedLine(line.replace(/[ \t]+$/g, ""));
-  }).join("\n");
+  })).join("\n");
+}
+// Two-column layouts put the dates in a narrow left column, where "Nov 2022 – May 2023" wraps onto two lines. Read row by row, that comes out as
+//   Nov 2022 – May   Data Analyst - Vacation Student Program
+//   2023   Worley, Perth, WA
+// which has no date range in it, so the job or qualification isn't found. The two halves of the date are put back together, and what sat
+// beside them (the title, then the employer or school) goes on the lines below the date.
+const WRAP_MON = "(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\\.?";
+const WRAP_FIRST = new RegExp(`^(${WRAP_MON}\\s+\\d{4}\\s*[–—-]\\s*(?:${WRAP_MON})?)(?:\\s{2,}(\\S.*))?$`, "i");
+const WRAP_SECOND = new RegExp(`^((?:${WRAP_MON}\\s+)?\\d{4}|Present|Current|Now)(?:\\s{2,}(\\S.*))?$`, "i");
+function joinWrappedDates(lines) {
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const a = WRAP_FIRST.exec(lines[i]), b = a && i + 1 < lines.length ? WRAP_SECOND.exec(lines[i + 1]) : null;
+    // the first half must stop short ("Nov 2022 – May", "Nov 2022 –"), and the second must be the rest of the same date
+    if (!a || !b || (/\d{4}\s*$/.test(a[1]) && !/[–—-]\s*$/.test(a[1]))) { out.push(lines[i]); continue; }
+    const firstEndsInMonth = new RegExp(`${WRAP_MON}\\s*$`, "i").test(a[1]), secondHasMonth = /^[A-Za-z]/.test(b[1]) && !/^(present|current|now)$/i.test(b[1]);
+    if (firstEndsInMonth && secondHasMonth) { out.push(lines[i]); continue; }   // "May" then "Jun 2023": not one date
+    out.push(`${a[1].trim()} ${b[1]}`.replace(/\s+/g, " "));
+    if (a[2]) out.push(a[2].trim());
+    if (b[2]) out.push(b[2].trim());
+    i++;
+  }
+  return out;
 }
 // Headings set with wide letter spacing are read as "P R O F I L E". Re-join them so the scan
 // can still find sections, and remember them so the ATS check can warn about it.

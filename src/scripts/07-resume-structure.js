@@ -53,22 +53,48 @@ function parseResume(text) {
     const heads = [];
     for (let i = s.start; i <= s.end; i++) if (!BULLET_RE.test(lines[i]) && RANGE_TEST.test(lines[i])) heads.push(i);
     if (heads.length) {
+      // Dates first: the section opens on a date line of its own (nothing above it), so every entry is date, title, employer, bullet points.
+      // (Otherwise a date on its own line has its title on the line above it.)
+      const firstHead = heads.find(h => !TENURE_RE.test(lines[h]));
+      const dateFirst = firstHead != null && !cleanHeader(lines[firstHead]) && !lines.slice(s.start, firstHead).some(l => l.trim());
+      const subOk = (t, ln) => !!t && !BULLET_RE.test(lines[ln]) && !RANGE_TEST.test(t) && !/[.:]$/.test(t) && !/^[A-Za-z ]{2,30}:\s/.test(t) && words(t).length <= 9;
+      // A date on a line of its own has its title above it: one line ("Title / date"), or two ("Title / Employer / date") when the line above that
+      // is also a short line that isn't a bullet point. Returns the lines (top first) and the line the entry starts on.
+      const aboveDate = hh => {
+        let p = hh - 1; while (p >= s.start && !lines[p].trim()) p--;
+        if (p < s.start || BULLET_RE.test(lines[p])) return { idx: [], top: hh };
+        const q = p - 1;
+        if (q >= s.start && subOk(lines[q].trim(), q) && !isHeadingLine(lines[q], q)) return { idx: [q, p], top: q };
+        return { idx: [p], top: p };
+      };
       heads.forEach((h, k) => {
         if (TENURE_RE.test(lines[h])) return;   // the company's own line: its roles below are the jobs
         const end = k + 1 < heads.length ? heads[k + 1] - 1 : s.end;
-        let start = h, label = cleanHeader(lines[h]);
-        if (!label) {                                    // date on its own line: the title is the line above
-          let p = h - 1; while (p >= s.start && !lines[p].trim()) p--;
-          if (p >= s.start && !BULLET_RE.test(lines[p])) { label = cleanHeader(lines[p]); start = p; }
+        let start = h, label = cleanHeader(lines[h]), titleAbove = 0;
+        if (!label && !dateFirst) {                      // date on its own line: the title is above it
+          const up = aboveDate(h);
+          if (up.idx.length) { label = up.idx.map(i => cleanHeader(lines[i])).filter(Boolean).join(" · "); start = up.top; titleAbove = up.idx.length; }
         }
         let last = lastContent(h, end);
         let j = h + 1; while (j <= last && !lines[j].trim()) j++;
         const sub = j <= last ? lines[j].trim() : "";
         let subIdx = -1;
-        if (sub && !BULLET_RE.test(lines[j]) && !RANGE_TEST.test(sub) && !/[.:]$/.test(sub) && !/^[A-Za-z ]{2,30}:\s/.test(sub) && words(sub).length <= 9) { label += (label ? " · " : "") + sub; subIdx = j; }
+        const subIdxs = [];
+        // (title and employer both above the date: whatever follows the date is not another header line)
+        if (titleAbove < 2 && subOk(sub, j)) { label += (label ? " · " : "") + sub; subIdx = j; subIdxs.push(j); }
+        // The date on a line of its own with the title and then the employer (or school) below it, as in a two-column layout:
+        //   Nov 2022 – May 2023 / Data Analyst - Vacation Student Program / Worley, Perth, WA
+        // The second line is the employer, not a bullet point. A line that starts like a sentence ("Led a team…") is left as a bullet point.
+        if (subIdxs.length && !cleanHeader(lines[h]) && start === h) {
+          let n = j + 1; while (n <= last && !lines[n].trim()) n++;
+          const t2 = n <= last ? lines[n].trim() : "";
+          const sentence = /^[a-z]/.test(t2) || (typeof ACTION_START !== "undefined" && ACTION_START.test(t2.toLowerCase())) || /\b(?:and|with|for|to|the)\s*$/i.test(t2);
+          if (subOk(t2, n) && !sentence) { label += " · " + t2; subIdxs.push(n); }
+        }
         // a role's last line should not swallow the next role's title line when dates sit on their own line
-        if (k + 1 < heads.length && (!cleanHeader(lines[heads[k + 1]]) || TENURE_RE.test(lines[heads[k + 1]]))) { let p = heads[k + 1] - 1; while (p > h && !lines[p].trim()) p--; last = lastContent(h, p - 1); }
-        zones.push({ id: "z" + zones.length, kind: s.type === "education" ? "education" : "role", section: s.title, label: label || "Untitled", start, last, headIdx: h, subIdx });
+        if (k + 1 < heads.length && !cleanHeader(lines[heads[k + 1]]) && !dateFirst && !TENURE_RE.test(lines[heads[k + 1]])) last = lastContent(h, aboveDate(heads[k + 1]).top - 1);
+        else if (k + 1 < heads.length && TENURE_RE.test(lines[heads[k + 1]])) { let p = heads[k + 1] - 1; while (p > h && !lines[p].trim()) p--; last = lastContent(h, p - 1); }
+        zones.push({ id: "z" + zones.length, kind: s.type === "education" ? "education" : "role", section: s.title, label: label || "Untitled", start, last, headIdx: h, subIdx, subIdxs });
       });
     } else {
       const last = lastContent(s.start, s.end);
@@ -83,7 +109,7 @@ function parseResume(text) {
     z.blankStyle = body.some((l, i) => !l.trim() && i > 0 && i < body.length - 1);
     z.bullets = [];
     for (let i = z.start + 1; i <= z.last; i++) {
-      if (i === z.subIdx || i === z.headIdx || !lines[i].trim()) continue;
+      if (i === z.subIdx || (z.subIdxs && z.subIdxs.includes(i)) || i === z.headIdx || (z.headIdx !== undefined && i < z.headIdx) || !lines[i].trim()) continue;
       const m = lines[i].match(BULLET_RE);
       z.bullets.push({ idx: i, text: lines[i].replace(BULLET_RE, "").trim(), marker: m ? m[1] + " " : "" });
     }

@@ -25,14 +25,14 @@ function letterScore(parts, r, wc, gaps, quality, forJob) {
   return Math.round(35 * filled / parts.length + 20 * met / parts.length + 20 * len + 10 * gapPart + 15 * clean);
 }
 
-// "Job title you are applying for?": typed in, shown first so the designs and the AI both know. The kind of work is worked out from the title.
+// "Job title you are applying for?": typed in at the top of the Cover letter step, so the AI and the designs both know. The kind of work is worked out from the title.
 function renderLetterKind() {
   const box = $("ltJobType");
   if (!box) return;
   const cur = P().target.title || "", inp = $("ltJobTitle");
   if (inp) { if (document.activeElement !== inp) inp.value = cur; return; }   // already drawn: don't disturb someone who is typing
   const id = "ltJobTitle";
-  box.innerHTML = `<div class="q"><label class="q-label" for="${id}">Job title you are applying for?</label><div class="q-body"><div class="pick sugg"><input type="text" id="${id}" data-lt-title="1" data-suggest="titles" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" aria-describedby="${id}_h" autocomplete="off" autocapitalize="words" value="${esc(cur)}" placeholder="e.g. Graduate Civil Engineer"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="Job title suggestions" hidden></ul></div><p class="q-hint" id="${id}_h">Designs that suit this kind of job are shown first, and the AI writes with it in mind.</p></div></div>`;
+  box.innerHTML = `<div class="q"><label class="q-label" for="${id}">Job title you are applying for?</label><div class="q-body"><div class="pick sugg"><input type="text" id="${id}" data-lt-title="1" data-suggest="titles" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}-sl" aria-describedby="${id}_h" autocomplete="off" autocapitalize="words" value="${esc(cur)}" placeholder="e.g. Graduate Civil Engineer"><ul class="pick-list" id="${id}-sl" role="listbox" aria-label="Job title suggestions" hidden></ul></div><p class="q-hint" id="${id}_h">The AI writes with it in mind, and the designs on the Layout step that suit this kind of job are shown first.</p></div></div>`;
 }
 // Typing a title keeps it in your profile; once it's entered the kind of work follows from it (and the designs are ranked again)
 function ltTitleCommit(v) {
@@ -51,10 +51,10 @@ function ltTitleCommit(v) {
 }
 function ltModeRender() {
   const t = ltTemplate();
-  document.querySelectorAll("#ltMode [data-lt-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ltMode === (t ? "template" : "job"))));
+  document.querySelectorAll("#ltMode [data-lt-mode]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.ltMode === (ltEmail() ? "email" : t ? "template" : "job"))));
   const f = $("ltFields"); if (f) f.hidden = t;
   const i = $("ltModeInfo");
-  if (i && !i.firstChild) i.innerHTML = `<button type="button" class="hinfo" data-l1="A template for any job" data-l2="A specific job" data-what="A letter you can reuse for any job. The job title, company and who it's addressed to stay as yellow placeholders, and the greeting is “Dear Hiring Manager,”. Fill them in when you send it. Paragraphs you've already written aren't changed: press Start from my profile to write them again with placeholders." data-why="Fill in the job and company, and the letter uses them." aria-label="Who is this letter for: what the two choices do" aria-expanded="false">i</button>`;
+  if (i && !i.firstChild) i.innerHTML = `<button type="button" class="hinfo" data-l1="A template for any job" data-l2="A specific job" data-what="A letter you can reuse for any job. An email template is the same idea written as an email: a subject line, no letter head or date, and the resume attached in the close. The job title, company and who it's addressed to stay as yellow placeholders, and the greeting is “Dear Hiring Manager,”. Fill them in when you send it. Paragraphs you've already written aren't changed: press Start from my profile to write them again with placeholders." data-why="Fill in the job and company, and the letter uses them." aria-label="Who is this letter for: what the choices do" aria-expanded="false">i</button>`;
 }
 function ltV22Render() {
   ltModeRender();
@@ -101,7 +101,7 @@ onInit(() => {
     const go = e.target.closest("[data-ltgo]");
     if (go) { ltShowStep(+go.dataset.ltgo); window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" }); return; }
     const m =e.target.closest("[data-lt-mode]");
-    if (m) { BL().mode = m.dataset.ltMode === "template" ? "template" : "job"; baseLetter.save(); ltModeRender(); letterEdited(); renderLetterPage(); return; }
+    if (m) { BL().mode = m.dataset.ltMode === "template" ? "template" : m.dataset.ltMode === "email" ? "email" : "job"; baseLetter.save(); ltModeRender(); letterEdited(); renderLetterPage(); return; }
     const nx = e.target.closest("[data-nx]");
     if (nx) openView(nx.dataset.nx);
   });

@@ -1,0 +1,107 @@
+/* ===================== Create or edit resume: round 5 ===================== */
+
+/* --- A button with a hover (and focus) explanation --- */
+.tip-wrap { position: relative; display: inline-flex; }
+.tip-box {
+  position: absolute; z-index: 30; bottom: calc(100% + 8px); right: 0; left: auto; width: max-content; max-width: min(18rem, 78vw);
+  padding: 8px 10px; border-radius: 8px; background: var(--ink); color: var(--surface); font-size: var(--step--1); font-weight: 400; line-height: 1.35; text-align: left; white-space: normal;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22); pointer-events: none; opacity: 0; visibility: hidden; transform: translateY(3px); transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+}
+.tip-box::after { content: ""; position: absolute; top: 100%; right: 16px; border: 6px solid transparent; border-top-color: var(--ink); }
+.tip-wrap:hover .tip-box, .tip-wrap:focus-within .tip-box { opacity: 1; visibility: visible; transform: none; transition-delay: 0.25s; }
+.tip-wrap:focus-within .tip-box { transition-delay: 0s; }
+/* the first buttons in a row open their box to the right, so it never runs off the left edge */
+.b-card-foot > .tip-wrap:first-child .tip-box { right: auto; left: 0; }
+.b-card-foot > .tip-wrap:first-child .tip-box::after { right: auto; left: 16px; }
+.b-card-foot > .tip-wrap:nth-child(2) .tip-box { right: auto; left: -20px; }
+.b-card-foot > .tip-wrap:nth-child(2) .tip-box::after { right: auto; left: 36px; }
+@media (prefers-reduced-motion: reduce) { .tip-box { transition: none; } }
+@media (max-width: 720px) { .b-card-foot > .tip-wrap:has([data-act="finish"]) { flex: 1 1 100%; } .b-card-foot > .tip-wrap [data-act="finish"] { width: 100%; } .b-card-foot > .tip-wrap:has([data-act="finish"]) .tip-box { right: 0; left: auto; } }
+.b-card-foot > .tip-wrap:has([data-act="finish"]) { margin-left: auto; }
+
+/* --- Sections that need an AI, with none connected: greyed out, with a clear note over the top --- */
+.b-aiin.ai-none { min-height: 6.5rem; }
+.ai-none-prompt { flex-direction: column; gap: 6px; text-decoration: none; background: color-mix(in srgb, var(--surface) 35%, transparent); border-radius: inherit; }
+.ai-none-prompt { display: grid; align-content: center; justify-items: center; }
+.ai-none-pill { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; background: var(--surface); border: 1.5px solid var(--accent); color: var(--accent); box-shadow: 0 4px 14px rgba(15, 23, 42, 0.16); font-size: var(--step-0); }
+.ai-none-pill b { font-weight: 700; }
+.ai-none-sub { font-weight: 400; font-size: var(--step--1); color: var(--ink); max-width: 30rem; }
+.ai-none-prompt:hover .ai-none-pill, .ai-none-prompt:focus-visible .ai-none-pill { background: var(--accent); color: var(--surface); }
+.ai-none-prompt:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+/* --- LinkedIn PDF steps on the opening page --- */
+.li-howto { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.li-howto h3 { margin: 0; font-size: var(--step-0); }
+.li-howto p { margin: 0; }
+.li-howto-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.li-howto-steps figure { margin: 0; display: grid; gap: 8px; align-content: start; }
+.li-howto-steps svg { width: 100%; height: auto; display: block; border-radius: 10px; }
+.li-howto-steps figcaption { font-size: var(--step--1); line-height: 1.4; }
+@media (max-width: 760px) { .li-howto-steps { grid-template-columns: 1fr; } .li-howto-steps svg { max-width: 26rem; } }
+.lh-win { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.lh-bar { fill: var(--surface-2); }
+.lh-banner { fill: var(--accent-soft); }
+.lh-card { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.lh-line { fill: var(--line); }
+.lh-ink { fill: var(--muted); }
+.lh-ring { fill: var(--surface); }
+.lh-btn { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.lh-hl-fill { fill: var(--accent); }
+.lh-hl-ring { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.lh-file { fill: var(--surface); stroke: var(--bad, #d64545); stroke-width: 2; }
+.lh-badge { fill: var(--accent); }
+.lh-arrow { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.lh-t { fill: var(--ink); font: 600 10px/1 system-ui, sans-serif; }
+.lh-t-on { fill: #fff; }
+.lh-t-num { font-size: 13px; font-weight: 700; }
+.lh-t-file { fill: var(--bad, #d64545); font-size: 9px; font-weight: 700; }
+.tl-found.busy::after { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-left: 0.5em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -0.1em; animation: b5spin 0.8s linear infinite; }
+@keyframes b5spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tl-found.busy::after { animation: none; } }
+
+/* --- The notice under the cards once everything is finished --- */
+.b-pending.ok { border-color: var(--good); background: color-mix(in srgb, var(--good) 10%, var(--surface)); }
+
+/* --- Education: the heading over awards, subjects and thesis --- */
+.b-edu-hl { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
+
+/* --- A finished awards, publications or interests section, folded to a short summary --- */
+.b-extra-peek { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 2px; }
+.b-extra-peek[hidden] { display: none; }
+.b-extra-peek ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; flex: 1 1 14rem; min-width: 0; }
+.b-extra-peek li { font-size: var(--step--1); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- Choose your AI as a pop-up over the page you are on --- */
+dialog.aic-dialog { max-width: min(980px, calc(100vw - 24px)); width: 100%; max-height: calc(100vh - 24px); }
+.aic-dlg { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; max-height: calc(100vh - 24px); overflow: auto; box-shadow: 0 20px 50px rgba(8, 12, 20, 0.35); }
+.aic-dlg-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: var(--step--1); color: var(--muted); }
+.aic-dlg-body .view { margin: 0; }
+.aic-dlg-body .wrap { padding: 12px 22px 22px; }
+.chip-x:disabled { opacity: 0.35; cursor: default; }
+
+/* --- Cover letter: the Layout step, the email template, and editing what the letter is written from --- */
+.lt-search { margin-bottom: 12px; }
+.lt-designs .q { margin-top: 12px; }
+.lt-sheet.lt-email { min-height: 0; }
+.lt-email .lt-subject { display: flex; gap: 10px; align-items: baseline; padding-bottom: 10px; margin-bottom: 16px; border-bottom: 2px solid var(--lt-accent, #1F3A5F); font-weight: 700; }
+.lt-email .lt-subject span { font-size: 0.75em; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lt-accent, #1F3A5F); }
+.lt-email .lt-emailcontact { font-size: 0.9em; color: #5b6475; margin-top: 4px; }
+.lw-body { min-width: 0; }
+.lw-editor { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); display: grid; gap: 10px; }
+.lw-opts { display: grid; gap: 6px; }
+.lw-opts.lw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lw-opt { display: grid; gap: 2px; text-align: left; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+.lw-opt small { color: var(--muted); }
+.lw-opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.lw-opt:hover { border-color: var(--accent); }
+.lw-need-pick { display: grid; gap: 4px; margin-top: 6px; max-width: 34rem; }
+.lw-need-pick select { max-width: 100%; }
+.lw-edit { margin-left: 4px; }
+
+/* --- The stamp on the cover letter design that matches the resume --- */
+.tpl-stamp { position: absolute; top: 4px; right: 4px; z-index: 3; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3); border: 2px solid var(--surface); }
+.tpl-stamp-tip { position: absolute; top: calc(100% + 6px); right: -2px; width: max-content; max-width: 7.5rem; white-space: normal; padding: 6px 9px; border-radius: 7px; background: var(--ink); color: var(--surface); font-size: var(--step--1); font-weight: 400; line-height: 1.3; text-align: left; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.12s ease; }
+.tpl-card:hover .tpl-stamp-tip, .tpl-card:focus-visible .tpl-stamp-tip { opacity: 1; visibility: visible; }
+
+.lt-effort { margin-top: 8px; }
+.lt-effort-seg button small { display: block; }

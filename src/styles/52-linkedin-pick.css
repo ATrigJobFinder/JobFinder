@@ -1,0 +1,13 @@
+/* LinkedIn opening page: choose which resume (and which cover letter) to read from the profile. Next is blue, at the bottom right. */
+.li-pick { display: grid; gap: 8px; }
+.li-pick .b-sub { margin-top: 6px; }
+.li-pick-list { display: grid; gap: 8px; }
+.li-pick-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.li-pick-row:hover { border-color: var(--accent); }
+.li-pick-row:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.li-pick-row input { flex: none; width: 18px; height: 18px; accent-color: var(--accent); }
+.li-pick-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#liwProfilePick .lt-welcome-next, #liwImport .lt-welcome-next { justify-content: flex-end; }
+
+/* Guidance in the layout thumbnails: grey, like the big preview */
+.tpl-thumb .cv-ghost { opacity: 0.45; font-style: italic; }

@@ -63,12 +63,15 @@ onInit(() => {
 //       • …
 // Newest first, as in the builder. A single job is shown as it always was.
 const orgKey = s => String(s || "").toLowerCase().replace(/\b(pty|ltd|limited|inc|the)\b\.?/g, " ").replace(/[^a-z0-9]+/g, " ").trim();
+// Which stack a job belongs to: its employer, and its "split" group. A job that was split away from the others at its employer has a group
+// of its own (e.grp), so it is shown and printed as a job on its own; a title added to it later joins that group.
+const stackKey = e => { const k = orgKey(e && e.org); return k ? k + (e.grp ? "#" + e.grp : "") : ""; };
 function stackRoles(list, make, grouped) {
   // every job at the same employer goes under one heading (even if they are not next to each other), where the first of them appears
   const out = [], used = new Set();
   list.forEach((e, i) => {
     if (used.has(i)) return;
-    const k = orgKey(e.org), run = k ? list.filter((x, j) => j >= i && !used.has(j) && orgKey(x.org) === k) : [e];
+    const k = stackKey(e), run = k ? list.filter((x, j) => j >= i && !used.has(j) && stackKey(x) === k) : [e];
     list.forEach((x, j) => { if (j >= i && run.includes(x)) used.add(j); });
     used.add(i);
     if (run.length < 2) { out.push(make(e)); return; }

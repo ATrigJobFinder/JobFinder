@@ -58,7 +58,7 @@ const bpEditor = {
   example: false,
   note: "Select any text in the preview to change it. The boxes on the left follow.",
   offNote: "This is an example. Your own words appear here as you finish each part, and then you can type on them.",
-  noteId: "bEditNote", locked: ".cv-h, .cv-ed", label: "Your resume. Select any text to change it.",
+  noteId: "bEditNote", locked: ".cv-h, .cv-ed, .cv-ghost", label: "Your resume. Select any text to change it.",
   enabled() { return !this.example; },
   apply: bpApply,
   after() { touchProfile("builder"); updateChecks(); renderPreview(true); renderSteps(); },

@@ -4,7 +4,8 @@ function letterStyle(tpl, accent) {
   const t = tpl || DEFAULT_LETTER_STYLE;
   if (!tpl) return DEFAULT_LETTER_STYLE;
   // the resume's font follows into a letter that matches it
-  const fp = typeof fontPref === "function" && letterMatched() ? fontPref() : "";
+  const lf = ((profile && profile.data && profile.data.prefs) || {}).letterFont;   // a font chosen on the cover letter's own Layout page
+  const fp = FONTS[lf] ? lf : typeof fontPref === "function" && letterMatched() ? fontPref() : "";
   return {
     body: fp || t.body, head: fp || t.head, accent: accent || t.accent, caps: !!(t.nm && t.nm.caps), track: t.nm && t.nm.track ? Math.round(t.nm.track * 250) : 0,
     align: t.nm && t.nm.align === "center" ? "center" : "left",
@@ -31,14 +32,16 @@ function letterTpl() {
   return resumeDesign();
 }
 function letterAccentOf(t) {
-  const c = P().cv, sep = !letterMatched() && CV_TEMPLATES.some(x => x.key === c.letterTemplate);
+  const c = P().cv;
+  if (c.letterAccent && t.accents.includes(c.letterAccent) && (letterMatched() ? c.letterAccentFor === t.key : c.letterTemplate === t.key)) return c.letterAccent;   // a colour chosen for the letter on its own Layout page
+  const sep = !letterMatched() && CV_TEMPLATES.some(x => x.key === c.letterTemplate);
   const tk = sep ? c.letterTemplate : c.template, a = sep ? c.letterAccent : c.accent;
   return tk === t.key && t.accents.includes(a) ? a : t.accent;
 }
 // The letter starts with the resume's design. Choosing another one changes the letter only, never the resume.
 function pickLetterTpl(key) {
   const c = P().cv;
-  if (key === resumeDesign().key) P().prefs.letterMatch = true;
+  if (key === resumeDesign().key) { P().prefs.letterMatch = true; c.letterAccent = ""; }
   else { P().prefs.letterMatch = false; c.letterTemplate = key; c.letterAccent = ""; }
   touchProfile("letter");
 }
@@ -50,6 +53,16 @@ function letterHtml(L, st) {
   const css = k => (FONTS[k] || FONTS.Calibri).css;
   const name = st.caps ? L.name.toUpperCase() : L.name;
   const lay = { ...letterLayout(), ...(st.mm ? { mm: st.mm, lh: st.lh, gap: st.gap } : {}) };
+  const vars = `--lt-accent:${st.accent};--lt-body:${esc(css(st.body))};--lt-head:${esc(css(st.head))};--lt-track:${st.caps ? (st.track / 250).toFixed(2) + "em" : "0"};--lt-mm:${lay.mm};--lt-lh:${lay.lh};--lt-gap:${lay.gap}`;
+  // an email: the subject line, the greeting, the paragraphs, then the name and how to reach you. No letter head and no date.
+  if (L.email) return `<div class="lt-sheet lt-email lt-${st.look}" style="${vars}">
+    <div class="lt-subject"><span>Subject</span>${gapHtml(L.subject)}</div>
+    <p>${gapHtml(L.salutation)}</p>
+    ${L.paragraphs.map(p => `<p class="lt-p">${gapHtml(p)}</p>`).join("")}
+    <p class="lt-sign">${gapHtml(L.signoff)}</p>
+    <p class="lt-signname">${esc(L.signName)}</p>
+    <p class="lt-emailcontact">${esc(L.contact.join("  |  "))}</p>
+  </div>`;
   // gaps ([XXX], [the company]…) are highlighted yellow
   return `<div class="lt-sheet lt-${st.look} ${st.align === "center" ? "lt-center" : ""}" style="--lt-accent:${st.accent};--lt-body:${esc(css(st.body))};--lt-head:${esc(css(st.head))};--lt-track:${st.caps ? (st.track / 250).toFixed(2) + "em" : "0"};--lt-mm:${lay.mm};--lt-lh:${lay.lh};--lt-gap:${lay.gap}">
     <header class="lt-head"><div class="lt-name">${esc(name)}</div><div class="lt-contact">${esc(L.contact.join("  |  "))}</div></header>
@@ -64,6 +77,7 @@ function letterHtml(L, st) {
 
 /* --- The base letter: written once, reused when tailoring --- */
 // What a blank looks like in the letter: the box's name, then an example, in yellow brackets
+const PH_TITLE = "[Job title]";
 const PH = { who: "[Hiring manager's name, e.g. Sam Lee]", company: "[Company name, e.g. Sydney Water]", role: "[Job title, e.g. Graduate Engineer]" };
 // The blanks in a template letter, written [LABEL: what to put there] (each is about ten words, so a template fills about the space it should)
 const LT_TPL = {
@@ -79,7 +93,9 @@ const LT_TPL_PARTS = {
   closing: { label: "Close", purpose: "Thanks, your availability, and a call to action." }
 };
 // a template for any job unless you've chosen "A specific job" (or already typed a job, company or recipient)
-const ltTemplate = () => { try { const d = BL(); return d.mode === "template" || (!d.mode && !d.role && !d.company && !d.recipient); } catch { return false; } };
+// "Who is this letter for?": a template for any job, a specific job, or an email template (a template written as an email: a subject line, no letter head)
+const ltEmail = () => { try { return BL().mode === "email"; } catch { return false; } };
+const ltTemplate = () => { try { const d = BL(); return d.mode === "template" || d.mode === "email" || (!d.mode && !d.role && !d.company && !d.recipient); } catch { return false; } };
 const baseLetter = privateDoc("baseLetter", "jobfinder.baseLetter.v1", () => ({ role: "", company: "", recipient: "", salutation: "Dear Hiring Manager,", parts: COVER_PARTS.map(p => ({ part: p.key, text: "" })), signoff: "Kind regards,", mode: "template", plan: {} }));   // "Kind regards" is the safe Australian default whether or not you have a name to write to
 const BL = () => baseLetter.data;
 const blText = () => BL().parts.map(p => p.text.trim()).filter(Boolean);
@@ -87,7 +103,11 @@ function baseLetterParts(forSample) {
   const p = forSample || !hasProfile(P()) ? SAMPLE_PROFILE : P(), c = p.contact, d = BL();
   const paras = blText();
   const sample = forSample || !paras.length;
+  const asEmail = ltEmail() && !forSample;
   return {
+    email: asEmail,
+    // an email: the subject line, and the resume is attached in the close
+    subject: asEmail ? LR.emailSubject(PH_TITLE, c.name || "Your name", "") : "",
     name: c.name || "Your name",
     contact: [c.location, c.phone ? `${c.phoneCode && !/^(\+|0)/.test(c.phone) ? c.phoneCode + " " : ""}${c.phone}` : "", c.email, c.linkedin ? shortUrl(c.linkedin) : ""].filter(Boolean),
     date: todayAU(),
@@ -97,7 +117,7 @@ function baseLetterParts(forSample) {
     // the Re: line is the job title, with the place and any reference number the ad gives (never "Application for…")
     re: ltTemplate() ? `Re: ${PH.role}` : ((d.role || p.target.title) ? (ltReLine() || `Re: ${d.role || p.target.title}`) : `Re: ${PH.role}${String(d.ref || "").trim() ? ` (Ref ${String(d.ref).trim()})` : ""}`),
     salutation: ltTemplate() ? "Dear Hiring Manager," : LR.greeting(d.salutation && !/^dear hiring manager,?$/i.test(d.salutation.trim()) ? d.salutation : d.recipient, ""),
-    paragraphs: sample ? letterFromProfile(p).map(x => x.text).filter(t => t.trim()) : paras,
+    paragraphs: (sample ? letterFromProfile(p).map(x => x.text).filter(t => t.trim()) : paras).map((t, k, all) => asEmail && k === all.length - 1 && !/resume is attached/i.test(t) ? "My resume is attached. " + t : t),
     signoff: d.signoff || "Kind regards,",
     signName: c.name || ""
   };
@@ -118,7 +138,7 @@ function letterFromProfile(p) {
   const edu = lwEdu(p);   // the degree closest to the job
   const exps = lwJobs(p).slice(0, 2);   // the jobs with bullets, closest to the job first
   // "Event management" reads naturally mid-sentence as "event management"; names like Canva or SQL stay as they are
-  const skills = [...p.skills.hard, ...p.skills.software].slice(0, 3).map(s => / /.test(s) && /^[A-Z][a-z]+( [a-z]+)+$/.test(s) ? lowerFirst(s) : s);
+  const skills = lwSkillsUse(p).slice(0, 3).map(s => / /.test(s) && /^[A-Z][a-z]+( [a-z]+)+$/.test(s) ? lowerFirst(s) : s);
   // a bullet that starts with a verb becomes "I led…"; one that doesn't ("Customer service for 150+ guests") becomes "my work included…"
   const clause = b => { const t = String(b).replace(/[.\s]+$/, ""); if (!t) return null; return (ACTION_START.test(t) || /^(cut|hit|let|shut|split|spread|grew|drove|rose|saw|began|became|bought|caught|dealt|fed|got|hired|knew|left|lost|paid|rode|sought|stood|swept|threw|understood)(?![a-z])/i.test(t)) ? { t: "I " + t[0].toLowerCase() + t.slice(1), verb: true } : { t: "my work included " + t[0].toLowerCase() + t.slice(1), verb: false }; };
   const eduLine = edu && !edu.degree ? (edu.inst ? `I studied at ${edu.inst}.` : "") : edu ? (lwEduStatus(edu).inProgress ? `I am currently completing a ${edu.degree}${edu.inst ? ` at ${edu.inst}` : ""}${edu.end ? `, finishing in ${showDate(edu.end)}` : ""}.` : `I hold a ${edu.degree}${edu.inst ? ` from ${edu.inst}` : ""}.`) : "";
@@ -129,7 +149,7 @@ function letterFromProfile(p) {
     ? `I am applying for the ${role} role at ${company}. What draws me to this employer in particular is ${LT_TPL.hook}. ${credential}`
     : `I am applying for the ${role} role${company ? ` at ${company}` : ""}. ${eduLine}${skills.length ? ` I would bring practical experience in ${listJoin(skills)}.` : ""}`).replace(/\s+/g, " ").trim() });
   const exp = exps.map((e, i) => {
-    const cl = lwBestBullets(e.bullets, 4).map(clause).filter(Boolean);
+    const cl = lwPinFirst(lwBestBullets(e.bullets, 4), e.bullets).map(clause).filter(Boolean);
     if (!cl.length) return "";
     const first = i === 0 ? `As ${/^[aeiou]/i.test(e.title) ? "an" : "a"} ${e.title}${e.org ? ` at ${e.org}` : ""}, ${cl[0].t}.` : `${e.org ? `At ${e.org}` : `As ${e.title}`}, ${cl[0].t}.`;
     // the closest job gets more examples, so the paragraph proves the point
@@ -196,9 +216,20 @@ function renderLetterPage() {
   renderLetterPreview();
   renderSavedLetters();
   if (typeof ltV22Render === "function") ltV22Render();
+  ltEffortRender();
 }
-// The first thing on the page: pick a design, then set its spacing and margins (the same choices as the resume)
-function renderLetterDesigns(boxId = "ltDesigns") {
+// The Layout step: the same choices as the resume's Layout step. Search the designs (filters that switch on and off), pick one, then its colour, font,
+// line spacing and page margins. A design, colour or font chosen here changes the cover letter only, never the resume.
+const ltUi = { filter: [], show: 12 };
+function ltDesignList() {
+  const sel = letterTpl().key, ranked = rankTemplates(), mine = resumeDesign();
+  const list = ranked.filter(({ t }) => tplMatches(t, ltUi.filter) || t.key === sel).map(r => r.t);
+  const i = list.findIndex(t => t.key === mine.key);
+  if (i > 0 && !ltUi.filter.length) list.unshift(...list.splice(i, 1));   // your resume's own design first, when nothing is filtered out
+  return list;
+}
+// Tailor to a job has a smaller version of the same choices (its own box, with only the design, spacing and margins)
+function renderLetterDesignsCompact(boxId) {
   const box = $(boxId);
   if (!box) return;
   const sel = letterTpl().key, ranked = rankTemplates(), L = baseLetterParts();
@@ -210,6 +241,29 @@ function renderLetterDesigns(boxId = "ltDesigns") {
     <div class="b-actions"><button class="linkish" type="button" id="ltAllDesigns">See all ${CV_TEMPLATES.length} designs</button></div>
     <p class="small muted lt-design-note">Your cover letter design matches your resume's default design, so it is listed first. Choosing a different design here changes the cover letter only, not your resume.</p>
     <div class="page-setup">${seg("spacing", SPACING, cur.sp, "Line spacing", o => o.unit)}${seg("margins", LETTER_MARGINS, cur.mg, "Page margins", o => o.mm + " mm")}</div>`;
+  fitThumbs();
+}
+function renderLetterDesigns(boxId = "ltDesigns") {
+  if (boxId !== "ltDesigns") return renderLetterDesignsCompact(boxId);
+  const box = $(boxId);
+  if (!box) return;
+  const sel = letterTpl(), L = baseLetterParts(), mine = resumeDesign(), cs = currentLetterStyle();
+  const list = ltDesignList(), shown = list.slice(0, ltUi.show);
+  if (!shown.some(t => t.key === sel.key)) shown.unshift(sel);
+  const best = rankTemplates().filter(r => r.rec).slice(0, 3).map(r => r.t.key);
+  const lay = P().prefs, cur = { sp: lay.letterSpacing || "normal", mg: lay.letterMargins || "normal" };
+  const seg = (path, opts, now, label, unit) => `<div class="q"><div class="q-label" id="lts_${path}">${label}</div><div class="seg seg-fill" role="group" aria-labelledby="lts_${path}">${Object.entries(opts).map(([k, o]) => `<button type="button" data-lt-pref="${path}" data-val="${k}" aria-pressed="${now === k}"><span>${o.label}</span><small>${unit(o)}</small></button>`).join("")}</div></div>`;
+  const left = list.length - ltUi.show;
+  const fontCur = FONTS[lay.letterFont] ? lay.letterFont : "";
+  // The matching resume's stamp (top right of its card): hover for where that resume came from
+  const stampWhy = ltTemp ? "Matching resume uploaded" : "Matching resume from profile";
+  box.innerHTML = `<div class="lt-search"><p class="q-hint">Choose as many filters as you like: a design has to match one choice from each row you use.</p>${tplFilterHtml(ltUi.filter, "data-lt-filter data-val")}</div>
+    <div class="b-tpls lt-tpls" role="group" aria-label="Cover letter designs, best match first">${shown.map(t => `<button type="button" class="tpl-card" data-lt-tpl="${t.key}" aria-pressed="${sel.key === t.key}" aria-label="${esc(t.name)}. ${esc(t.goodFor)}${t.key === mine.key ? ". " + stampWhy : ""}"><span class="tpl-thumb"><div>${letterHtml(L, { ...letterStyle(t, sel.key === t.key ? cs.accent : t.accent), ...letterLayout() })}</div></span><span class="tpl-name">${esc(t.name)}</span>${t.key === mine.key ? `<span class="tpl-stamp" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg><span class="tpl-stamp-tip" role="tooltip">${stampWhy}</span></span>` : ""}${best.includes(t.key) || t.ats ? `<span class="tpl-badges">${best.includes(t.key) ? '<span class="tpl-badge">Best match</span>' : ""}${t.ats ? '<span class="tpl-badge ats">ATS-friendly</span>' : ""}</span>` : ""}</button>`).join("") || `<p class="small muted">No design matches all of those. Switch one of the filters off.</p>`}</div>
+    ${left > 0 ? `<div class="b-actions"><button class="btn" type="button" data-lt-more="1">Show ${Math.min(12, left)} more designs</button><span class="small muted">${list.length} ${list.length === 1 ? "match" : "matches"}</span></div>` : ""}
+    <p class="small muted lt-design-note">Your cover letter starts in your resume's design. Choosing a different design, colour or font here changes the cover letter only, not your resume.</p>
+    <div class="q"><div class="q-label" id="ltColL">Colour</div><div class="swatches" role="group" aria-labelledby="ltColL">${sel.accents.map(a => `<button type="button" class="swatch" data-lt-accent="${a}" style="background:${a}" aria-pressed="${a === cs.accent}" aria-label="Accent colour ${a}"></button>`).join("")}</div></div>
+    <div class="q"><label class="q-label" for="ltFontSel">Font</label><select id="ltFontSel" data-lt-font="1"><option value="">${esc(sel.body === sel.head ? sel.body : sel.head + " and " + sel.body)} (the design's own${letterMatched() && fontPref() ? ", or your resume's font" : ""})</option>${fontOptions(fontCur)}</select><p class="q-hint">Every font here is read well by applicant tracking systems, and is used in the preview, Word and PDF.</p></div>
+    <div class="page-setup">${seg("spacing", SPACING, cur.sp, "Line spacing", o => o.unit)}${seg("margins", LETTER_MARGINS, cur.mg, "Page margins", o => o.mm + " mm")}</div>${languageQ()}`;
   fitThumbs();
 }
 // The preview can be typed in: a paragraph goes back into its box on the left, the greeting and sign-off into theirs
@@ -270,7 +324,7 @@ function renderLetterPreview(keepPaper) {
   // words the AI put in that aren't in the profile (shown in red in the paragraph)
   const made = parts.flatMap((pp, k) => (pp.madeUp || []).filter(t => pp.text.includes(t)).map(t => ({ i: k, t })));
   const thinIdx = parts.map((p, i) => p.text.trim() && wordCount(p.text) < partMin(p.part, r) ? i : -1).filter(i => i >= 0);
-  const quality = own ? coverQuality(parts.map(p => p.text), profileToText(P()) + "\n" + (d.role || "") + " " + (d.company || "") + "\n" + String(ltPlan().salary || ""), { allowSalary: !!ltPlan().salary }).concat(ltIssueRows()) : [];
+  const quality = own ? coverQuality(parts.map(p => p.text), profileToText(P()) + "\n" + (d.role || "") + " " + (d.company || "") + "\n" + String(ltPlan().salary || ""), { allowSalary: !!ltPlan().salary, jobWords: ltJobWords() }).concat(ltIssueRows()) : [];
   // each warning can be clicked to jump to the paragraph it's about, and has a button that fixes just that one thing
   const goBtn = i => `<button class="linkish" type="button" data-ck="go:${i}">Go to ${esc(lab(i).toLowerCase())}</button>`;
   const row = (cls, title, detail, acts, go) => `<li class="ck${go ? " ck-go" : ""}"${go ? ` data-ck-go="${go}" tabindex="0" role="button" aria-label="${esc(String(title).replace(/<[^>]+>/g, ""))}. Go to it"` : ""}><span class="ico ${cls}"></span><div><div class="title">${title}</div><div class="detail">${detail}</div>${acts ? `<div class="ck-acts">${acts}</div>` : ""}</div></li>`;
@@ -299,18 +353,18 @@ function renderLetterPreview(keepPaper) {
   const sc = letterScore(parts, r, wc, gaps, quality.concat(made)), se = $("ltScore");
   if (se) se.innerHTML = `Cover letter strength: <span style="color:${sc >= 80 ? "var(--good)" : sc >= 60 ? "var(--accent)" : "var(--warn)"}">${sc}/100</span>`;
   // a letter with gaps can still be saved, copied and downloaded as a draft (Word highlights the gaps yellow)
-  ["ltDl", "ltCopy", "ltCopyEmail"].forEach(id => { const b = $(id); if (b) b.disabled = !own; });
+  ["ltDl"].forEach(id => { const b = $(id); if (b) b.disabled = !own; });
   $("ltSave").disabled = !own;
   if (typeof ltV22Preview === "function") ltV22Preview();
   $("ltDlStatus").textContent = !own ? "" : gaps && !ltTemplate() ? `${gaps} gap${gaps === 1 ? "" : "s"} still highlighted in yellow. You can save or download it as a draft; Word keeps the highlight.` : "";
 }
 async function downloadBaseLetter(kind, btn) {
   const L = baseLetterParts(), st = currentLetterStyle();
-  const name = `${(L.signName || "Cover").replace(/[\\/:*?"<>|]+/g, "")} - Cover Letter${BL().role ? ` - ${BL().role}` : ""}`.replace(/[\\/:*?"<>|]+/g, "").slice(0, 150) + "." + kind;
+  const name = `${(L.signName || "Cover").replace(/[\\/:*?"<>|]+/g, "")} - ${L.email ? "Cover Email" : "Cover Letter"}${BL().role ? ` - ${BL().role}` : ""}`.replace(/[\\/:*?"<>|]+/g, "").slice(0, 150) + "." + kind;
   if (kind === "txt") return downloadTextFile(name, letterPlainText(L), $("ltDlStatus"), btn);
   await downloadMade(name, () => kind === "pdf" ? buildCoverPdf(L, st) : buildCoverDocx(L, st), $("ltDlStatus"), btn);
 }
-const letterPlainText = L => [L.name, L.contact.join(" | "), "", L.date, "", ...(L.recipient && L.recipient.length ? [...L.recipient, ""] : []), ...(L.greetFirst ? [L.salutation, "", ...(L.re ? [L.re, ""] : [])] : [...(L.re ? [L.re, ""] : []), L.salutation, ""]), ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, "", L.signName].join("\n");
+const letterPlainText = L => L.email ? [`Subject: ${L.subject}`, "", L.salutation, "", ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, L.signName, L.contact.filter(x => /\d{6,}|@/.test(x)).join(" | ")].filter((x, k, a) => !(x === "" && a[k - 1] === "")).join("\n").trim() : [L.name, L.contact.join(" | "), "", L.date, "", ...(L.recipient && L.recipient.length ? [...L.recipient, ""] : []), ...(L.greetFirst ? [L.salutation, "", ...(L.re ? [L.re, ""] : [])] : [...(L.re ? [L.re, ""] : []), L.salutation, ""]), ...L.paragraphs.flatMap(p => [p, ""]), L.signoff, "", L.signName].join("\n");
 let ltSaveTimer = null;
 function letterEdited() {
   baseLetter.save();
@@ -331,7 +385,11 @@ onInit(() => {
     else if (i != null) { const bp = BL().parts[+i]; bp.text = e.target.value; lwBack(+i, e.target.value); partCount(+i); letterEdited(); }
   };
   $("view-letter").addEventListener("input", ltEdit);
-  $("view-letter").addEventListener("change", e => { if (e.target.dataset.lt) ltEdit(e); });
+  $("view-letter").addEventListener("change", e => {
+    if (e.target.dataset.lt) ltEdit(e);
+    else if (e.target.matches && e.target.matches('select[data-v22="lang"]')) { P().prefs.lang = e.target.value; touchProfile("letter"); applySpellLang(); renderLetterDesigns(); renderLetterPreview(); }   // the spelling the page checks and fixes to
+    else if (e.target.dataset.ltFont) { P().prefs.letterFont = e.target.value; touchProfile("letter"); renderLetterDesigns(); renderLetterPreview(); }   // the letter's font; empty follows the design (or the resume's font)
+  });
   // Start from my profile (top of the page) and Write all (top of the letter) do the same thing
   const writeAll = async btn => {
     const st = $("ltStatus");
@@ -350,13 +408,8 @@ onInit(() => {
   });
   $("ltImport").addEventListener("click", () => $("ltFile").click());
   $("ltFile").addEventListener("change", async () => { const f = $("ltFile").files[0]; $("ltFile").value = ""; if (f) await ltImportFile(f); });
-  dlMenu("ltDl", { docx: b => downloadBaseLetter("docx", b), pdf: b => downloadBaseLetter("pdf", b), txt: b => downloadBaseLetter("txt", b) });
-  $("ltCopy").addEventListener("click", async () => {
-    const L = baseLetterParts(), b = $("ltCopy");
-    const text = letterPlainText(L);
-    try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = "Couldn't copy"; }
-    setTimeout(() => { b.textContent = "Copy text"; }, 1800);
-  });
+  // (an email template is plain text: Word and PDF are not offered for it)
+  dlMenu("ltDl", { get docx() { return ltEmail() ? null : b => downloadBaseLetter("docx", b); }, get pdf() { return ltEmail() ? null : b => downloadBaseLetter("pdf", b); }, txt: b => downloadBaseLetter("txt", b) });
   $("ltDesignBtn").addEventListener("click", () => openView("cv", { kind: "letter" }));
   $("ltSave").addEventListener("click", saveLetterTemplate);
   $("view-letter").addEventListener("click", e => {
@@ -371,6 +424,13 @@ onInit(() => {
     const ac = e.target.closest("[data-lt-altclose]"); if (ac) { const box = $("lts-" + ac.dataset.ltAltclose); if (box) box.innerHTML = ""; return; }
     const tp = e.target.closest("[data-lt-tpl]");
     if (tp) { pickLetterTpl(tp.dataset.ltTpl); renderLetterDesigns(); renderLetterPreview(); return; }
+    const ef = e.target.closest("[data-lt-effort]");
+    if (ef) { BL().effort = ef.dataset.ltEffort; baseLetter.save(); ltEffortRender(); return; }
+    const fl = e.target.closest("[data-lt-filter]");
+    if (fl) { const v = fl.dataset.val; ltUi.filter = v === "all" ? [] : ltUi.filter.includes(v) ? ltUi.filter.filter(x => x !== v) : [...ltUi.filter, v]; ltUi.show = 12; renderLetterDesigns(); return; }
+    if (e.target.closest("[data-lt-more]")) { ltUi.show += 12; renderLetterDesigns(); return; }
+    const sw = e.target.closest("[data-lt-accent]");
+    if (sw) { const c = P().cv, t = letterTpl(); c.letterAccent = sw.dataset.ltAccent; c.letterAccentFor = t.key; if (!letterMatched()) c.letterTemplate = t.key; touchProfile("letter"); renderLetterDesigns(); renderLetterPreview(); return; }
     const pf = e.target.closest("[data-lt-pref]");
     if (pf) { P().prefs[pf.dataset.ltPref === "spacing" ? "letterSpacing" : "letterMargins"] = pf.dataset.val; touchProfile("letter"); renderLetterDesigns(); renderLetterPreview(); return; }
     if (e.target.closest("#ltAllDesigns")) { openView("cv", { kind: "letter" }); return; }
@@ -380,6 +440,7 @@ onInit(() => {
       const t = (savedLetters.data.list || [])[+u.dataset.ltUse]; if (!t) return;
       const before = JSON.parse(JSON.stringify(BL()));
       Object.assign(BL(), JSON.parse(JSON.stringify(t.letter)));
+      ltSavedSig = letterSig();
       baseLetter.save(true); renderLetterPage(); syncBaseToTailor();
       $("ltPick").hidden = true; $("ltPickBtn").setAttribute("aria-expanded", "false"); ltShowStep(1);
       const st = $("ltStatus"); st.innerHTML = `Started from “${esc(t.name)}”. <button class="linkish" type="button" id="ltUndoUse">Undo</button>`;
@@ -389,7 +450,7 @@ onInit(() => {
     const del = e.target.closest("[data-lt-del]");
     if (del) { if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Delete it?"; setTimeout(() => { if (del.isConnected) { del.dataset.sure = ""; del.textContent = "Delete"; } }, 4000); return; } savedLetters.data.list.splice(+del.dataset.ltDel, 1); savedLetters.save(true); renderSavedLetters(); }
   });
-  viewHooks.letter = () => Promise.all([baseLetter.ready, savedLetters.ready]).then(renderLetterPage);
+  viewHooks.letter = () => Promise.all([baseLetter.ready, savedLetters.ready]).then(() => { renderLetterPage(); if (!ltSavedSig) ltSavedSig = letterSig(); });   // (what was there when the page opened is not "unsaved": only what is changed or written here)
   baseLetter.on(() => { if (currentView === "letter") renderLetterPage(); if (currentView === "cv" && cvLetters()) renderCv(); syncBaseToTailor(); });
   onProfile(() => { if (currentView === "letter") renderLetterPreview(); });
 });
@@ -655,6 +716,13 @@ function renderLetterPick(box = $("ltPick")) {
 async function saveLetterTemplate() {
   const st = $("ltDlStatus");
   if (!blText().length) { st.textContent = "Write your letter first, then save it."; return; }
+  // saving to your profile needs an account (inside Claude, or where accounts aren't switched on, it saves privately as before)
+  if (saveNeedsAccount()) {
+    acctDialog("up");
+    const m = document.querySelector("#acctDlg #acctMsg");
+    if (m) { m.textContent = "Saving a cover letter to your profile needs a free account. Sign up or sign in, then press Save again."; m.className = "acct-msg"; }
+    return;
+  }
   const gapsNow = (blText().join(" ").match(TOKEN_RE) || []).length + (BL().company.trim() ? 0 : 1) + (BL().role.trim() ? 0 : 1);
   const d = BL();
   const name = await askName({ title: "Save as a cover letter template", text: "It's saved to your profile, so you can start your next letter from it. Saving again with the same name replaces it.", label: "Name it", value: [d.role || P().target.title || "My cover letter", d.company].filter(Boolean).join(" – ") });
@@ -664,6 +732,7 @@ async function saveLetterTemplate() {
   list.unshift({ id: uid8(), name, saved: new Date().toISOString(), letter: JSON.parse(JSON.stringify(d)) });
   if (list.length > MAX_SAVED) list.length = MAX_SAVED;
   savedLetters.save(true);
+  ltSavedSig = letterSig();   // (saved: leaving this page won't ask)
   renderSavedLetters();
   st.textContent = `“${name}” is ${whereWords(savedLetters.where === "loading" ? profile.where : savedLetters.where)}.${gapsNow ? ` It was saved with ${gapsNow} gap${gapsNow === 1 ? "" : "s"} still highlighted in yellow. Fill ${gapsNow === 1 ? "it" : "them"} in when you use it.` : ""}`;
 }
@@ -685,6 +754,7 @@ function goPart(i, o = {}) {
   setTimeout(() => {
     el.focus({ preventScroll: true });
     if (o.gap) { const m = new RegExp(TOKEN_RE.source).exec(el.value); if (m) el.setSelectionRange(m.index, m.index + m[0].length); }
+    if (o.sentence) { const at = el.value.indexOf(o.sentence); if (at >= 0) el.setSelectionRange(at, at + o.sentence.length); }
   }, reduceMotion() ? 0 : 350);
   wrap.classList.remove("flash-part"); void wrap.offsetWidth; wrap.classList.add("flash-part");
 }
@@ -717,6 +787,11 @@ function ckFix(spec) {
   const [kind, arg, arg2] = String(spec).split(":"), i = +arg, p = BL().parts[i];
   if (kind === "go" || kind === "gap" || kind === "field") return ckGo(spec);
   if (!p) return;
+  // No AI connected: Reword has nobody to ask, so the button simply takes you to the paragraph (the sentence it is about is selected), ready to edit by hand
+  if (typeof aiGateOn !== "undefined" && aiGateOn && ["rw", "rwlen", "reword"].includes(kind)) {
+    const pi = kind === "rw" ? +arg2 : i, q = kind === "rw" ? ltQualityNow[+arg] : null, t = q ? ltFixTarget(q, pi, BL().parts[pi].text) : { sel: -1 };
+    return goPart(pi, { sentence: t.sel >= 0 ? (ltSentences(BL().parts[pi].text)[t.sel] || "").trim() : "" });
+  }
   if (kind === "rw") { const q = ltQualityNow[+arg], pi = +arg2, t = q ? ltFixTarget(q, pi, BL().parts[pi].text) : { sel: -1, ask: "" }; goPart(pi); return rewordMenu(pi, { sel: t.sel, free: t.ask }); }
   if (kind === "rwlen") { goPart(i); return rewordMenu(i, { modes: [arg2 === "shorter" ? "shorter" : "longer"], free: arg2 === "shorter" ? "Cut the least useful detail." : "Add one specific detail or example from my profile." }); }
   if (kind === "reword") { goPart(i); return rewordMenu(i); }
