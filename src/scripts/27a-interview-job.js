@@ -111,7 +111,8 @@ function jpActsHtml() {
 const ivState = { showAll: false, timer: null, open: null };
 
 /* --- The company's profile, in a pop-out (the same profile as the Company guides page) --- */
-const directoryEntry = name => { try { const s = empSlug(name); return s ? employers().find(e => e.kind === "dir" && empSlug(e.name) === s) || null : null; } catch { return null; } };
+// The directory is in the database: the answer is used if we already have it, and the plan is drawn again when it arrives.
+const directoryEntry = name => { try { return dirLookupNow(name, e => { if (e && currentView === "interview" && typeof renderJobAdvice === "function") renderJobAdvice(); }) || null; } catch { return null; } };
 function coPopDialog() {
   let d = $("ivCoPop");
   if (d) return d;

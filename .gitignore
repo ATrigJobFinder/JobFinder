@@ -6,3 +6,5 @@ dist/
 .env
 .env.*
 !.env.example
+# SQL made by  npm run seed:directory -- --sql  (a copy of data/directory/)
+supabase/seed/

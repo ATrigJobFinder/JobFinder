@@ -24,17 +24,21 @@ src/
   styles/             the CSS, one file per part of the app, joined in file-name order
   scripts/            the JavaScript, one file per part of the app, joined in file-name order
 scripts/
-  build.mjs           joins src/ into one self-contained page in dist/
+  build.mjs           joins src/ into dist/: one self-contained page, and the website as a page plus its assets
+  seed-directory.mjs  sends the Unlisted jobs employers (data/directory/) to Supabase
   serve.mjs           the local server behind npm run dev
   make-places.mjs     rebuilds the suburb and country-code list (src/scripts/20a-…)
   make-schools.mjs    builds the list of Australian schools (src/scripts/21b-…) from ACARA's file
   make-globe.mjs      rebuilds the land map for the Home globe (src/scripts/36e-…)
   make-globe-texture.mjs  rebuilds the satellite picture of the Earth for the Home globe (src/scripts/36g-…)
+data/
+  directory/          the Unlisted jobs employers and their profiles: kept in Supabase, not in the page (docs/26)
 account/
   supabase.sql        the database table and rules for optional sign-up accounts (see Accounts)
 dist/
-  job-finder.html     the page as published to Claude
-  index.html          the same page as a full HTML document, to host anywhere
+  job-finder.html     everything in one file: the page as published to Claude
+  index.html          the website's page; needs the assets folder beside it
+  assets/             the website's styles, script and Earth picture
 docs/                 notes on how each version works, oldest first
 ```
 
@@ -65,7 +69,7 @@ The scripts are joined, in order, inside a single function. A function or variab
 | 28–32 | Applications tracker, LinkedIn review, aptitude tests, learning |
 | 33–34 | Duplicate matching, the job board (34, with `candidateMatch`, which scores how well a person fits an ad), talent pool and the ad check |
 | 34c–34i | The Employer side, laid out like SEEK's employer site: Dashboard, Jobs, a five-step Post a job (candidate questions with must-haves, ad types, branding), Candidates (pipeline, panel, notes, messages), Talent Search (saved searches, talent pools), Reports and a Company profile. 34c is the shared pieces and data, 34d is sample data (“Try sample data”), 34e to 34i are the pages. Styles in `49-employer.css`. See `docs/23-employer-side-v36.md` |
-| 35, 35a, 37 | Home plan, the Company guides page (35a: every employer, the full guides, picking employers for the Application tracker, and finding the company in a job ad) and start-up |
+| 35, 35a, 37 | Home plan, the Company guides page (35a: the full guides, the directory employers read from Supabase 50 at a time by 35b, picking employers for the Application tracker, and finding the company in a job ad) and start-up |
 
 ## Build
 
@@ -73,10 +77,10 @@ The scripts are joined, in order, inside a single function. A function or variab
 npm run build
 ```
 
-This writes `dist/job-finder.html` and `dist/index.html`.
+This writes `dist/job-finder.html`, `dist/index.html` and `dist/assets/`.
 
 - **To update the Claude artifact,** give Claude `dist/job-finder.html`, or this whole folder, and ask it to publish to the Job Finder artifact.
-- **To put it on your own website,** upload `dist/index.html` to any static host, such as Vercel, Netlify, Cloudflare Pages or GitHub Pages.
+- **To put it on your own website,** upload the whole `dist` folder (`index.html` and `assets/`) to any static host, such as Vercel, Netlify, Cloudflare Pages or GitHub Pages.
 
 ## Outside Claude: what's different
 

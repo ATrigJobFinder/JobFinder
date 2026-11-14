@@ -285,9 +285,9 @@ const jobTracked = j => T().find(i => DEDUP.same(DEDUP.prep({ title: i.title, co
 function careerLink(j) {
   const own = [j, ...(j.also || [])].find(x => x.sourceType === "company" && safeUrl(x.url) && !/\/\/(?:www\.)?example\.com\b/i.test(x.url));
   if (own) return { url: safeUrl(own.url), exact: true };
-  const nm = s => norm(String(s || "")).replace(/\b(pty|ltd|limited|group|australia|the)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
-  const co = nm(j.company);
-  const hit = co.length > 3 && COMPANY_DIRECTORY.find(c => { const d = nm(c.n); return d && (d === co || ((co.startsWith(d) || d.startsWith(co)) && Math.min(d.length, co.length) > 3)); });
+  // The directory is in the database: use the answer if we have it, and draw the job again when it arrives.
+  const co = String(j.company || "").replace(/\b(pty|ltd|limited)\b\.?/gi, "").trim();
+  const hit = co.length > 3 ? dirLookupNow(co, e => { if (e && e.u && currentView === "jobs") renderJobs(); }) : null;
   if (hit && hit.u) return { url: hit.u, exact: true };
   return { url: "https://www.google.com/search?q=" + encodeURIComponent(`${j.company || ""} careers jobs Australia`), exact: false };
 }

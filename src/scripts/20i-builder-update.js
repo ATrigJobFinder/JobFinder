@@ -163,13 +163,10 @@ function titleKind(title) {
   return hint ? hint[1] : "";
 }
 const VOLUNTEER_ORGS = "Red Cross;St John Ambulance;Surf Life Saving Australia;RSPCA;Rotary Club;Lions Club;Local sporting club;School parents' association;Foodbank;OzHarvest;The Salvation Army;St Vincent de Paul Society;Clean Up Australia;Landcare;Meals on Wheels;Lifeline;headspace;Scouts Australia;Girl Guides;State Emergency Service (SES);Rural Fire Service;Country Fire Authority;Local church;Local library;Local council";
-let empDirCache = {};
+// Employers in these industries: the companies with a full guide, then the directory's names once the database has sent them
 function directoryNames(industries) {
-  const key = industries.join(",");
-  if (empDirCache[key] && empDirCache[key].n === employers().length) return empDirCache[key].list;
-  const list = employers().filter(e => industries.includes(e.industry)).map(e => e.name.replace(/\s*\((?:[^)]*)\)\s*$/, ""));
-  empDirCache[key] = { n: employers().length, list };
-  return list;
+  const tidy = n => n.replace(/\s*\((?:[^)]*)\)\s*$/, "");
+  return [...guideEmployers().filter(e => industries.includes(e.industry)).map(e => tidy(e.name)), ...dirNames(industries).map(tidy)];
 }
 // What the Employer box offers: businesses that someone with this job title could really have worked for
 function employersFor(inp) {

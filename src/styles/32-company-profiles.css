@@ -35,3 +35,14 @@
 .co-adv-link { margin: 0; font-size: var(--step--1); font-weight: 600; }
 .co-adv-link a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
 .co-adv-link a:hover, .co-adv-link a:focus-visible { text-decoration-thickness: 2px; }
+
+/* Directory employers use the same card as a full guide, without a rank number */
+.co-card.co-dir > summary { grid-template-columns: minmax(0, 1fr) auto; }
+.co-dir .co-summary + .co-summary { margin-top: 2px; }
+
+/* The directory arrives 50 at a time: the loading line, "Show 50 more", and the note when it can't be reached */
+.co-loading { padding: 16px 4px; color: var(--muted); }
+.co-more { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 12px 0 4px; }
+.co-fail { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
+.co-fail .btn { margin-left: 6px; }
+.co-gbody { margin-bottom: 14px; }

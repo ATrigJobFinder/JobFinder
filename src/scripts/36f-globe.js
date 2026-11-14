@@ -816,4 +816,15 @@ function initGlobe() {
   };
   setTimeout(() => globeTier(1), 0);
 }
-onInit(initGlobe);
+// The globe is built the first time Home is shown, not when the site loads: compiling its shaders and unpacking the
+// picture of the Earth is the heaviest single thing on the site, and someone who opens another page never needs it.
+onInit(() => {
+  let started = false;
+  const prev = viewHooks.home;
+  viewHooks.home = o => {
+    if (started) { if (prev) prev(o); return; }
+    started = true;
+    initGlobe();          // puts its own home hook in front of this one, which then runs the line above
+    viewHooks.home(o);
+  };
+});

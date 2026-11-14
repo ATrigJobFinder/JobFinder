@@ -39,6 +39,18 @@ const server = http.createServer((req, res) => {
     }
     return;
   }
+  // the page's styles, script and Earth picture (dist/assets/ in a real build), made fresh from src/
+  if (url.pathname.startsWith("/assets/")) {
+    try {
+      const body = build().files[url.pathname.slice(1)];
+      if (body) {
+        const type = { ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".jpg": "image/jpeg" }[path.extname(url.pathname)] || "application/octet-stream";
+        res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
+        res.end(body);
+        return;
+      }
+    } catch { /* the page itself reports a failed build */ }
+  }
   if (url.pathname === "/favicon.ico") { res.writeHead(204); res.end(); return; }
   res.writeHead(404, { "Content-Type": "text/plain" });
   res.end("Not found. Job Finder is at /");
